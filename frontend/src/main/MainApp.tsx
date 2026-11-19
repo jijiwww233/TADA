@@ -28,6 +28,7 @@ import { flushSync } from 'react-dom'
 import type { ImageItem } from '../api'
 import PipButton, { type PipHandle } from '../PipButton'
 import { useWiringApi, useWiringImport, useWiringResource } from '../api/useWiring'
+import { errorText } from '../api/errors'
 import type { WiringApi } from '../api/wiring'
 import type { RecommendationResponse } from '../recommendation/contract'
 import { collectDroppedFiles } from '../localImport/collect'
@@ -40,6 +41,8 @@ import '../pip/fable-pip.css'
 import './refine.css'
 // 设计系统组件层：放在所有页面样式之后，统一按钮、下拉、标签、提示（只用 styles/tokens.css 的令牌）
 import '../styles/design-system.css'
+// 手机专用（触屏 + 窄屏），排在最后；电脑不会命中
+import '../styles/phone.css'
 import { REFINE } from './refine'
 
 // 动效变量（--mo-*）装到 <html> 上，CSS 和注入的 GlassFolder 样式都读这一份
@@ -125,6 +128,15 @@ export default function MainApp() {
   const analyzing = useMemo(() => analyzingIds(analysis), [analysis])
   const [results, setResults] = useState<LibraryResult | null>(null)
   const [pendingSearch, setPendingSearch] = useState<number | null>(null)
+  /** 引导页示例搜索框跳过来时带的 ?q=；只消费一次，然后从地址栏去掉。 */
+  const [initialQuery] = useState(() => new URLSearchParams(location.search).get('q')?.trim() ?? '')
+  // 只把 ?q= 从地址栏去掉；真正的搜索在 Library 挂载后触发（避免在 MainApp 提前 return 之前加 Hook）。
+  useEffect(() => {
+    if (!initialQuery) return
+    const url = new URL(window.location.href)
+    url.searchParams.delete('q')
+    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash)
+  }, [initialQuery])
   const requestVersion = useRef(0)
   const actionMode = useRef(api)
   actionMode.current = api
@@ -334,10 +346,10 @@ export default function MainApp() {
         setResults({ text, items: hitImages(response.items, manifest.items), docked })
         if ('degraded' in response && response.degraded) say('已使用本地搜索')
       }
-    } catch {
+    } catch (error) {
       if (version === requestVersion.current && actionMode.current === api) {
         setResults({ text, items: [], groups: reference ? [] : undefined, docked })
-        say(reference ? '要参考没成功：推荐服务没响应，稍后再试' : '搜索没成功：服务没响应，检查网络后再试')
+        say(errorText(error, reference ? '要参考没成功：网络或服务出错，稍后再试' : '搜索没成功：网络或服务出错，检查网络后再试'))
       }
     } finally {
       setPendingSearch(current => current === version ? null : current)
@@ -351,7 +363,7 @@ export default function MainApp() {
       setResults({ text: 'match_basis' in response && response.match_basis === 'palette' ? '配色相近的图片' : '相似图片', similar: true, items: hitImages(response.items, manifest.items).filter(row => row.id !== item.id) })
       navigate('library')
       setWallRequest(n => n + 1)
-    } catch { say('找相似没成功：服务没响应，稍后再试') }
+    } catch (error) { say(errorText(error, '找相似没成功：网络或服务出错，稍后再试')) }
   }
   const createProject = async (title: string) => {
     try {
@@ -390,7 +402,7 @@ export default function MainApp() {
       navigate('library')
       setHue(c.h)
       setWallRequest(n => n + 1)
-    } catch { say('按颜色找没成功：服务没响应，稍后再试') }
+    } catch (error) { say(errorText(error, '按颜色找没成功：网络或服务出错，稍后再试')) }
   }
   const clearResults = () => {
     requestVersion.current += 1
@@ -560,12 +572,11 @@ export default function MainApp() {
                 <p className="ds-alert" role="alert">读不到素材库：后台服务没响应。确认服务已启动、网络正常后，点「重试」。
                   <button type="button" className="ds-btn ds-btn--secondary ds-btn--sm" onClick={library.reload}>重试</button></p>
               )}
-              <Library manifest={manifest} onOpen={openDetail} onPending={() => { setKeep(new Set()); setPendingOpen(true) }}
+              <Library manifest={manifest} initialQuery={initialQuery} onOpen={openDetail} onPending={() => { setKeep(new Set()); setPendingOpen(true) }}
                 platforms={platforms} onPlatforms={setPlatforms} hue={hue} onHue={setHue} wallRequest={wallRequest}
                 onSaveProject={saveProject} results={results} searching={pendingSearch !== null} onSearch={search} onClear={clearResults}
                 pendingCount={pendingItems.length} reduce={reduce || !!reducedMotion}
                 searchActive={!detail && !pendingOpen} sort={sort} api={api} analyzing={analyzing}
-                onFindByColor={() => { setFilterOpen(false); setColorOpen(true) }}
                 onImportFiles={files => void importer.start(files)} />
             </>
           ) : view === 'settings' ? (

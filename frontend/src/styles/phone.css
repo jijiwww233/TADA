@@ -1,0 +1,73 @@
+/* =====================================================================
+   手机专用（触屏 + 窄屏）。
+   判断条件：没有悬停、指针粗（手指），而且宽度 ≤ 600px。
+   有鼠标的电脑（不管窗口拉多窄）都不会命中这里，所以电脑的样子不受影响。
+   这份文件排在 design-system.css 之后加载，只写手机上要变的地方。
+   截图时请用带触屏的手机模拟（Chrome 设备模式 / Playwright isMobile + hasTouch），
+   只改窗口宽度不会命中这些样式。
+   ===================================================================== */
+
+@media (hover: none) and (pointer: coarse) and (max-width: 600px) {
+
+  /* ---------- a. 素材库首页 ---------- */
+
+  /* 左右只留窄边距，图片尽量大 */
+  .m-app { --m-page-gutter: 12px; }
+  .m-app .m-wall-wrap { padding-inline: var(--m-page-gutter); }
+  .m-app .m-sl-in { padding-inline: var(--m-page-gutter); }
+  .m-app .m-tiles { padding-top: var(--space-2); }
+  .m-app .m-tiles .react-photo-album--masonry .react-photo-album--track { row-gap: var(--space-4); }
+  .m-app .m-tile-cap { margin-top: 6px; }
+  /* 手机没有悬停：按下时图片轻微变暗，算作“点到了”的反馈 */
+  .m-app .m-tile { -webkit-tap-highlight-color: transparent; }
+  .m-app .m-tile:active img { filter: brightness(0.92); }
+
+  /* 顶栏：只留 TADA、中间的切换按钮、「导入 +」 */
+  .m-app .m-appbar { padding-inline: var(--m-page-gutter); }
+  .m-app .m-brand-float {
+    left: var(--m-page-gutter); min-width: 44px; min-height: 44px; padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .m-app .m-appbar[data-page='library'] .m-appbar-tools > :is(.m-hb-dot, .m-gm-word, .m-appbar-wheel-host) { display: none; }
+  .m-app .m-appbar-tools .m-hb {
+    min-width: 44px; min-height: 44px; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .m-app .m-appbar-tools .m-hb:active:not(:disabled) { color: var(--color-text-accent); }
+  .m-app .m-appbar-center .m-gm-head { -webkit-tap-highlight-color: transparent; }
+
+  /* 搜索区：放大镜 + 大字一行，「找图 · 要参考」一行，模式说明一行，「试试」一行 */
+  .m-app .m-sl-wrap { padding-top: var(--space-6); }
+  .m-app .m-sl-wrap .m-sl-anchor { margin-bottom: var(--space-4); }
+  .m-app .m-sl-v2:not(.is-floating) .m-sl-input { font-size: clamp(26px, 7.6vw, 32px); }
+  .m-app .m-sl-v2:not(.is-floating) .m-sl-icon { margin-left: -10px; }
+  .m-app .m-sl-v2:not(.is-floating) .m-sl-mode { min-width: 44px; justify-content: center; }
+  .m-app .m-sl-sub { gap: var(--space-1); padding-top: var(--space-2); }
+
+  /* 「试试」：放不下就横着滑；右边缘淡出，看得出后面还有。
+     没有悬停，所以字比电脑上深一档（次要色），按下时变陶土橙并垫一层浅棕 */
+  .m-app .m-sl-tries {
+    align-self: stretch;
+    margin-inline: calc(var(--m-page-gutter) * -1);
+    font-size: var(--font-size-body);
+    padding: 0 var(--m-page-gutter);
+    max-width: none;
+    align-items: center;
+    scroll-padding-inline: var(--m-page-gutter);
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+  .m-app .m-sl-tries-lead { flex: none; color: var(--color-text-secondary); }
+  .m-app .m-sl-try-sep { flex: none; color: var(--color-text-tertiary); }
+  .m-app .m-sl-try {
+    flex: none; min-width: 44px; min-height: 44px; padding: 0 var(--space-2);
+    color: var(--color-text-secondary);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .m-app .m-sl-try:last-child { margin-right: 28px; }
+  .m-app .m-sl-try:active { color: var(--color-text-accent); background: var(--brand-tan); }
+  .m-app .m-sl-modehint { color: var(--color-text-secondary); }
+
+  /* 吸顶后的小搜索框：左右也只留窄边距 */
+  .m-app .m-sl-anchor > .m-searchline.is-floating { width: calc(100% - 2 * var(--m-page-gutter)); }
+}

@@ -1,4 +1,5 @@
 import { getImage, getSyncStatus } from '../api'
+import { responseError } from './errors'
 import type { ColorSwatch, ImageDetail, ImageItem, ImportResult, SyncPlatform } from '../api'
 import type { Annotation, AnnotationInput } from '../annotations/contract'
 import { createProjectApi } from '../projects/api'
@@ -62,7 +63,7 @@ export type DemoData = {
 
 export async function wiringJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init)
-  if (!response.ok) throw new Error(`操作失败（${response.status}）`)
+  if (!response.ok) throw responseError(response)
   return response.json()
 }
 

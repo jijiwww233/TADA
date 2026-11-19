@@ -52,8 +52,10 @@ export function introPresentation(flow: IntroFlow, reduced: boolean): CapsulePre
   return {
     icon: ICON_REF, surface: form ? 'card' : 'status',
     actionLabel: form ? C.verifyAction : checked ? C.connected : C.continue,
-    action: <Icon icon={form ? KeyRound : checked && key ? Check : ArrowRight} size={18} className={checked && key ? 'intro-key-check' : undefined} />,
-    onAction: form ? flow.verify : s.phase === 'key' && checked ? flow.skipKey : undefined,
+    // 卡片右上角的钥匙只是身份提示，不是按钮；真正的提交是下面的「验证」。
+    actionDecorative: form,
+    action: <Icon icon={form ? KeyRound : checked && key ? Check : ArrowRight} size={18} strokeWidth={form ? 1.25 : 1.5} className={checked && key ? 'intro-key-check' : undefined} />,
+    onAction: !form && s.phase === 'key' && checked ? flow.skipKey : undefined,
     content: form ? <KeyCard flow={flow} /> : key ?
       (s.keyStatus === 'checking' || s.keyStatus === 'contracting' && s.keyAction === 'verify') ? <span className="intro-checking" aria-label={C.verifying} role="status"><i /><i /><i /></span> :
       checked ? <span className="intro-key-success" role="status">{C.connected}{flow.restartRequired && <><br /><small>重启后生效</small></>}</span> :

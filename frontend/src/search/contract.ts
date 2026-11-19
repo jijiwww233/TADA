@@ -16,7 +16,7 @@ export type SearchResponse =
 export type SearchApi = (query: string) => Promise<SearchResponse>
 
 export class SearchError extends Error {
-  constructor() { super('搜索暂时不可用，请重试') }
+  constructor() { super('网络或服务出错，请稍后重试') }
 }
 
 /** Real Day5 adapter. Raw query is unchanged; no retries or second search. */

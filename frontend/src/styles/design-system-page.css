@@ -11,11 +11,13 @@
 .dsp-title em { font-style: italic; color: var(--color-text-accent); }
 .dsp-lead { max-width: 640px; margin-top: var(--space-6); font-size: var(--font-size-body-lg); line-height: var(--line-height-body); color: var(--color-text-secondary); }
 
-.dsp-section { display: grid; grid-template-columns: minmax(180px, 1fr) 3fr; gap: var(--space-6) var(--space-10); padding: var(--space-12) 0; border-bottom: 1px solid var(--color-border-subtle); }
+.dsp-section { display: grid; grid-template-columns: minmax(240px, 300px) minmax(0, 1fr); align-items: start; gap: var(--space-6) var(--space-10); padding: var(--space-12) 0; border-bottom: 1px solid var(--color-border-subtle); }
 .dsp-section > :not(.dsp-section-head) { grid-column: 2; min-width: 0; }
-.dsp-section-head { grid-column: 1; grid-row: 1 / span 20; align-self: start; position: sticky; top: var(--space-6); }
+.dsp-section-body { grid-column: 2; grid-row: 1; min-width: 0; }
+/* 全局 header 是 flex（素材库旧样式），这里显式改回块级，否则 h2 会被挤成一字一行。 */
+.dsp-section-head { display: block; grid-column: 1; grid-row: 1; align-self: start; position: sticky; top: var(--space-6); margin: 0; }
 .dsp-section-head i { font-style: italic; font-size: var(--font-size-caption); color: var(--color-text-secondary); }
-.dsp .dsp-section-head h2 { margin: var(--space-1) 0 var(--space-2); font-size: var(--font-size-title-sm); font-weight: var(--font-weight-bold); }
+.dsp .dsp-section-head h2 { width: auto; margin: var(--space-1) 0 var(--space-2); font-size: var(--font-size-title-sm); font-weight: var(--font-weight-bold); line-height: var(--line-height-snug); }
 .dsp-section-head p { font-size: var(--font-size-body); line-height: var(--line-height-body); color: var(--color-text-secondary); }
 
 /* 颜色 */
@@ -82,6 +84,15 @@
 .dsp-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 220px)); gap: var(--space-6); }
 .dsp-card-img { display: block; width: 100%; aspect-ratio: 4 / 5; }
 
+/* 静态展示：虚线框和标签明确告诉用户这些不是可点控件 */
+.dsp-demo { margin: var(--space-5) 0 0; padding: var(--space-4); border: 1px dashed var(--color-border-default); border-radius: var(--radius-card); background: color-mix(in oklab, var(--color-bg-subtle) 42%, transparent); }
+.dsp-demo:first-child { margin-top: 0; }
+.dsp-demo figcaption { display: flex; align-items: baseline; gap: var(--space-2); margin-bottom: var(--space-3); font-size: var(--font-size-caption); color: var(--color-text-secondary); }
+.dsp-demo figcaption span { flex: none; padding: 1px 7px; border-radius: var(--radius-pill); background: var(--brand-tan); color: var(--color-text-primary); font-size: 11px; letter-spacing: .04em; }
+.dsp-demo-canvas { pointer-events: none; cursor: default; }
+.dsp-demo-canvas :is(button, a, input, select, label) { cursor: default; }
+.dsp-demo-canvas .dsp-row, .dsp-demo-canvas .dsp-card-img { margin-top: 0; }
+
 /* 导入结果：在页面里静态展示 */
 .dsp-static { display: grid; gap: var(--space-4); max-width: 520px; }
 .dsp-static .ds-import-result { position: static; transform: none; width: 100%; max-height: none; animation: none; }
@@ -90,7 +101,7 @@
 
 @media (max-width: 900px) {
   .dsp-section { grid-template-columns: minmax(0, 1fr); }
-  .dsp-section > :not(.dsp-section-head), .dsp-section-head { grid-column: 1; grid-row: auto; position: static; }
+  .dsp-section > :not(.dsp-section-head), .dsp-section-head, .dsp-section-body { grid-column: 1; grid-row: auto; position: static; }
   .dsp-grid-2 { grid-template-columns: minmax(0, 1fr); }
   .dsp-type li { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
   .dsp-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }

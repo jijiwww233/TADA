@@ -45,7 +45,7 @@ it('real adapter hides upstream error body and does not retry', async () => {
   const text = vi.fn(async () => 'secret raw provider body')
   const fetch = vi.fn().mockResolvedValue({ ok: false, status: 503, text })
   vi.stubGlobal('fetch', fetch)
-  await expect(searchImages('a')).rejects.toThrow('搜索暂时不可用')
+  await expect(searchImages('a')).rejects.toThrow('网络或服务出错')
   expect(text).not.toHaveBeenCalled(); expect(fetch).toHaveBeenCalledTimes(1)
 })
 

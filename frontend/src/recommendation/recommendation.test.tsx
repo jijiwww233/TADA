@@ -70,7 +70,7 @@ it('real adapter posts current and previous separately and unchanged, once', asy
 it('real adapter hides raw error bodies and maps only-exclusions 422', async () => {
   const text = vi.fn(async () => 'secret provider body')
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503, text }))
-  await expect(getRecommendations('a')).rejects.toThrow('推荐服务暂不可用')
+  await expect(getRecommendations('a')).rejects.toThrow('网络或服务出错')
   expect(text).not.toHaveBeenCalled()
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 422,
     json: async () => ({ detail: { code: 'only_exclusions', message: 'x' } }) }))
@@ -114,7 +114,7 @@ it('service failure is an error with retry, distinct from no useful reference', 
   const api = vi.fn<RecommendationApi>().mockRejectedValueOnce(new RecommendationError()).mockResolvedValueOnce(response())
   const { user } = await renderApp(api)
   await user.type(briefBox(), '海洋插画'); await user.click(submit())
-  expect(await screen.findByRole('alert')).toHaveTextContent('推荐服务暂不可用，请重试')
+  expect(await screen.findByRole('alert')).toHaveTextContent('网络或服务出错，请稍后重试')
   expect(screen.queryByText('三栏都没有经视觉复看确认有用的参考。')).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '重试' }))
   expect(await screen.findByText('三栏都没有经视觉复看确认有用的参考。')).toBeInTheDocument()

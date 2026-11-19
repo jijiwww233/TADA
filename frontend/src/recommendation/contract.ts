@@ -24,7 +24,7 @@ export type RecommendationApi = (brief: string, previousBrief?: string, includeN
 export const PURPOSE_LABELS: Record<Purpose, string> = { layout: '排版', palette: '配色', style: '风格' }
 
 export class RecommendationError extends Error {
-  constructor(message = '推荐服务暂不可用，请重试') { super(message) }
+  constructor(message = '网络或服务出错，请稍后重试') { super(message) }
 }
 
 /** Real adapter for the original-plan three-column backend; no retries. */

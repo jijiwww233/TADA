@@ -1,4 +1,5 @@
 import type { ImportResult } from '../api'
+import { networkError, responseError } from '../api/errors'
 
 /**
  * Upload one batch to the local backend. Errors stay fixed Chinese strings on purpose:
@@ -12,9 +13,9 @@ export async function importImageBatch(files: File[]): Promise<ImportResult> {
   try {
     response = await fetch('/api/images/import', { method: 'POST', body: form })
   } catch {
-    throw new Error('导入失败，请检查网络后重试')
+    throw networkError()
   }
-  if (!response.ok) throw new Error(`导入失败（${response.status}）`)
+  if (!response.ok) throw responseError(response)
   try {
     return await response.json() as ImportResult
   } catch {

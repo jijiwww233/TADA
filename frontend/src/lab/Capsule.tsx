@@ -22,7 +22,7 @@ export const ICON_FIND = Search
 export const ICON_REF = GalleryVerticalEnd
 
 type Mode = 'find' | 'ref'
-export type CapsulePresentation = { icon: IconNode; content: ReactNode; action?: ReactNode; actionLabel: string; onAction?: () => void; disabled?: boolean; underlay?: ReactNode; surface?: 'card' | 'status' }
+export type CapsulePresentation = { icon: IconNode; content: ReactNode; action?: ReactNode; actionLabel: string; onAction?: () => void; disabled?: boolean; underlay?: ReactNode; surface?: 'card' | 'status'; /** 纯装饰的动作图标：显示为细线，不做按钮、不带手形光标 */ actionDecorative?: boolean }
 const MODES: { k: Mode; label: string }[] = [{ k: 'find', label: '找图' }, { k: 'ref', label: '要参考' }]
 
 /** 找图 / 要参考: faint track, pale soft-accent thumb; the thumb only ever slides left/right (one element, measured). */
@@ -52,8 +52,8 @@ function ModeSwitch({ mode, setMode, reduced }: { mode: Mode; setMode: (m: Mode)
 }
 
 /** Search capsule: colour wheel (left) + mode switch + morphing icon + field + send (right). */
-export function Capsule({ children, placeholder = '描述你记得的那张图…', className = '', style, presentation, reduced = false, intro = false }:
-  { children?: ReactNode; placeholder?: string; className?: string; style?: CSSProperties; presentation?: CapsulePresentation; reduced?: boolean; intro?: boolean }) {
+export function Capsule({ children, placeholder = '描述你记得的那张图…', className = '', style, presentation, reduced = false, intro = false, onSend, sendLabel = '发送', sendDisabled = false }:
+  { children?: ReactNode; placeholder?: string; className?: string; style?: CSSProperties; presentation?: CapsulePresentation; reduced?: boolean; intro?: boolean; onSend?: () => void; sendLabel?: string; sendDisabled?: boolean }) {
   const [mode, setMode] = useState<Mode>('find')
   const [wheel, setWheel] = useState(false)
   return (
@@ -68,9 +68,13 @@ export function Capsule({ children, placeholder = '描述你记得的那张图�
         <div className="capsule-field flex min-w-0 flex-1 items-center overflow-hidden whitespace-nowrap text-[16px]">
           {presentation?.content ?? children ?? <input aria-label="搜索" className="w-full" placeholder={mode === 'find' ? placeholder : '说说你要做什么，给你找参考…'} />}
         </div>
-        <button type="button" aria-label={presentation?.actionLabel ?? '发送'} disabled={presentation?.disabled} onClick={presentation?.onAction} className="capsule-send">
-          {presentation?.action ?? <Icon icon={ArrowUp} size={18} strokeWidth={1.75} />}
-        </button>
+        {presentation?.actionDecorative ? (
+          <span className="capsule-action-decor" aria-hidden="true">{presentation.action}</span>
+        ) : (
+          <button type="button" aria-label={presentation?.actionLabel ?? sendLabel} disabled={presentation?.disabled ?? sendDisabled} onClick={presentation?.onAction ?? onSend} className="capsule-send">
+            {presentation?.action ?? <Icon icon={ArrowUp} size={18} strokeWidth={1.75} />}
+          </button>
+        )}
       </div>
       <AnimatePresence>{!presentation && wheel && <ColorWheel onClose={() => setWheel(false)} />}</AnimatePresence>
     </div>

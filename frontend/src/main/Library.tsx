@@ -27,11 +27,11 @@ const colCount = (width: number) => Math.min(5, Math.max(2, Math.round(width / C
  * 素材库：第一行就是搜索（大标题本身是输入框），细线下面直接是瀑布流；找图替换墙，要参考换成三列。
  * 瀑布流用 现有 masonry 相册（图 + 图注一块儿放进一列，不会互相压）；筛选/排序挪到顶栏，这里只吃 sort 入参。
  */
-export function Library({ manifest, onOpen, platforms, hue, onHue: setHue, wallRequest, onSaveProject, results, searching, onSearch, onClear, searchActive, reduce = false, sort = 'time', api, analyzing, onFindByColor, onImportFiles }: {
+export function Library({ manifest, initialQuery = '', onOpen, platforms, hue, onHue: setHue, wallRequest, onSaveProject, results, searching, onSearch, onClear, searchActive, reduce = false, sort = 'time', api, analyzing, onImportFiles }: {
+  /** 从引导页示例搜索框带过来的初始关键词 */
+  initialQuery?: string
   /** 此刻正在分析的图片 id：卡片上标「分析中」 */
   analyzing?: Set<number>
-  /** 搜不到时的下一步：打开顶栏的色环按颜色找 */
-  onFindByColor?: () => void
   /** 搜不到 / 库是空的时候：直接打开相册导入 */
   onImportFiles?: (files: File[]) => void
   manifest: Manifest
@@ -62,7 +62,13 @@ export function Library({ manifest, onOpen, platforms, hue, onHue: setHue, wallR
   api?: WiringApi
 }) {
   const [mode, setMode] = useState<Mode>('find')
-  const [text, setText] = useState('')
+  const [text, setText] = useState(initialQuery)
+  const initialQuerySent = useRef(false)
+  useEffect(() => {
+    if (initialQuerySent.current || !initialQuery) return
+    initialQuerySent.current = true
+    onSearch(initialQuery, false, false)
+  }, [initialQuery, onSearch])
   const field = useRef<HTMLInputElement | null>(null)
 
   const query = results?.text ?? ''
@@ -237,44 +243,33 @@ export function Library({ manifest, onOpen, platforms, hue, onHue: setHue, wallR
         )}
 
         {filtered.length === 0 ? (
-          // 8j：搜不到时说清楚「没找到」，再给三条能直接点的下一步
-          <div className="ds-empty" role="status">
-            <p className="ds-empty-title">
-              {!submitted && cards.length === 0 ? '还没有收藏'
-                : submitted ? <>没找到{query ? <>「{query}」</> : null}</>
-                : '这个筛选下没有图'}
-            </p>
-            <p className="ds-empty-text">
-              {!submitted && cards.length === 0 ? '先放几张参考图进来：从相册选，或者直接把图片拖进窗口。'
-                : submitted ? '可能是说法和图里的内容对不上。可以试试下面几种办法：'
-                : '打开右上角「筛选」，点「全部」就能看到所有图。'}
-            </p>
-            <div className="ds-empty-actions">
-              {submitted && (
-                <button type="button" className="ds-btn ds-btn--secondary" onClick={() => {
-                  field.current?.focus({ preventScroll: true })
-                  field.current?.select()
-                }}>换个说法</button>
-              )}
-              {submitted && onFindByColor && (
-                <button type="button" className="ds-btn ds-btn--secondary" onClick={onFindByColor}>按颜色找</button>
-              )}
-              {onImportFiles && (submitted || cards.length === 0) && (
-                <label className={`ds-btn ds-file-btn ${cards.length === 0 ? 'ds-btn--primary' : 'ds-btn--ghost'}`}>
-                  去导入
-                  <input type="file" accept="image/*" multiple onChange={event => {
-                    const files = Array.from(event.currentTarget.files ?? [])
-                    event.currentTarget.value = ''
-                    if (files.length) onImportFiles(files)
-                  }} />
-                </label>
-              )}
-              {submitted && <button type="button" className="ds-btn ds-btn--ghost" onClick={clear}>返回全部收藏</button>}
+          submitted ? (
+            // 搜不到时不要再给一排“下一步”，只留一个明确的出口。
+            <div className="ds-empty" role="status">
+              <p className="ds-empty-title">没找到{query ? <>「{query}」</> : null}</p>
+              <button type="button" className="ds-btn ds-btn--primary" onClick={clear}>返回全部收藏</button>
             </div>
-            {submitted && mode === 'find' && (
-              <p className="ds-help">换说法的小技巧：只写颜色（「淡黄色」）、主体（「牛仔海报」），或者你记得的一个细节（「手写字」）。</p>
-            )}
-          </div>
+          ) : (
+            <div className="ds-empty" role="status">
+              <p className="ds-empty-title">{cards.length === 0 ? '还没有收藏' : '这个筛选下没有图'}</p>
+              <p className="ds-empty-text">
+                {cards.length === 0 ? '先放几张参考图进来：从相册选，或者直接把图片拖进窗口。'
+                  : '打开右上角「筛选」，点「全部」就能看到所有图。'}
+              </p>
+              <div className="ds-empty-actions">
+                {onImportFiles && cards.length === 0 && (
+                  <label className="ds-btn ds-btn--primary ds-file-btn">
+                    去导入
+                    <input type="file" accept="image/*" multiple onChange={event => {
+                      const files = Array.from(event.currentTarget.files ?? [])
+                      event.currentTarget.value = ''
+                      if (files.length) onImportFiles(files)
+                    }} />
+                  </label>
+                )}
+              </div>
+            </div>
+          )
         ) : results?.groups ? (
           <div className="m-ref-cols">
             {REF_GROUPS.map((key, gi) => (
@@ -308,7 +303,8 @@ export function Library({ manifest, onOpen, platforms, hue, onHue: setHue, wallR
               const source = sourceLabel(it)
               const busy = analyzing?.has(it.id) ?? false
               const firstRow = i < (mobile ? 2 : colCount(wallEl.current?.clientWidth ?? window.innerWidth))
-              // 8e：标题和来源分两行，标题 14px 油墨色、来源 12px 次要色；没有标题时第一行写状态，行高不变、瀑布流不乱
+              // 没有云端分析的图不写「还没有标题 / 本地」；只在有标题或正在分析时显示图注。
+              const showCaption = !!title || busy
               return (
                 <button type="button" key={it.id} className="m-tile" onClick={() => onOpen(it, filtered, i)}
                   data-id={it.id} data-enrich={!title && api ? '' : undefined}
@@ -316,13 +312,13 @@ export function Library({ manifest, onOpen, platforms, hue, onHue: setHue, wallR
                   style={{ '--rv-d': enterDelayMs(i) } as React.CSSProperties}>
                   <img src={src} alt="" loading={firstRow ? 'eager' : 'lazy'}
                     fetchPriority={firstRow ? 'high' : undefined} width={it.w} height={it.h} />
-                  <span className="m-tile-cap">
-                    <span className={`m-tile-title${title ? '' : ' is-empty'}`}>{title || (busy ? '正在读图…' : '还没有标题')}</span>
+                  {showCaption && <span className="m-tile-cap">
+                    {title && <span className="m-tile-title">{title}</span>}
                     <span className="m-tile-src">
-                      <span>{source}</span>
+                      {title && <span>{source}</span>}
                       {busy && <span className="ds-analyzing" title="正在分析这张图，标题和标签稍后出现">分析中</span>}
                     </span>
-                  </span>
+                  </span>}
                 </button>
               )
             } }} />

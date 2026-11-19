@@ -97,8 +97,18 @@ function Section({ no, title, note, children }: { no: number; title: string; not
         <h2 id={`dsp-${no}`}>{title}</h2>
         {note && <p>{note}</p>}
       </header>
-      {children}
+      <div className="dsp-section-body">{children}</div>
     </section>
+  )
+}
+
+/** 设计系统页里的“样式示例”不是真控件：明确标成静态展示，避免看起来能点、点了没反应。 */
+function StaticDemo({ label, children }: { label?: string; children: ReactNode }) {
+  return (
+    <figure className="dsp-demo">
+      <figcaption><span>静态展示</span>{label}</figcaption>
+      <div className="dsp-demo-canvas" aria-hidden="true" inert>{children}</div>
+    </figure>
   )
 }
 
@@ -106,6 +116,7 @@ function Section({ no, title, note, children }: { no: number; title: string; not
 export default function DesignSystem() {
   const [on, setOn] = useState(true)
   const [mode, setMode] = useState<'find' | 'ref'>('find')
+  const [sample, setSample] = useState('')
   return (
     <div className="m-app m-refine dsp">
       <header className="dsp-top">
@@ -173,6 +184,7 @@ export default function DesignSystem() {
       </Section>
 
       <Section no={4} title="按钮" note="文字按钮用 8px 圆角、约 500 字重。主要按钮陶土橙底白字，次要按钮浅棕底黑字，幽灵按钮仅文字。三类按钮都采用扁平样式。">
+        <StaticDemo label="按钮、菜单、下拉和详情按钮的尺寸/状态，不会触发操作">
         <div className="dsp-table-wrap">
           <table className="dsp-buttons">
             <thead><tr><th scope="col">种类</th><th scope="col">正常</th><th scope="col">悬停</th><th scope="col">按下</th><th scope="col">禁用</th><th scope="col">加载中</th></tr></thead>
@@ -213,6 +225,7 @@ export default function DesignSystem() {
             </div>
           </div>
         </div>
+        </StaticDemo>
       </Section>
 
       <Section no={5} title="标签与状态" note="状态不画框，只用小圆点 + 文字：陶土橙点 = 当前 / 正在进行，浅棕点 = 已连接 / 已完成，没有点的浅色字 = 未连接。">
@@ -235,7 +248,7 @@ export default function DesignSystem() {
               <div className="m-sl-row">
                 <span className="m-sl-icon"><Icon icon={Search} size={22} aria-hidden="true" /></span>
                 <div className="m-sl-field">
-                  <input className="m-sl-input" placeholder="Tada! I remember it…" aria-label="搜索栏示例" />
+                  <input className="m-sl-input" placeholder="Tada! I remember it…" aria-label="搜索栏示例" value={sample} onChange={event => setSample(event.target.value)} />
                 </div>
                 <div className="m-sl-tools">
                   <div className="m-sl-modes" role="group" aria-label="搜索方式">
@@ -249,11 +262,11 @@ export default function DesignSystem() {
               <div className="m-sl-sub">
                 <div className="m-sl-tries">
                   <span className="m-sl-tries-lead">试试：</span>
-                  <button type="button" className="m-sl-try">淡黄色的牛仔海报</button>
+                  <button type="button" className="m-sl-try" onClick={() => setSample('淡黄色的牛仔海报')}>淡黄色的牛仔海报</button>
                   <span className="m-sl-try-sep" aria-hidden="true">·</span>
-                  <button type="button" className="m-sl-try">黑白粗颗粒</button>
+                  <button type="button" className="m-sl-try" onClick={() => setSample('黑白粗颗粒')}>黑白粗颗粒</button>
                   <span className="m-sl-try-sep" aria-hidden="true">·</span>
-                  <button type="button" className="m-sl-try">手写字的菜单</button>
+                  <button type="button" className="m-sl-try" onClick={() => setSample('手写字的菜单')}>手写字的菜单</button>
                 </div>
                 <p className="m-sl-modehint"><b>{mode === 'find' ? '找图' : '要参考'}</b>：{mode === 'find' ? '描述画面或颜色，找回收藏过的图' : '按排版、配色、风格找参考'}</p>
               </div>
@@ -269,18 +282,21 @@ export default function DesignSystem() {
           <button type="button" className="m-switch" aria-label="禁用的开关" disabled />
           <span className="dsp-label">禁用</span>
         </div>
+        <StaticDemo label="Key 卡片">
         <div className="dsp-field-card">
           <label htmlFor="dsp-key-example">API Key</label>
           <input id="dsp-key-example" className="ds-input" placeholder="粘贴示例 Key" readOnly />
           <button type="button" className="ds-btn ds-btn--primary">验证</button>
         </div>
+        </StaticDemo>
       </Section>
 
       <Section no={8} title="卡片" note="弹窗和表单卡片用淡浅棕底、大圆角。素材墙上的图片用直角，图注直接排在页面上。">
+        <StaticDemo label="素材卡片">
         <div className="dsp-cards">
           {[
             { title: '淡黄色的牛仔海报', src: '小红书', busy: false, tint: 'var(--color-bg-subtle)' },
-            { title: '', src: '本地', busy: true, tint: 'var(--brand-tan)' },
+            { title: '正在分析的参考', src: '小红书', busy: true, tint: 'var(--brand-tan)' },
             { title: '手写字的菜单', src: 'Pinterest', busy: false, tint: 'var(--color-data-1)' },
           ].map((card, i) => (
             <button type="button" className="m-tile" key={i}>
@@ -292,29 +308,29 @@ export default function DesignSystem() {
             </button>
           ))}
         </div>
+        </StaticDemo>
       </Section>
 
       <Section no={9} title="导入结果提示" note="导入完不自动消失：一行汇总 + 每种失败的原因和改法 + 「查看刚导入的」。">
+        <StaticDemo label="导入完成的两种状态">
         <div className="dsp-static">
           <ImportResult status="done" cancelled={false} error={null} onView={() => {}} onClose={() => {}} onCancel={() => {}}
             progress={{ total: 5, processed: 5, added: 3, duplicates: 1, failed: [{ name: 'IMG_2041.HEIC', reason: '文件超过 50MB' }] }} />
           <ImportResult status="importing" cancelled={false} error={null} onView={() => {}} onClose={() => {}} onCancel={() => {}}
             progress={{ total: 12, processed: 8, added: 7, duplicates: 1, failed: [] }} />
         </div>
+        </StaticDemo>
       </Section>
 
       <Section no={10} title="空结果与报错" note="报错说清楚：哪里错了、为什么、怎么改。">
+        <StaticDemo label="空结果与报错">
         <div className="ds-empty">
           <p className="ds-empty-title">没找到「蓝色的猫」</p>
-          <p className="ds-empty-text">可能是说法和图里的内容对不上。可以试试下面几种办法：</p>
-          <div className="ds-empty-actions">
-            <button type="button" className="ds-btn ds-btn--secondary">换个说法</button>
-            <button type="button" className="ds-btn ds-btn--secondary">按颜色找</button>
-            <button type="button" className="ds-btn ds-btn--ghost">去导入</button>
-          </div>
+          <button type="button" className="ds-btn ds-btn--primary">返回全部收藏</button>
         </div>
         <p className="ds-alert">读不到素材库：后台服务没响应。确认服务已启动、网络正常后，点「重试」。
           <button type="button" className="ds-btn ds-btn--secondary ds-btn--sm">重试</button></p>
+        </StaticDemo>
       </Section>
 
       <Section no={11} title="用词对照表" note="同一个意思只说一次。一个按钮下面最多一行辅助小字。能用三个字说清楚的，不写一句话。">

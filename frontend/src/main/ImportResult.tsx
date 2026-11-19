@@ -2,6 +2,10 @@ import type { LocalImportFailure, LocalImportProgress, LocalImportStatus } from 
 
 /** 后端给的失败原因 → 用户看得懂的「为什么 + 怎么改」 */
 export function explainImportFailure(reason: string): { why: string; fix: string } {
+  // 先认后端 / 代理给的真实原因，别被下面的「太大」泛化掉
+  if (/演示版不提供此功能/.test(reason)) return { why: '演示版不提供此功能', fix: '这个共用演示版没有开放该功能，请在本机版使用' }
+  if (/20MB|图片太大/.test(reason)) return { why: '图片太大，单张最多 20MB', fix: '换一张小于 20MB 的图片再试' }
+  if (/网络或服务出错/.test(reason)) return { why: '网络或服务出错', fix: '检查网络后重新导入这几张' }
   if (/50MB|太大|too large/i.test(reason)) return { why: '文件太大（超过 50MB）', fix: '压缩或截图后再导入' }
   if (/HEIC/i.test(reason)) return { why: 'HEIC 照片读不出来', fix: '在相册里导出为 JPG，或把相机格式改成「兼容性最佳」' }
   if (/空文件/.test(reason)) return { why: '文件是空的', fix: '重新选一次这张图' }

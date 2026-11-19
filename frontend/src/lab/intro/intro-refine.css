@@ -158,3 +158,12 @@
   font-family: 'Lab Serif SC', 'Main Serif SC', 'Noto Serif SC', 'Songti SC', SimSun, serif;
 }
 .lab .home-stair-zh .home-stair-note { font-family: 'Lab Newsreader', serif; }
+/* API Key 卡片右上角：细线钥匙只是装饰，不是按钮。 */
+.lab .intro-stage .capsule-card > .capsule-action-decor,
+.lab .intro-stage .capsule-presenting > .capsule-action-decor { position: absolute; right: 14px; top: 14px; }
+.lab .intro-stage .capsule-action-decor {
+  flex: none; display: grid; place-items: center; width: 34px; height: 34px;
+  color: var(--color-text-secondary, oklch(0.4 0.016 62));
+  background: none; border: 0; box-shadow: none;
+  pointer-events: none; cursor: default; user-select: none;
+}

@@ -15,6 +15,8 @@
  * Renders only when told to (`draw()`); idle cost is zero.
  */
 
+import { cardTextureCanvas } from '../intro/cardThumbnail'
+
 export type Card = {
   x: number; y: number; z: number // px, origin = stage centre, +y down, +z towards the viewer
   rx: number; ry: number; rz: number // radians
@@ -29,6 +31,9 @@ export type Strip = { x0: number; y0: number; x1: number; y1: number; blur: numb
 const MAX_STRIPS = 6
 const LEVELS = 5
 export const FOCAL = 1100
+/** 卡片纹理的固定尺寸：图片先缩到 <=1024 再按 cover 裁进这里，避免 Edge 拒绝尺寸不一致的上传。 */
+const TEX_W = 480
+const TEX_H = 640
 
 const QUAD_VS = `#version 300 es
 in vec2 a_q;
@@ -242,20 +247,25 @@ export class ScatterRenderer {
     bindAttr(gl, this.compProg, 'a_q', quad, 2, 0, 0, 0)
     gl.bindVertexArray(null)
 
-    // Texture array: one 480x640 layer per image, full mip chain (the mips are the depth-of-field blur).
+    // Texture array: one fixed-size layer per image, full mip chain (the mips are the depth-of-field blur).
+    // Every layer is uploaded from a canvas cropped to TEX_W x TEX_H, so the source image dimensions never reach D3D11/Edge.
+    const maxTexture = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number
+    if (maxTexture < Math.max(TEX_W, TEX_H)) throw new Error(`WebGL 纹理尺寸超出限制（${maxTexture}）`)
     this.tex = gl.createTexture()!
     gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.tex)
-    const levels = Math.floor(Math.log2(640)) + 1
-    gl.texStorage3D(gl.TEXTURE_2D_ARRAY, levels, gl.RGBA8, 480, 640, Math.max(images.length, 1))
+    const levels = Math.floor(Math.log2(Math.max(TEX_W, TEX_H))) + 1
+    gl.texStorage3D(gl.TEXTURE_2D_ARRAY, levels, gl.RGBA8, TEX_W, TEX_H, Math.max(images.length, 1))
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
     const aniso = gl.getExtension('EXT_texture_filter_anisotropic')
     if (aniso) gl.texParameterf(gl.TEXTURE_2D_ARRAY, aniso.TEXTURE_MAX_ANISOTROPY_EXT, 4)
-    this.ready = Promise.all(images.map((src, i) => loadImage(src).then(img => {
+    this.ready = Promise.all(images.map((src, i) => cardTextureCanvas(src, TEX_W, TEX_H).then(canvas => {
       gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.tex)
-      gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, i, 480, 640, 1, gl.RGBA, gl.UNSIGNED_BYTE, img)
+      // The canvas is exactly TEX_W x TEX_H; Edge/D3D11 no longer sees an image with a different intrinsic size.
+      gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, i, TEX_W, TEX_H, 1, gl.RGBA, gl.UNSIGNED_BYTE, canvas)
+      if (gl.getError() !== gl.NO_ERROR) throw new Error('纹理上传失败')
     }))).then(() => {
       gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.tex)
       gl.generateMipmap(gl.TEXTURE_2D_ARRAY)
@@ -425,13 +435,4 @@ function target(gl: WebGL2RenderingContext, w: number, h: number): Target {
   gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0)
   return { tex, fbo, w, h }
-}
-function loadImage(src: string) {
-  return new Promise<HTMLImageElement>((res, rej) => {
-    const img = new Image()
-    img.decoding = 'async'
-    img.onload = () => res(img)
-    img.onerror = rej
-    img.src = src
-  })
 }

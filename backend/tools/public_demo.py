@@ -43,6 +43,25 @@ PROJECT_WRITES = {
     "DELETE": re.compile(r"/api/projects/\d+/pins/\d+(?:/purposes/(?:layout|style|palette|subject))?"),
 }
 
+# 演示版允许的普通整理操作：改用户标签、对待确认图片点「保留 / 不是参考」。
+USER_WRITES = {
+    "PUT": re.compile(r"/api/images/\d+/annotation"),
+    "POST": re.compile(r"/api/reference/decisions(?:/[^/]+/undo)?"),
+}
+
+
+def request_allowed(method: str, path: str) -> bool:
+    """Demo boundary: read APIs plus the small set of normal organizing writes."""
+    if method == "GET" and READ_API.fullmatch(path):
+        return True
+    if method == "POST" and path in POST_API:
+        return True
+    pattern = PROJECT_WRITES.get(method)
+    if pattern and pattern.fullmatch(path):
+        return True
+    pattern = USER_WRITES.get(method)
+    return bool(pattern and pattern.fullmatch(path))
+
 
 def configure_demo() -> None:
     if not STORAGE.resolve().is_relative_to((ROOT / ".run").resolve()) or STORAGE.is_symlink():
@@ -240,13 +259,7 @@ def create_public_app():
         if path == "/api/images/import" and method == "POST":
             return await receive_upload(request, shortcut=False)
         if path == "/api" or path.startswith("/api/"):
-            project_write = PROJECT_WRITES.get(method)
-            permitted = (
-                (method == "GET" and READ_API.fullmatch(path))
-                or (method == "POST" and path in POST_API)
-                or (project_write and project_write.fullmatch(path))
-            )
-            if not permitted:
+            if not request_allowed(method, path):
                 return JSONResponse({"detail": UNAVAILABLE}, status_code=403)
         if path in {"/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"}:
             return JSONResponse({"detail": UNAVAILABLE}, status_code=403)

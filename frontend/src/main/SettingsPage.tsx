@@ -10,6 +10,7 @@ import type { WiringApi } from '../api/wiring'
 import { useWiringResource } from '../api/useWiring'
 import { useMobileLayout } from './useMobileLayout'
 import { filterImageFiles, IMAGE_EXTENSIONS } from '../localImport/collect'
+import { errorText } from '../api/errors'
 
 const GROUPS = [
   { id: 'api', label: 'API' },
@@ -85,7 +86,7 @@ export function SettingsPage({ items, onToast, reduce, onReduce, api, demo, onDe
         setLimit(null)
         watch.reload()
       }
-    } catch { setNote('没保存上：API Key 没验证通过，或网络出错。检查 Key 有没有复制完整，再点「保存设置」') }
+    } catch (error) { setNote(errorText(error, '没保存上：API Key 没验证通过，或网络出错。检查 Key 有没有复制完整，再点「保存设置」')) }
     finally { setSaving(false) }
   }
   const [active, setActive] = useState<GroupId>('api')
@@ -162,7 +163,7 @@ export function SettingsPage({ items, onToast, reduce, onReduce, api, demo, onDe
         <section {...group('platforms', 1)}>
           {heading('platforms', 1)}
           {demo || import.meta.env.VITE_PUBLIC_DEMO === '1'
-            ? <p className="ds-help">平台连接与自动同步可在本机素材库使用。</p>
+            ? null
             : <PlatformSync onSynced={onSynced} />}
         </section>
 

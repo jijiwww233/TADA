@@ -1,4 +1,5 @@
 import type { Annotation } from './annotations/contract'
+import { responseError } from './api/errors'
 
 export interface ImageItem {
   id: number
@@ -23,7 +24,7 @@ export interface ImportResult {
 
 export async function listImages(): Promise<ImageItem[]> {
   const resp = await fetch('/api/images')
-  if (!resp.ok) throw new Error(`读取图片失败（${resp.status}）`)
+  if (!resp.ok) throw responseError(resp)
   return resp.json()
 }
 
@@ -31,7 +32,7 @@ export async function importImages(files: File[]): Promise<ImportResult> {
   const form = new FormData()
   for (const f of files) form.append('files', f, f.name)
   const resp = await fetch('/api/images/import', { method: 'POST', body: form })
-  if (!resp.ok) throw new Error(`导入失败（${resp.status}）`)
+  if (!resp.ok) throw responseError(resp)
   return resp.json()
 }
 
@@ -98,8 +99,8 @@ export interface AnalysisStatus {
   model: string | null
 }
 
-async function json<T>(resp: Response, what: string): Promise<T> {
-  if (!resp.ok) throw new Error(`${what}失败（${resp.status}）`)
+async function json<T>(resp: Response, _what: string): Promise<T> {
+  if (!resp.ok) throw responseError(resp)
   return resp.json()
 }
 
@@ -231,6 +232,7 @@ export interface ImportStatus {
 }
 
 async function importError(resp: Response): Promise<Error> {
+  if (resp.status === 403 || resp.status === 413) return responseError(resp)
   try {
     const data: unknown = await resp.json()
     const detail = (data as { detail?: unknown })?.detail
@@ -241,7 +243,7 @@ async function importError(resp: Response): Promise<Error> {
   } catch {
     // fall through to the status code
   }
-  return new Error(`导入失败（${resp.status}）`)
+  return responseError(resp)
 }
 
 export async function getImportStatus(): Promise<ImportStatus> {

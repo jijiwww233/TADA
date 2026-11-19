@@ -240,17 +240,19 @@
 .m-app .m-appbar-center .m-gm-title { font-size: var(--font-size-body); font-weight: var(--font-weight-medium); }
 .m-app .m-appbar-center .m-gm-head:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: -2px; }
 .m-app .m-nav-hint {
-  position: absolute; left: 50%; top: calc(100% + var(--space-2)); transform: translateX(-50%);
+  /* 放在正中胶囊右侧的同一行，不再压在搜索框 / 详情图上。 */
+  position: absolute; left: calc(100% + var(--space-3)); top: 50%; transform: translateY(-50%);
   padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill);
   background: var(--color-bg-inverse); color: var(--color-text-on-inverse);
   font-size: var(--font-size-caption); line-height: 1.5; white-space: nowrap; pointer-events: none;
   animation: ds-nav-hint 2.4s var(--motion-ease-emphasized) 1s both;
 }
 .m-app .m-nav-hint::before {
-  content: ''; position: absolute; left: 50%; top: -4px; width: 8px; height: 8px; margin-left: -4px;
+  content: ''; position: absolute; left: -4px; top: 50%; width: 8px; height: 8px; margin-top: -4px;
   background: inherit; transform: rotate(45deg);
 }
-@keyframes ds-nav-hint { 0% { opacity: 0; transform: translate(-50%, 4px); } 15%, 100% { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes ds-nav-hint { 0% { opacity: 0; transform: translate(4px, -50%); } 15%, 100% { opacity: 1; transform: translate(0, -50%); } }
+@media (max-width: 1180px), (hover: none) { .m-app .m-nav-hint { display: none; } }
 @media (prefers-reduced-motion: reduce) { .m-app .m-nav-hint { animation: none; } }
 
 /* ---------------------------------------------------------------------

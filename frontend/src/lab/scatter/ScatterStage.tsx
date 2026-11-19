@@ -15,6 +15,7 @@ import { SoftText } from '../intro/SoftText'
 import { REFINE } from '../../main/refine'
 import '../intro/intro-refine.css'
 import { ScatterRenderer, type Card, type Strip } from './renderer'
+import { cardThumbnailUrl } from '../intro/cardThumbnail'
 import { collectLength, frame, matrixSettledProgress, P_COLLECT, P_NEAT, P_START, PLAN_B, type Bounce, type Frame, type Layout, type Plan, type Pool, type Pose } from './choreo'
 
 const OPENING_MS = 750
@@ -33,16 +34,17 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
   const wrap = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const capsule = useRef<HTMLDivElement>(null)
-  const start = useRef<HTMLButtonElement>(null)
   const labels = useRef<HTMLDivElement>(null)
   const foreground = useRef<HTMLDivElement>(null)
   const focusVeil = useRef<HTMLDivElement>(null)
-  /** 引导版：点一下画面后自动往下滚的那段动画；用户自己一滚就停 */
-  const autoScroll = useRef<(() => void) | null>(null)
   const headlineDoneAt = useRef<number | null>(null)
   const bounceRef = useRef(bounce)
   bounceRef.current = bounce
   const [error, setError] = useState<string | null>(null)
+  /** WebGL 不可用 / 纹理失败时的普通图片兜底；绝不留在黑块上 */
+  const [fallback, setFallback] = useState(false)
+  const [homeQuery, setHomeQuery] = useState('')
+  const [thumbs, setThumbs] = useState<string[]>(() => items.map(item => item.src))
   const [starfield,setStarfield]=useState(true)
   const starfieldRef=useRef(starfield);starfieldRef.current=starfield
   const [topbar,setTopbar]=useState<'A'|'B'|'C'>('C')
@@ -56,14 +58,43 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
     const timer=setTimeout(()=>setHeadlineReady(true),still?0:500)
     return()=>clearTimeout(timer)
   },[typed,still])
-  // 离开页面时停掉还在跑的自动滚动
-  useEffect(() => () => autoScroll.current?.(), [])
+  // WebGL 兜底时跳过开场近焦：取消 blur 动画并把标题直接显示出来，否则普通图片也会被糊住。
+  useEffect(() => {
+    if (!fallback) return
+    const veil = focusVeil.current
+    if (veil) {
+      veil.getAnimations().forEach(animation => animation.cancel())
+      veil.style.filter = 'none'
+    }
+    setTyped(1)
+    setHeadlineReady(true)
+  }, [fallback])
   const flow = useIntroFlow(still)
+  useEffect(() => {
+    let live = true
+    Promise.all(items.map(item => cardThumbnailUrl(item.src))).then(urls => {
+      if (live) setThumbs(urls)
+    }, () => {
+      // 缩略图都生成不了时也不要黑块：保留原图地址，WebGL 失败会切到普通图片。
+      if (live) setThumbs(items.map(item => item.src))
+    })
+    return () => { live = false }
+  }, [items])
   const flowRef = useRef(flow); flowRef.current = flow
   useEffect(() => { if (startPage) flowRef.current.jump(startPage); else if (autoplay) flowRef.current.setDemo(true) }, [autoplay, startPage])
   useEffect(() => {
     if (flow.state.phase === 'key' || flow.state.run > 0) wrap.current?.scrollIntoView({ block: 'start', behavior: 'instant' })
   }, [flow.state.run, flow.state.phase])
+  /** 首页示例搜索框：输入后直接进素材库搜索；空着点箭头就进素材库。 */
+  const goSearch = () => {
+    const params = new URLSearchParams()
+    const mode = new URLSearchParams(location.search).get('data')
+    if (mode) params.set('data', mode)
+    if (!REFINE) params.set('refine', '0')
+    const query = homeQuery.trim()
+    if (query) params.set('q', query)
+    window.location.href = '/main' + (params.size ? '?' + params.toString() : '')
+  }
   useEffect(() => {
     const el = wrap.current
     let lastInput=0,lockedUntil=0,amount=0,used=false,run=-1
@@ -94,8 +125,12 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
     const el = canvas.current, box = wrap.current
     if (!el || !box || !items.length) return
     let r: ScatterRenderer
-    try { r = new ScatterRenderer(el, items.map(i => i.src)); setError(null) } catch (e) { setError(String(e)); return }
+    setFallback(false)
+    try { r = new ScatterRenderer(el, items.map(i => i.src)); setError(null) }
+    catch (e) { setError(String(e)); setFallback(true); return }
     r.bg = rgb01(PAPER)
+    const contextLost = (event: Event) => { event.preventDefault(); setFallback(true); setError('WebGL 上下文丢失') }
+    el.addEventListener('webglcontextlost', contextLost)
     // texture layers = items; the portrait is handed to the plan separately so it can place it (or leave it out)
     const face = items.findIndex(it => it.face)
     const pool: Pool = { cards: items.flatMap((it, i) => (it.face ? [] : [i])), face: face >= 0 ? face : null }
@@ -166,7 +201,6 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
           const surface = capsule.current.querySelector<HTMLElement>('.capsule')
           if (surface) { surface.style.height = `${pose.height.toFixed(2)}px`; surface.style.borderRadius = `${pose.radius.toFixed(2)}px` }
         }
-        if (start.current) { start.current.style.opacity = '0'; start.current.style.pointerEvents = 'none' }
         foreground.current?.querySelectorAll('img').forEach(img => { img.style.opacity = '0' })
         if (visible) raf = requestAnimationFrame(tick)
         return
@@ -280,13 +314,6 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
             : `translateY(${(q * 8).toFixed(2)}px) scale(${(1 + q * 0.045).toFixed(4)}, ${(1 - q * 0.05).toFixed(4)})`
           capsule.current.style.transform = `translate(calc(-50% + ${cx.toFixed(1)}px), calc(-50% + ${cy.toFixed(1)}px)) ${t}`
         }
-        if (start.current) {
-          // 手动滚动时，“开始”等胶囊升到正中停稳了才出现，不跟着胶囊一起窜
-          const o = state.demo ? Math.min(1, Math.max(0, (clock - L) / 0.7 + 1)) * (clock > 0 ? 1 : 0) : 1 - (1 - startP) ** 3
-          start.current.style.opacity = String(still ? 1 : o)
-          start.current.style.transform = `translate(calc(-50% + ${cx.toFixed(1)}px), calc(${cy.toFixed(1)}px + ${((1 - o) * 24).toFixed(2)}px))`
-          start.current.style.pointerEvents = o > 0.5 || still ? 'auto' : 'none'
-        }
         if (labels.current) labels.current.style.setProperty('--neat', out.neat.toFixed(3))
         const send=capsule.current?.querySelector<HTMLElement>('.capsule-send')
         if(send&&labels.current){
@@ -315,50 +342,24 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
       if(disposed)return
       dirty=true;kick()
       requestAnimationFrame(()=>requestAnimationFrame(()=>{if(!disposed){resourcesReady=true;kick()}}))
-    },()=>{if(!disposed)setError('图片没加载出来')})
-    return () => { disposed=true;ro.disconnect(); io.disconnect(); cancelAnimationFrame(raf); focusAnimation?.cancel(); r.dispose() }
+    },()=>{
+      // 任一纹理加载/上传失败都退回普通图片，绝不把黑块留在页面上。
+      if(!disposed){setError('纹理加载失败');setFallback(true)}
+    })
+    return () => { disposed=true;el.removeEventListener('webglcontextlost',contextLost);ro.disconnect(); io.disconnect(); cancelAnimationFrame(raf); focusAnimation?.cancel(); r.dispose() }
   }, [plan, items, still, direction])
 
   return (
     <div ref={wrap} className={`relative home-stage intro-stage home-${direction} ${english ? 'home-english' : ''}`} data-home-stage data-clean={clean ? '' : undefined} data-focusing={!typed} data-phase={flow.state.phase} data-topbar={topbar} data-key-state={flow.state.keyStatus} data-reduced={still}>
-      <div ref={focusVeil} className="home-screen sticky top-0 overflow-hidden" style={{ background: PAPER }}
-        data-click-advance={REFINE && flow.state.phase === 'home' && !flow.state.demo ? '' : undefined}
-        onClick={event => {
-          // 引导版：开场是滚动驱动的；点一下画面空白处，替你用 2.6 秒匀速滚到底，编排照原样播完
-          const f = flowRef.current
-          if (!REFINE || f.state.phase !== 'home' || f.state.demo || autoScroll.current) return
-          if (event.target instanceof Element && event.target.closest('button, a, input, label, select, .intro-topbar')) return
-          const box = wrap.current
-          if (!box) return
-          const from = window.scrollY
-          const to = box.getBoundingClientRect().top + window.scrollY + box.offsetHeight - window.innerHeight
-          if (to - from < 4) return
-          const duration = still ? 0 : 2600
-          const began = performance.now()
-          let raf = 0
-          const stop = () => {
-            cancelAnimationFrame(raf)
-            window.removeEventListener('wheel', stop)
-            window.removeEventListener('touchstart', stop)
-            window.removeEventListener('keydown', stop)
-            autoScroll.current = null
-          }
-          const step = (now: number) => {
-            const t = duration ? Math.min(1, (now - began) / duration) : 1
-            const eased = t < .5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
-            window.scrollTo(0, from + (to - from) * eased)
-            if (t < 1) raf = requestAnimationFrame(step)
-            else stop()
-          }
-          window.addEventListener('wheel', stop, { passive: true })
-          window.addEventListener('touchstart', stop, { passive: true })
-          window.addEventListener('keydown', stop)
-          autoScroll.current = stop
-          raf = requestAnimationFrame(step)
-        }}>
+      <div ref={focusVeil} className="home-screen sticky top-0 overflow-hidden" style={{ background: PAPER }}>
         {/* new canvas per plan: the old renderer gives its context back (loseContext) when the plan changes */}
-        <canvas key={`${direction}-${still}`} ref={canvas} className="absolute inset-0 size-full" />
-        {error && <p className="absolute inset-0 [display:grid] place-items-center text-[var(--ink-2)]">WebGL2 不可用：{error}</p>}
+        <canvas key={`${direction}-${still}`} ref={canvas} className="absolute inset-0 size-full" hidden={fallback} />
+        {fallback && <div className="home-fallback" aria-hidden="true">
+          <div className="home-fallback-grid">
+            {items.slice(0, 8).map((item, i) => <img key={item.id} src={thumbs[i] ?? item.src} alt="" loading={i < 6 ? 'eager' : 'lazy'} />)}
+          </div>
+        </div>}
+        {error && <p className="sr-only" role="status">3D 卡片暂不可用，已改用普通图片显示</p>}
 
         <div ref={labels} className="home-type pointer-events-none absolute inset-0">
           <p className="home-copy"><span>{INTRO_COPY.homeIntro}</span></p>
@@ -366,16 +367,27 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
 
         </div>
 
-        <div ref={foreground} className="home-foreground" aria-hidden><img alt="" /><img alt="" /></div>
+        <div ref={foreground} className="home-foreground" aria-hidden hidden={fallback}><img alt="" /><img alt="" /></div>
 
         <div ref={capsule} className="home-capsule absolute left-1/2 top-1/2" style={{ transform: 'translate(-50%,-50%)' }}>
-          <Capsule intro={flow.state.phase !== 'home' && flow.state.phase !== 'ready'} presentation={introPresentation(flow, still)} reduced={still}>
-            {flow.state.phase === 'home' ? <span>{TYPING}</span> : flow.state.phase === 'ready' || typed ? (
+          <Capsule intro={flow.state.phase !== 'home' && flow.state.phase !== 'ready'} presentation={introPresentation(flow, still)} reduced={still}
+            onSend={goSearch} sendLabel={homeQuery.trim() ? '搜索素材库' : '进入素材库'}>
+            {flow.state.phase === 'home' ? (
+              <input className="home-search-input" aria-label="搜索收藏" value={homeQuery} placeholder={TYPING}
+                onChange={event => setHomeQuery(event.target.value)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                    event.preventDefault()
+                    goSearch()
+                  }
+                }} />
+            ) : flow.state.phase === 'ready' || typed ? (
               <SoftText key={typed}>{TYPING}</SoftText>
             ) : <span className="text-[16px] text-transparent">{TYPING}</span>}
           </Capsule>
         </div>
-        <button ref={start} onClick={flow.enterKey} type="button" className="lab-btn-primary absolute left-1/2 top-[calc(50%+52px)]" style={{ opacity: 0, transform: 'translate(-50%, 8px)', transition: 'none' }}><SoftText>{INTRO_COPY.start}</SoftText></button>
+        {/* 首屏就给一个明确的主按钮：不要求用户先滚动，也不再用“往下滚动 / 点一下”的提示 */}
+        {flow.state.phase === 'home' && <button type="button" className="lab-btn-primary home-start-cta" onClick={flow.enterKey}><SoftText>{INTRO_COPY.start}</SoftText><span aria-hidden="true"> →</span></button>}
         <IntroPanels clean={clean} starfield={starfield} setStarfield={setStarfield} flow={flow} reduced={still} topbar={topbar} setTopbar={setTopbar} controls={controls} />
       </div>
     </div>
