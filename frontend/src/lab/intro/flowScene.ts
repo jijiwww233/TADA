@@ -65,9 +65,10 @@ export class FlowScene {
       this.cards.length = this.seed.length
       return this.cards
     }
-    // 手机最后一页：转盘（DOM 里的 CircularGallery）刚挂上、纹理可能还没到，画布上那排卡多留 0.4 秒再淡掉
+    // 手机最后一页：转盘（DOM 里的 CircularGallery）刚挂上、纹理可能还没到，画布上那排卡先垫着，
+    // 0.45～0.85 秒慢慢淡掉，和转盘的 0.4 秒淡入交叉（intro-phone.css 里画布 0.9 秒后隐藏）
     if (state.phase === 'ready' && this.row && this.ringEnd.length && !reduced) {
-      const fade = 1 - ease((elapsed - .15) / .25)
+      const fade = 1 - ease((elapsed - .45) / .4)
       this.ringEnd.forEach((c, i) => { this.cards[i] = { ...c, alpha: c.alpha * fade } })
       this.cards.length = fade > 0 ? this.ringEnd.length : 0
       return this.cards
@@ -139,10 +140,16 @@ export class FlowScene {
         const ringScale = .95 + .05 * facing
         const ringDof = .48 * (1 - facing) ** 2
         if(state.phase==='reveal') {
-          const bend=Math.sin(Math.PI*t)
+          // 手机从卷轴卷进来（有 seed）：直接从卷轴上的位置平滑走到环上的位置。
+          // 原来两处会让卡先往左绕：① 偶数张路上被故意往左甩 45px、往上拱 60px（电脑版散卡用的弧线）；
+          // ② 绕竖轴从 0 转到 ringAngle，第 15 张要转 337.5° 将近一整圈，中途翻到背面像先跑开再出来。
+          // 手机：不加弧线，转角取最短的那一段（折回 (−π, π]，和 gather 里的 facingAngle 一样）。电脑版不变。
+          const seeded=!!this.seed
+          const bend=seeded?0:Math.sin(Math.PI*t)
+          const ringRy=seeded?Math.atan2(Math.sin(angle),Math.cos(angle)):angle
           x=mix(old?.x??target.x,ringX,t)+bend*(i%2?45:-45)
           y=mix(old?.y??target.y,ringY,t)-bend*60
-          z=mix(old?.z??target.z,ringZ,t);rx=mix(old?.rx??target.rx,tilt,t);ry=mix(old?.ry??target.ry,angle,t)
+          z=mix(old?.z??target.z,ringZ,t);rx=mix(old?.rx??target.rx,tilt,t);ry=mix(old?.ry??target.ry,ringRy,t)
           rz = mix(old?.rz ?? target.rz, target.rz, t)
           scale = mix(old?.scale ?? 1, ringScale, t)
           // Keep the shadow's existing alpha, blur and contrast inputs continuous at the cut.

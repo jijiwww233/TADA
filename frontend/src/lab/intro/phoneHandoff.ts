@@ -16,9 +16,15 @@ export const REEL_END_AT = 28
 /** 环上第 i 张卡对应卷轴上「离中心几格」 */
 export const REEL_OFFSETS = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5]
 export const RING_CARDS = 16
-/** 整理页 → 最后一页：环滑下去变成转盘用 0.55 秒，之后标题和胶囊淡入 0.25 秒，一共 0.8 秒 */
-export const PHONE_GATHER_S = .55
-export const PHONE_GATHER_MS = 560
+/**
+ * 整理页 → 最后一页：环缩小、下沉成底部转盘那一排，用 0.9 秒缓入缓出（原来 0.55 秒，看起来是「卡巴」一下掉下去）。
+ * gather 这一段比动画多留 0.1 秒，保证最后一帧确实落到终点再换页（不然 ready 接手时还差一点点，会跳一下）。
+ * 之后（ready）：画布那排卡和转盘交叉淡化（画布 0.45～0.85 秒淡出，转盘 0.4 秒淡入），标题、胶囊、按钮 0.45 秒淡入上移。
+ */
+export const PHONE_GATHER_S = .9
+export const PHONE_GATHER_MS = 1000
+/** 手机换页（第一页 → Key 页、Key 页 → 选平台页）：旧页面淡出上移 0.26 秒，新页面淡入上移 0.34 秒，合计 0.6 秒 */
+export const PHONE_LEAVE_MS = 260
 
 const mod = (n: number, m: number) => ((n % m) + m) % m
 

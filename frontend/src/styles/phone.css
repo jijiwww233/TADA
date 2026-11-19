@@ -490,10 +490,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
   .m-app .m-setp-unavailable {
     flex: none;
-    padding: 2px 5px;
-    border-radius: 4px;
-    background: var(--brand-tan);
-    color: var(--color-text-secondary);
+    color: var(--color-text-tertiary);
     font-size: 12px;
     font-weight: 400;
     line-height: 1.3;

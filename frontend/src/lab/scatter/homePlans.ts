@@ -9,6 +9,10 @@ export const MOBILE_INITIAL_CARD_COUNT = 8
  * 首屏只露这 7 张，其余几张从屏幕下方飞进来组墙。
  */
 export const PHONE_INITIAL_CARD_COUNT = 7
+/** 手机引导首屏图片墙：12 张（电脑版 20 张的 60%），3 列 × 4 行 */
+export const PHONE_WALL_COUNT = 12
+const PHONE_WALL_COLS = 3
+const PHONE_WALL_ROWS = 4
 /**
  * 电脑版 1440×900（premotio）实算：k = 0.9，卡片基准宽 148×0.9 = 133px，深度 z 取 -560 / -260 / -40 / 140 四档，
  * 透视后宽 88～153px，平均约 120px（屏宽 8.3%），高 160px；每行 6 张，列距 240px（卡宽:空隙 ≈ 1:1）；
@@ -79,7 +83,24 @@ export function homePlan(direction: HomeDirection, phoneIntro = false): Plan {
       a.grid = b.grid; a.order = b.order
       a.layers.push(...b.layers.slice(INITIAL_CARD_COUNT))
       a.collect = b.grid.map((_, i) => i)
-      if (mobile) {
+      if (mobile && phoneIntro) {
+        // 手机引导首屏的图片墙：电脑版 20 张，手机只排 12 张（60%），3 列 × 4 行，列距行距都放宽，保持散开的感觉。
+        // 整面墙放在顶栏下方（.09H）到胶囊上方之间：胶囊被 intro-phone.css 钉在 73%、高 52（半高 26px ≈ 47 单位），
+        // 再留约 24px（≈ 43 单位）空白 → 墙底 = .73H − 90 单位。原来 5 行 × 4 张、行距按屏宽算，
+        // 屏幕矮一点（如 390×750）最后一行就压到胶囊底下。
+        // 卡片尺寸：ScatterStage 排墙时卡宽 = PLAN_B.cardW × .78（单位和这里一致）。
+        // 第 13～20 张仍保留在数组里（环/层号等都按 20 张对齐），但 ScatterStage 在手机上把它们藏掉、也不收进胶囊。
+        const cardH = PLAN_B.cardH * .78, cardW = PLAN_B.cardW * .78
+        const top = H * .09, bottom = H * .73 - 90
+        const pitch = Math.max(cardH * 1.2, Math.min((bottom - top - cardH) / (PHONE_WALL_ROWS - 1), cardH * 2))
+        const firstY = (top + bottom) / 2 - pitch * (PHONE_WALL_ROWS - 1) / 2 - H / 2
+        const colGap = Math.min(W * .3, cardW * 2.4)
+        a.grid = a.grid.map((_, i) => {
+          const slot = i % PHONE_WALL_COUNT, row = Math.floor(slot / PHONE_WALL_COLS), col = slot % PHONE_WALL_COLS
+          return { x: (col - (PHONE_WALL_COLS - 1) / 2) * colGap, y: firstY + row * pitch, z: 0, rx: 0, ry: 0, rz: 0 }
+        })
+        a.collect = a.collect.filter(i => i < PHONE_WALL_COUNT)
+      } else if (mobile) {
         const rows = [4, 4, 4, 4, 4]
         a.grid = rows.flatMap((n, row) => Array.from({ length: n }, (_, col) => ({
           x: -(n * PLAN_B.cardW + (n - 1) * 58) / 2 + PLAN_B.cardW / 2 + col * (PLAN_B.cardW + 58),

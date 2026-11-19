@@ -6,7 +6,7 @@ import { getSyncStatus, startSync } from '../../api'
 import { collectDroppedFiles, collectInputFiles } from '../../localImport/collect'
 import type { DropData } from '../../localImport/collect'
 import { DEMO_MS, INTRO_COPY, LIBRARY_COUNTS, PHASE_MS, PLATFORMS } from './copy'
-import { PHONE_GATHER_MS } from './phoneHandoff'
+import { PHONE_GATHER_MS, PHONE_LEAVE_MS } from './phoneHandoff'
 
 export type IntroPhase = 'home' | 'key' | 'unlock' | 'platforms' | 'clearing' | 'reveal' | 'gather' | 'ready'
 export type PlatformStatus = 'idle' | 'connecting' | 'connected' | 'skipped' | 'cooldown'
@@ -97,7 +97,26 @@ export function useIntroFlow(reduced: boolean, phone = false) {
   }, [api, real, state.phase, state.run])
   const pending = useRef(new Map<number, ReturnType<typeof setTimeout>>())
   const stateRef = useRef(state); stateRef.current = state
-  const enterKey = useCallback(() => dispatch({ type: 'phase', phase: 'key' }), [])
+  /**
+   * 手机换页（第一页 → Key 页、Key 页 → 选平台页）的柔和转场：先把 leaving 置上，旧页面淡出并轻微上移
+   * （intro-phone.css 的 [data-leaving]，PHONE_LEAVE_MS），到时间再真正换页；新页面由 CSS 淡入并从下方轻微上移。
+   * leaving 归零和换页在同一个定时器里一起提交，中间不会露出一帧旧页面。电脑版、减少动效时直接换页。
+   */
+  const [leaving, setLeaving] = useState(false)
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** 已经发起换页、新页面还没提交：舞台每帧都会调 enterKey，这期间不能再发起第二次（否则新页面一出来又被淡出） */
+  const leavePending = useRef(false)
+  const go = useCallback((action: Action) => {
+    if (!phone || reduced) { dispatch(action); return }
+    if (leavePending.current) return
+    leavePending.current = true
+    setLeaving(true)
+    leaveTimer.current = setTimeout(() => { leaveTimer.current = null; setLeaving(false); dispatch(action) }, PHONE_LEAVE_MS)
+  }, [phone, reduced])
+  useEffect(() => { if (!leaveTimer.current) leavePending.current = false }, [state.phase, state.run])
+  const cancelLeave = () => { if (leaveTimer.current) clearTimeout(leaveTimer.current); leaveTimer.current = null; leavePending.current = false; setLeaving(false) }
+  useEffect(() => () => { if (leaveTimer.current) clearTimeout(leaveTimer.current) }, [])
+  const enterKey = useCallback(() => go({ type: 'phase', phase: 'key' }), [go])
   const select = useCallback((index: number, activate=false) => dispatch({ type: 'select', index, activate }), [])
   useEffect(()=>{
     if(state.phase!=='platforms'||state.active!==5)return
@@ -139,9 +158,9 @@ export function useIntroFlow(reduced: boolean, phone = false) {
   }, [state.phase, state.keyStatus, state.keyAction, reduced])
   useEffect(() => {
     if (state.phase !== 'key' || state.keyStatus !== 'contracting') return
-    const id = setTimeout(() => dispatch(state.keyAction === 'skip' ? { type: 'phase', phase: 'unlock' } : { type: 'key', status: 'checking' }), reduced ? 0 : PHASE_MS.contract)
+    const id = setTimeout(() => state.keyAction === 'skip' ? go({ type: 'phase', phase: 'unlock' }) : dispatch({ type: 'key', status: 'checking' }), reduced ? 0 : PHASE_MS.contract)
     return () => clearTimeout(id)
-  }, [state.phase, state.keyStatus, state.keyAction, reduced])
+  }, [state.phase, state.keyStatus, state.keyAction, reduced, go])
   useEffect(() => {
     if (state.phase !== 'key' || state.keyStatus !== 'checking') return
     if (real) {
@@ -169,10 +188,10 @@ export function useIntroFlow(reduced: boolean, phone = false) {
     if (state.keyStatus === 'error' || state.keyStatus === 'idle') checkingBefore.current = false
     if (state.phase === 'key' && state.keyStatus === 'verified' && (checkingBefore.current || state.demo)) {
       checkingBefore.current = false
-      const id = setTimeout(() => dispatch({ type: 'phase', phase: 'unlock' }), PHASE_MS.check)
+      const id = setTimeout(() => go({ type: 'phase', phase: 'unlock' }), PHASE_MS.check)
       return () => clearTimeout(id)
     }
-  }, [state.phase, state.keyStatus, state.demo])
+  }, [state.phase, state.keyStatus, state.demo, go])
   useEffect(() => {
     const next = { clearing: 'reveal', reveal: 'gather', gather: 'ready' } as const
     if (!(state.phase in next)) return
@@ -217,7 +236,7 @@ export function useIntroFlow(reduced: boolean, phone = false) {
     let id: ReturnType<typeof setTimeout> | undefined
     // 手机体验版的 Key 页没有输入框：停同样久，然后等于点了「下一步」
     if (publicDemo && state.phase === 'key' && state.keyStatus === 'idle') id = setTimeout(() => {
-      dispatch({ type: 'key', status: 'closing', intent: 'skip' })
+      go({ type: 'phase', phase: 'unlock' })
     }, DEMO_MS.autoKey)
     else if (state.phase === 'key' && (state.keyStatus === 'idle' || state.keyStatus === 'error')) id = setTimeout(() => {
       setFail(false); setDraft(INTRO_COPY.demoKey); dispatch({ type: 'key', status: 'closing', intent: 'verify', last4: INTRO_COPY.demoTail })
@@ -233,9 +252,9 @@ export function useIntroFlow(reduced: boolean, phone = false) {
       }, i < 0 ? DEMO_MS.allPause : DEMO_MS.sourcePause)
     }
     return () => clearTimeout(id)
-  }, [state.demo, state.phase, state.keyStatus, state.platforms, publicDemo ? state.active : -1, publicDemo, select, connect])
-  const jump = (phase: IntroPage) => { setDraft('');setAdvanced(false);setFail(false);dispatch({type:'jump', phase}) }
-  return { real, platformSyncAvailable, publicDemo, filePicker, dropLocal,
+  }, [state.demo, state.phase, state.keyStatus, state.platforms, publicDemo ? state.active : -1, publicDemo, select, connect, go])
+  const jump = (phase: IntroPage) => { cancelLeave();setDraft('');setAdvanced(false);setFail(false);dispatch({type:'jump', phase}) }
+  return { real, platformSyncAvailable, publicDemo, filePicker, dropLocal, leaving,
     chooseFiles: (files: FileList) => startLocal(collectInputFiles(files).map(item => item.file)),
     importError: importError || localImport.error, restartRequired,
     totals: real ? counts : LIBRARY_COUNTS,
@@ -243,10 +262,12 @@ export function useIntroFlow(reduced: boolean, phone = false) {
       ? platformCounts.find(row => row.platform === (remotePlatforms[index] ?? 'local'))?.count
       : PLATFORMS[index].count,
     platformTitleDone: () => dispatch({type:'entry',step:'wheel'}), jump, state, draft, setDraft, fail, setFail, advanced, setAdvanced, enterKey, select, connect,
-    setDemo: (value: boolean) => { if (value) { setDraft(''); setFail(false); setAdvanced(false); dispatch({ type: 'reset', demo: true }) } else dispatch({ type: 'demo', value }) },
-    restart: () => { setDraft(''); setAdvanced(false); dispatch({ type: 'reset', demo: false }) }, verify,
-    debugKey: () => { setDraft(''); setAdvanced(false); dispatch({ type: 'reset', demo: false }); enterKey() },
-    skipKey: () => dispatch(state.keyStatus === 'verified' ? { type: 'phase', phase: 'unlock' } : { type: 'key', status: 'closing', intent: 'skip' }),
+    setDemo: (value: boolean) => { if (value) { cancelLeave(); setDraft(''); setFail(false); setAdvanced(false); dispatch({ type: 'reset', demo: true }) } else dispatch({ type: 'demo', value }) },
+    restart: () => { cancelLeave(); setDraft(''); setAdvanced(false); dispatch({ type: 'reset', demo: false }) }, verify,
+    debugKey: () => { cancelLeave(); setDraft(''); setAdvanced(false); dispatch({ type: 'reset', demo: false }); dispatch({ type: 'phase', phase: 'key' }) },
+    // 手机：「下一步 / 跳过」不再走卡片收拢那两段（280 + 650 毫秒），直接用统一的淡出上移换到选平台页
+    skipKey: () => phone ? go({ type: 'phase', phase: 'unlock' })
+      : dispatch(state.keyStatus === 'verified' ? { type: 'phase', phase: 'unlock' } : { type: 'key', status: 'closing', intent: 'skip' }),
     changeKey: () => { setDraft(''); setRestartRequired(false); dispatch({ type: 'key', status: 'idle', last4: '' }) },
     skip: (index: number) => dispatch({ type: 'platform', index, status: 'skipped' }),
     cooldown: () => dispatch({ type: 'platform', index: 0, status: state.platforms[0] === 'cooldown' ? 'idle' : 'cooldown' }),

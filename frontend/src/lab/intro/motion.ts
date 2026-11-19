@@ -35,13 +35,19 @@ export function updateWheel(root: HTMLElement | null, current: number, W: number
  const l=platformLayout(W,H),radius=mobile?Math.max(150,H*.34):l.wheelHeight*.62,depth=mobile?90:180
  root?.querySelectorAll<HTMLElement>('[data-platform-index],[data-status-index]').forEach(row=>{
   const status=row.hasAttribute('data-status-index'),index=Number(status?row.dataset.statusIndex:row.dataset.platformIndex)
-  const d=wheelDistance(index,current),a=arc(d*.34,radius,depth),scale=1/(1+Math.abs(d)*.17)
+  const d=wheelDistance(index,current),a=arc(d*.34,radius,depth)
+  // 手机转盘行：选中行原来靠 .is-current 把字号从 30 跳到 36，拖过半格就「咔」一下变大；
+  // 改成按离中心的距离连续放大（正中 1.2 倍 = 36/30），箭头和模糊也连续变化，拖动时整盘是顺滑的
+  const phoneRow=row.classList.contains('intro-phone-wheel-row'),near=Math.max(0,1-Math.abs(d))
+  const scale=1/(1+Math.abs(d)*.17)*(phoneRow?1+.2*near*near*(3-2*near):1)
   row.style.transform=`translate3d(${status?0:a.x.toFixed(2)}px,calc(-50% + ${a.y.toFixed(2)}px),${a.z.toFixed(2)}px) rotateX(${a.angle.toFixed(4)}rad) scale(${scale.toFixed(4)})`
   row.style.opacity=String(Math.max(0,1-Math.abs(d)*.24))
   row.style.pointerEvents=status&&Math.abs(d)>.05?'none':'auto'
   if(mobile&&!status)row.classList.toggle('is-current',Math.abs(d)<.5)
   const name=row.querySelector<HTMLElement>('.intro-platform-name,.intro-phone-wheel-name')
-  if(name){name.style.fontWeight=String(300+300*Math.max(0,1-Math.abs(d)));name.style.filter=Math.abs(d)<.5?'':Math.abs(d)<1.5?'blur(.5px)':'blur(1px)'}
+  if(name){name.style.fontWeight=String(300+300*near);name.style.filter=phoneRow?(Math.abs(d)<.3?'':`blur(${Math.min(1,(Math.abs(d)-.3)*.8).toFixed(2)}px)`):Math.abs(d)<.5?'':Math.abs(d)<1.5?'blur(.5px)':'blur(1px)'}
+  const arrow=phoneRow?row.querySelector<HTMLElement>('.intro-current-arrow'):null
+  if(arrow)arrow.style.opacity=Math.max(0,1-Math.abs(d)*2).toFixed(2)
  })
  root?.querySelectorAll<HTMLElement>('[data-ruler-index]').forEach(tick=>{
   const d=(Number(tick.dataset.rulerIndex)-15-(current-Math.round(current))*6)/6,a=arc(d*.34,radius,depth),scale=1/(1+Math.abs(d)*.17)

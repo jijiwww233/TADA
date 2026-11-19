@@ -633,11 +633,11 @@
     -webkit-tap-highlight-color: transparent;
   }
   .intro-phone-wheel .intro-current-arrow { width: 18px; font-size: 20px; margin-left: -2px; }
+  /* 选中行不再改字号（原来 30 → 36 在拖过半格时跳一下）：放大改由 updateWheel 按距离连续写 scale（正中 1.2 倍）；
+     箭头透明度也由 updateWheel 逐帧写 */
   .lab .intro-stage[data-phone] .intro-phone-wheel-row.is-current .intro-phone-wheel-name {
     color: var(--wm-title);
-    font-size: clamp(30px, 9.2vw, 36px);
   }
-  .intro-phone-wheel-row.is-current .intro-current-arrow { opacity: 1; }
   /* 选中行的「连接 / 跳过」吊在名字下面，不参与行高（行高固定 56，按钮 absolute，出现/消失都不改行距）。
      横向：行内容左起 24px 是箭头（宽 18、margin-left -2）再隔 6px 是名字，所以名字离行左 22px；
      这层 absolute 的基准是行，left: 22px 正好落在「选中平台名」的左边（实测两处 x 都是 65.5）。
@@ -797,24 +797,64 @@
   }
 }
 
-/* ===== P2-9 整理页 → 最后一页 =====
-   gather（0.56 秒）：画布上的环滑下去排成底部转盘那一排（flowScene 的 row），胶囊和说明一起淡出；
-   ready：转盘挂上，画布那排卡再留 0.4 秒垫底（转盘纹理到之前不露白），标题、胶囊、按钮 0.25 秒淡入。合计约 0.8 秒。 */
-@keyframes intro-phone-ready-in { from { opacity: 0; } to { opacity: 1; } }
+/* ===== P2-9 整理页 → 最后一页（第二版：放慢、交叉淡化） =====
+   gather（0.9 秒 + 0.1 秒余量）：画布上的环缓入缓出地缩成、沉到底部转盘那一排（flowScene 的 row），胶囊和说明 0.3 秒淡出上移；
+   ready：转盘挂上后 0.4 秒淡入，画布那排卡 0.45～0.85 秒淡出（交叉，不再「卡巴」一下换掉），0.9 秒后画布隐藏；
+   标题、胶囊、按钮 0.45 秒淡入并从下方上移 12px。 */
 @keyframes intro-phone-canvas-off { to { visibility: hidden; } }
+@keyframes intro-phone-page-in { from { opacity: 0; translate: 0 14px; } to { opacity: 1; translate: 0 0; } }
+@keyframes intro-phone-fade-in { from { opacity: 0; } }
 @media (width < 600px) {
+  /* animation: none —— intro.css / fable.css 在 gather 给胶囊挂了 intro-capsule-out（fill both，延迟期间把 opacity 压在 1），
+     之前这条淡出其实一直没生效，胶囊整段都在，到 ready 才一下换掉 */
   .lab .intro-stage[data-phone][data-phase='gather'] .home-capsule {
+    animation: none;
     opacity: 0;
-    transition: opacity 250ms ease-in-out;
+    translate: 0 -10px;
+    transition: opacity 300ms cubic-bezier(.4, 0, .2, 1), translate 300ms cubic-bezier(.4, 0, .2, 1);
   }
+  .lab .intro-stage[data-phone][data-phase='gather'] .intro-totals-caption {
+    translate: 0 -10px;
+    transition: opacity 300ms cubic-bezier(.4, 0, .2, 1), translate 300ms cubic-bezier(.4, 0, .2, 1);
+  }
+  /* 外层 .intro-main 自己还有 0.6 秒的整体淡入（fable.css），叠在下面这些动画上会让转盘和画布同时半透明、闪一下；
+     手机上去掉，淡入只由各元素自己的动画管 */
+  .lab .intro-stage[data-phone] .intro-main { transition: none; }
   .lab .intro-stage[data-phone][data-phase='ready'] canvas.home-card-stage {
     visibility: visible;
-    animation: intro-phone-canvas-off 0s 400ms forwards;
+    animation: intro-phone-canvas-off 0s 900ms forwards;
+  }
+  .lab .intro-stage[data-phone][data-phase='ready'] .intro-circular-gallery {
+    animation: intro-phone-fade-in 400ms cubic-bezier(.4, 0, .2, 1) backwards;
   }
   .lab .intro-stage[data-phone][data-phase='ready'] :is(.intro-ready, .home-capsule, .intro-enter) {
-    animation: intro-phone-ready-in 250ms ease-in-out both;
+    animation: intro-phone-page-in 450ms cubic-bezier(.4, 0, .2, 1) backwards;
   }
   .lab .intro-stage[data-phone][data-reduced='true'][data-phase='ready'] canvas.home-card-stage { visibility: hidden; animation: none; }
-  .lab .intro-stage[data-phone][data-reduced='true'] :is(.intro-ready, .home-capsule, .intro-enter) { animation: none; }
-  .lab .intro-stage[data-phone][data-reduced='true'][data-phase='gather'] .home-capsule { transition: none; }
+  .lab .intro-stage[data-phone][data-reduced='true'] :is(.intro-ready, .home-capsule, .intro-enter, .intro-circular-gallery) { animation: none; }
+  .lab .intro-stage[data-phone][data-reduced='true'][data-phase='gather'] :is(.home-capsule, .intro-totals-caption) { transition: none; translate: none; }
+}
+
+/* ===== 手机换页转场：第一页 → Key 页、Key 页 → 选平台页 =====
+   电脑版这两处是胶囊用弹簧变形成 Key 卡片、再收拢弹出卡片；手机上胶囊的位置是 CSS 钉死的（!important），照搬不了，
+   统一用同一种柔和转场：旧页面 0.26 秒淡出并上移 12px（useIntroFlow 的 leaving → [data-leaving]），
+   新页面 0.34 秒淡入并从下方 14px 上移，合计 0.6 秒，缓入缓出。
+   用独立的 translate 属性，不和这些元素原有的 transform（居中用、!important）冲突。
+   进场动画只用 backwards 填充：播完就不再压着 opacity，之后的 [data-leaving] 淡出才生效。 */
+@media (width < 600px) {
+  .lab .intro-stage[data-phone][data-leaving] :is(.home-card-stage, .home-type, .home-foreground, .home-capsule, .home-start-cta, .intro-key-title, .intro-phone-platform) {
+    opacity: 0;
+    translate: 0 -12px;
+    pointer-events: none;
+    transition: opacity 260ms cubic-bezier(.4, 0, .2, 1), translate 260ms cubic-bezier(.4, 0, .2, 1);
+  }
+  .lab .intro-stage[data-phone][data-phase='key'] .home-capsule,
+  .lab .intro-stage[data-phone][data-phase='platforms'] :is(.home-capsule, .intro-phone-platform) {
+    animation: intro-phone-page-in 340ms cubic-bezier(.4, 0, .2, 1) backwards;
+  }
+  .lab .intro-stage[data-phone][data-reduced='true'] :is(.home-capsule, .intro-phone-platform) { animation: none; }
+}
+@media (width < 600px) and (prefers-reduced-motion: reduce) {
+  .lab .intro-stage[data-phone] :is(.home-capsule, .intro-phone-platform, .intro-ready, .intro-enter, .intro-circular-gallery) { animation: none; }
+  .lab .intro-stage[data-phone][data-leaving] * { transition: none; }
 }

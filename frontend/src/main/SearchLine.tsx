@@ -30,7 +30,7 @@ const EXAMPLES: Record<Mode, { lead: string; items: string[] }> = {
   ref: { lead: '试试：', items: [demoReferenceQuery, '极简作品集封面', '夏日音乐节海报'] },
 }
 const PHONE_EXAMPLES: Record<Mode, string[]> = {
-  find: ['暖黄色的灯里面好像有星星', '黑色背景上的发光球', '很复古的花，深色背景'],
+  find: ['星星台灯', '黑底发光球', '深色花卉'],
   ref: [demoReferenceQuery],
 }
 

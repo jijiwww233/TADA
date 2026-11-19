@@ -17,6 +17,8 @@ const MainApp = lazy(() => import('./main/MainApp.tsx'))
 const MainV4 = lazy(() => import('./main-v4/MainApp.tsx'))
 // /design-system: 设计系统说明页（令牌、按钮、用词对照），入口在设置 → 关于
 const DesignSystem = lazy(() => import('./main/DesignSystem.tsx'))
+// /guides/api-key.html：申请 Key 的网页教程。公网服务把这个地址兜底成 index.html，所以在这里接住（本机 dev 时 public 里的静态页优先）
+const ApiKeyGuide = lazy(() => import('./guides/ApiKeyGuide.tsx'))
 
 // 路由判断：支持 pathname (/lab, /main) 和 hash (#/lab, #/main)，后者用于 file:// 协议
 const getRoute = () => {
@@ -28,6 +30,7 @@ const getRoute = () => {
     isMain: path.replace(/\*+$/, '') === '/main' || hash === '/main',
     isMainV4: path === '/main-v4' || hash === '/main-v4',
     isDesignSystem: path === '/design-system' || hash === '/design-system',
+    isGuide: path === '/guides/api-key.html' || path === '/guides/api-key',
   }
 }
 
@@ -40,7 +43,9 @@ createRoot(document.getElementById('root')!).render(
   // /lab stays outside StrictMode: its dev-only double mount runs every effect's cleanup, and the WebGL demos
   // release their context there (CircularGallery calls WEBGL_lose_context). The remounted canvas then keeps a dead
   // context and never draws — dev only, the production build has no double mount. Every other page keeps StrictMode.
-  route.isLab || route.isIntro || route.isMain || route.isMainV4 || route.isDesignSystem ? (
+  route.isGuide ? (
+    <Suspense fallback={null}><ApiKeyGuide /></Suspense>
+  ) : route.isLab || route.isIntro || route.isMain || route.isMainV4 || route.isDesignSystem ? (
     <Suspense fallback={null}>
       {route.isLab ? <Lab /> : route.isIntro ? <Intro /> : route.isMainV4 ? <MainV4 />
         : route.isDesignSystem ? <DesignSystem /> : <MainApp />}

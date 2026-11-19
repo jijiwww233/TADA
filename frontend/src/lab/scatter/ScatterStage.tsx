@@ -9,7 +9,7 @@ import { DEMO_MS, INTRO_COPY, PLATFORMS } from '../intro/copy'
 import { quietSpring, updateWheel, platformLayout } from '../intro/motion'
 import '../intro/intro.css'
 import '../intro/fable.css'
-import { COVER_FRONT, INITIAL_CARD_COUNT, MOBILE_INITIAL_CARD_COUNT, PHONE_INITIAL_CARD_COUNT, type HomeDirection } from './homePlans'
+import { COVER_FRONT, INITIAL_CARD_COUNT, MOBILE_INITIAL_CARD_COUNT, PHONE_INITIAL_CARD_COUNT, PHONE_WALL_COUNT, type HomeDirection } from './homePlans'
 import { HomeHeadline } from './HomeHeadline'
 import { SoftText } from '../intro/SoftText'
 import { REFINE } from '../../main/refine'
@@ -22,6 +22,23 @@ import { galleryLayers, galleryRow, seedFromReel, snapReel, type ReelShot } from
 /** 手机整理结果页：胶囊中心在舞台中线下方多少 px（推导见 tick 里 target.y 的注释；和 intro-phone.css 的 --phone-result-top 成对） */
 const PHONE_RESULT_CAP_Y = 103.4
 import { collectLength, frame, matrixSettledProgress, P_COLLECT, P_NEAT, P_START, PLAN_B, type Bounce, type Frame, type Layout, type Plan, type Pool, type Pose } from './choreo'
+
+/** 手机平台转盘的吸附弹簧：临界阻尼，ω = 9.5（约 0.5 秒停稳），比电脑版 quietSpring（ω≈14.5）软 */
+const PHONE_WHEEL_OMEGA = 9.5
+function phoneWheelSpring(value: number, velocity: number, target: number, dt: number): [number, number] {
+  for (let i = 0, n = Math.max(1, Math.ceil(dt / .004)); i < n; i++) {
+    const h = dt / n
+    velocity += (-PHONE_WHEEL_OMEGA * PHONE_WHEEL_OMEGA * (value - target) - 2 * PHONE_WHEEL_OMEGA * velocity) * h
+    value += velocity * h
+  }
+  if (Math.abs(value - target) < .002 && Math.abs(velocity) < .02) return [target, 0]
+  return [value, velocity]
+}
+
+/** 手机点「开始」后：散卡排成墙 1.5 秒（电脑版自动播放 3.6 秒）、排好停 0.45 秒、接住后 0.5 秒进 Key 页 */
+const PHONE_ARRANGE_MS = 1500
+const PHONE_MATRIX_HOLD_MS = 450
+const PHONE_CATCH_MS = 500
 
 const OPENING_MS = 750
 export const TYPING = '那张参考图……到底收藏在哪了'
@@ -100,7 +117,7 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
     startTap.current = performance.now(); setStarting(true)
   }
   /** 手机选平台页：转盘的连续位置（拖动时每帧写入，松手后由弹簧回吸到整数档） */
-  const phoneDrag = useRef({ dragging: false, current: 0, startY: 0, startCurrent: 0, velocity: 0, lastT: 0, moved: false, suppressClick: false })
+  const phoneDrag = useRef({ dragging: false, current: 0, startY: 0, startCurrent: 0, velocity: 0, lastT: 0, moved: false, suppressClick: false, release: null as number | null })
   useEffect(() => { if (startPage) flowRef.current.jump(startPage); else if (autoplay) flowRef.current.setDemo(true) }, [autoplay, startPage])
   useEffect(() => {
     if (flow.state.phase === 'key' || flow.state.run > 0) wrap.current?.scrollIntoView({ block: 'start', behavior: 'instant' })
@@ -142,14 +159,21 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
     return () => el?.removeEventListener('wheel', wheel)
   }, [phone])
 
-  // 手机选平台页：在左栏上下拖 = 转动转盘，松手按拖动速度吸附到最近一档
+  // 手机选平台页：在左栏上下拖 = 转动转盘。iOS 选择器手感：拖动时连续跟手（不按格跳），
+  // 松手后按甩的速度带一段惯性（最多 3 格），再由 tick 里的柔和弹簧平滑吸附到最近一格
   useEffect(() => {
     if (!phone) return
     const root = wrap.current
     if (!root) return
     const d = phoneDrag.current
     const step = () => Math.max(54, (root.clientHeight || 844) * .09)
-    const clamp = (n: number) => Math.max(0, Math.min(PLATFORMS.length, n))
+    const last = PLATFORMS.length
+    const clamp = (n: number) => Math.max(0, Math.min(last, n))
+    // 拖出两头：橡皮筋，越拉越拉不动，最多多出 0.35 格
+    const rubber = (n: number) => {
+      const over = n < 0 ? n : n > last ? n - last : 0
+      return clamp(n) + Math.sign(over) * .35 * (1 - 1 / (1 + Math.abs(over) * 1.4))
+    }
     let surface: HTMLElement | null = null
     const down = (e: PointerEvent) => {
       const target = e.target as Element | null
@@ -157,10 +181,10 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
       if (!wheel || target?.closest?.('.intro-connect, .intro-link')) return
       if (flowRef.current.state.phase !== 'platforms') return
       surface = wheel
-      d.dragging = true; d.moved = false
+      d.dragging = true; d.moved = false; d.release = null
       d.startY = e.clientY; d.lastT = performance.now(); d.velocity = 0
-      // 一次滑动最多走一格：起点取当前选中的那格（不是转盘还在回弹的半路位置）
-      d.startCurrent = flowRef.current.state.active
+      // 起点 = 转盘此刻的连续位置：还在惯性滑动时按住就地停住，接着拖（不会先跳回某一格）
+      d.startCurrent = d.current
       wheel.classList.add('is-dragging')
     }
     const move = (e: PointerEvent) => {
@@ -169,11 +193,11 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
       if (Math.abs(dy) > 4) d.moved = true
       const now = performance.now(), dt = Math.max(1, now - d.lastT)
       const previous = d.current
-      // 跟手但限制在前后一格以内；超出的部分只给一点阻尼感（最多再多 0.15 格）
-      const raw = -dy / step()
-      const limited = Math.abs(raw) <= 1 ? raw : Math.sign(raw) * (1 + Math.min(.15, (Math.abs(raw) - 1) * .2))
-      d.current = clamp(d.startCurrent + limited)
-      d.velocity = (d.current - previous) / (dt / 1000)
+      // 完全跟手：手指走一格的距离，转盘就走一格（小数连续变化）
+      d.current = rubber(d.startCurrent - dy / step())
+      // 速度（格/秒）做一点平滑，避免最后一个事件的抖动决定惯性
+      const instant = (d.current - previous) / (dt / 1000)
+      d.velocity = dt > 100 ? instant : d.velocity * .5 + instant * .5
       d.lastT = now
       if (e.cancelable) e.preventDefault()
     }
@@ -195,19 +219,21 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
           setTimeout(() => { d.suppressClick = false }, 400)
           if (flowRef.current.state.demo) flowRef.current.setDemo(false)
           flowRef.current.select(best.index)
-          d.current = best.index
         }
         return
       }
-      // 吸附：拖过 0.3 格，或者快速一甩（> 2 格/秒），就走一格；否则弹回原位。永远不会一次跳两格。
-      const delta = d.current - d.startCurrent
-      const dir = Math.abs(delta) > .3 ? Math.sign(delta) : Math.abs(d.velocity) > 2 ? Math.sign(d.velocity) : 0
-      const target = clamp(d.startCurrent + dir)
+      // 惯性：按松手时的速度往前多滑一段（速度 × 0.3 秒），落点取最近的整格；
+      // 快甩最多比松手处多走 3 格，不会飞走。手指停住超过 0.1 秒再松手 = 没有惯性，就近吸附。
+      const v = performance.now() - d.lastT > 100 ? 0 : d.velocity
+      const from = clamp(d.current)
+      const reach = Math.max(-3, Math.min(3, v * .3))
+      const target = clamp(Math.round(from + reach))
       if (flowRef.current.state.demo) flowRef.current.setDemo(false)
       flowRef.current.select(target)
       d.suppressClick = true
       setTimeout(() => { d.suppressClick = false }, 400)
-      d.current = target
+      // 松手速度交给 tick 里的弹簧当初速度：转盘接着往前滑、慢慢减速停到 target（不是从 0 速度重新起步）
+      d.release = v
     }
     const click = (e: MouseEvent) => {
       if (!d.suppressClick) return
@@ -331,6 +357,16 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
         wheelPhase = state.phase
         if (phone && drag.dragging) { wheelCurrent = drag.current; wheelVelocity = 0 }
         else if (still) { wheelCurrent = state.active; wheelVelocity = 0 }
+        else if (phone) {
+          // 手机：松手那一刻接上手指的速度，再用一个更软的临界阻尼弹簧（约 0.5 秒停稳、不回弹）吸附到目标格
+          if (drag.release !== null) {
+            const gap = state.active - wheelCurrent
+            // 初速度不超过 ω·距离：临界阻尼下这样不会冲过目标再弹回来
+            wheelVelocity = Math.sign(drag.release) === Math.sign(gap) ? Math.sign(gap) * Math.min(Math.abs(drag.release), PHONE_WHEEL_OMEGA * Math.abs(gap) * .95) : 0
+            drag.release = null
+          }
+          [wheelCurrent, wheelVelocity] = phoneWheelSpring(wheelCurrent, wheelVelocity, state.active, dt)
+        }
         else [wheelCurrent, wheelVelocity] = quietSpring(wheelCurrent, wheelVelocity, state.active, dt)
         if (phone && state.phase === 'platforms' && !drag.dragging) drag.current = wheelCurrent
         updateWheel(wrap.current, wheelCurrent, W, H)
@@ -394,11 +430,12 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
           // Start the hold only once the smoothed matrix has settled.
           if (P >= settledProgress && !matrixAt) matrixAt = now
           const arrangeElapsed = state.demo ? sinceTitle - DEMO_MS.homeTitleHold : now - startTap.current
-          if (matrixAt) p = now - matrixAt >= DEMO_MS.matrixHold ? .96 : P_NEAT
+          // 手机：原来「开始 → 排成墙」用电脑版自动播放的 3.6 秒，慢悠悠的；手机改 1.5 秒排好、停 0.45 秒再收
+          if (matrixAt) p = now - matrixAt >= (phone ? PHONE_MATRIX_HOLD_MS : DEMO_MS.matrixHold) ? .96 : P_NEAT
           else if (arrangeElapsed > 0) {
             // The scroll choreography is static before P_START.
             P = Math.max(P, P_START)
-            p = Math.min(P_NEAT, P_START + arrangeElapsed / DEMO_MS.homeArrange)
+            p = Math.min(P_NEAT, P_START + arrangeElapsed / (phone ? PHONE_ARRANGE_MS : DEMO_MS.homeArrange))
           }
         } else if (focus === 1) {
           p = progress()
@@ -407,7 +444,7 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
         const matrixIsSettled = auto && matrixAt > 0
         const nP = matrixIsSettled || Math.abs(p - P) < 1e-4
           ? p
-          : P + (p - P) * (1 - Math.exp(-dt / (auto ? 0.28 : 0.1))) // 手动滚动要跟手；自动播放保留原来的柔和
+          : P + (p - P) * (1 - Math.exp(-dt / (auto ? (phone ? 0.16 : 0.28) : 0.1))) // 手动滚动要跟手；自动播放保留原来的柔和（手机跟得紧一点，不拖尾）
         if (nP !== P) { P = nP; moving = true }
         const dir = P >= P_COLLECT ? 1 : P < P_COLLECT - 0.03 ? -1 : 0
         const nc = Math.min(L, Math.max(0, clock + dir * dt * (dir < 0 ? 1.6 : 1)))
@@ -435,7 +472,8 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
       if (ns !== startP) { startP = ns; moving = true }
       if (clock >= L && P > P_COLLECT) {
         if (!caughtAt) caughtAt = now
-        if (auto && (still || now - caughtAt > DEMO_MS.homeCatch)) f.enterKey()
+        // 手机：胶囊接住最后一张卡、回弹停下后（约 0.5 秒）就进 Key 页；enterKey 在手机上先播 0.26 秒的退场再换页
+        if (auto && (still || now - caughtAt > (phone ? PHONE_CATCH_MS : DEMO_MS.homeCatch))) f.enterKey()
       } else caughtAt = 0
       // Reduced motion otherwise keeps the first composition readable, without the 420vh travel.
       if (moving || dirty) {
@@ -455,6 +493,8 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
           out.cards[i].alpha *= enter
           out.cards[i].scale *= enter
         }
+        // 手机图片墙只要 12 张（homePlans 的 PHONE_WALL_COUNT）：第 13 张以后一直不画
+        if (phone) for (let i = PHONE_WALL_COUNT; i < out.cards.length; i++) { out.cards[i].alpha = 0; out.cards[i].scale = 0 }
         const cx = (mobile ? 0 : direction === 'premotio' ? W * .17 : -W * .23) * (1 - out.neat)
         const lift = rise * rise * (3 - 2 * rise)
         const cy = out.capsuleY * (1 - lift) + (mobile ? H * .29 : direction === 'premotio' ? H * .14 : H * .29) * (1 - out.neat)
@@ -517,6 +557,8 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
             const queue=items.map(item=>item.src)
             const next=():void=>{const src=queue.shift();if(src&&!disposed)void loadImage(src).catch(()=>{}).then(next)}
             next();next()
+            // 最后一页转盘用的 16 张缩略图也提前备好，转盘挂上时不用再等
+            take(galleryCards,16).forEach(card=>{void cardThumbnailUrl(card.src).catch(()=>{})})
           })
         }
       }))
@@ -528,7 +570,7 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
   }, [plan, items, still, direction, phone])
 
   return (
-    <div ref={wrap} className={`relative home-stage intro-stage home-${direction} ${english ? 'home-english' : ''}`} data-home-stage data-clean={clean ? '' : undefined} data-phone={phone ? '' : undefined} data-focusing={!typed && !phone} data-phase={flow.state.phase} data-topbar={topbar} data-key-state={flow.state.keyStatus} data-reduced={still}>
+    <div ref={wrap} className={`relative home-stage intro-stage home-${direction} ${english ? 'home-english' : ''}`} data-home-stage data-clean={clean ? '' : undefined} data-phone={phone ? '' : undefined} data-focusing={!typed && !phone} data-phase={flow.state.phase} data-leaving={phone && flow.leaving ? '' : undefined} data-topbar={topbar} data-key-state={flow.state.keyStatus} data-reduced={still}>
       <div ref={focusVeil} className="home-screen sticky top-0 overflow-hidden" style={{ background: PAPER }}>
         {/* new canvas per plan: the old renderer gives its context back (loseContext) when the plan changes */}
         <canvas key={`${direction}-${still}`} ref={canvas} className="home-card-stage absolute inset-0 size-full" hidden={fallback} />

@@ -10,10 +10,11 @@ export function IntroGallery({ reduced, phone = false }: { reduced: boolean; pho
     if(reduced){setSpeed(0);return}
     const started=performance.now()
     if(phone){
-      // 手机：环刚在画布上落成这一排，转盘先停 0.6 秒，再用 1.5 秒从 0 缓缓加到巡航速度 −0.35（电脑版不变）
+      // 手机：环刚在画布上落成这一排，转盘先停着，再用 1.5 秒从 0 缓缓加到巡航速度 −0.35（电脑版不变）。
+      // 停的时间从 0.6 秒加到 1.0 秒：画布上那排卡要到 0.85 秒才淡完，转盘提前转起来会和它错开、看到两层图
       setSpeed(0)
       const timer=setInterval(()=>{
-        const t=Math.min(1,Math.max(0,(performance.now()-started-600)/1500))
+        const t=Math.min(1,Math.max(0,(performance.now()-started-1000)/1500))
         setSpeed(-.35*t*t*(3-2*t))
         if(t===1)clearInterval(timer)
       },50)
@@ -30,12 +31,20 @@ export function IntroGallery({ reduced, phone = false }: { reduced: boolean; pho
   const { cards } = useImages()
   // 一圈图片也用缩略图（长边 <=1024），避免全尺寸图进 WebGL 纹理。
   const [thumbs, setThumbs] = useState<string[]>(() => cards.map(card => card.src))
+  // 手机：等缩略图到了再挂转盘（最多等 0.5 秒）。原来先用原图挂上、缩略图一到 items 变了，转盘整个重建一次，
+  // 正好落在「环 → 转盘」交接的那一下，看起来卡一下。画布那排卡在这段时间里垫着。
+  const [thumbsReady, setThumbsReady] = useState(!phone)
   useEffect(() => {
-    let live = true
-    Promise.all(cards.map(card => cardThumbnailUrl(card.src))).then(next => { if (live) setThumbs(next) }, () => {})
-    return () => { live = false }
-  }, [cards])
+    let live = true, settled = false
+    const timer = phone ? setTimeout(() => { if (live && !settled) { settled = true; setThumbsReady(true) } }, 500) : undefined
+    Promise.all(cards.map(card => cardThumbnailUrl(card.src))).then(next => {
+      if (!live || (phone && settled)) return
+      settled = true; setThumbs(next); setThumbsReady(true)
+    }, () => { if (live && !settled) { settled = true; setThumbsReady(true) } })
+    return () => { live = false; clearTimeout(timer) }
+  }, [cards, phone])
   const items = useMemo(() => take(cards,16).map((i,index)=>({ image:thumbs[index % Math.max(1, thumbs.length)] ?? i.src, alt:`收藏 #${i.id}` })),[cards,thumbs])
+  if (!thumbsReady) return null
   return <div className="intro-circular-gallery">
     {items.length>0&&<CircularGallery items={items} bend={2.4} font="600 24px system-ui" showTitles={false}
       // 手机：电脑版 1440×900 时卡高 216、宽 168（屏宽 11.7%），卡距 = 1.26 卡宽，一屏约 6.8 张。
