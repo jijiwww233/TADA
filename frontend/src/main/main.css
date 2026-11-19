@@ -166,6 +166,9 @@
 .m-modal-foot .m-spacer { flex: 1; }
 .m-modal-foot span { font-size: var(--m-type-ui); color: var(--m-ink-3); }
 
+/* 评审后：待确认页标题下固定显示「已保留 N · 不是参考 N」，处理一批立刻更新 */
+.m-pending-tally { margin: 0; padding: 10px 24px 0; font-size: var(--m-type-ui); color: var(--m-ink-2); font-variant-numeric: tabular-nums; }
+
 /* ---- 项目页 ---- */
 .m-page { position: relative; z-index: 1; padding: 96px 6vw 140px; min-height: 100vh; }
 .m-back { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--m-ink-2); font-size: var(--m-type-ui); cursor: pointer; padding: 0; }
@@ -499,7 +502,7 @@
 
 .m-result-line { display: flex; align-items: center; gap: 12px; padding: 12px 2px 0; font-size: var(--m-type-ui); color: var(--m-ink-2); }
 .m-result-line button { border: 0; background: transparent; color: var(--m-ink-3); font-size: var(--m-type-ui); cursor: pointer; }
-.m-empty-line { padding: 28px 2px; font-size: var(--m-type-ui); color: var(--m-ink-3); }
+.m-empty-line { padding: 28px 2px; font-size: var(--m-type-ui); color: var(--m-ink-2); }
 
 /* 找图结果的分组提示：有 strong 时在 strong 墙之后分出一条线 + 一句灰字，再放最多 6 张 weak（见 Library.tsx）。 */
 .m-relevance-hint { padding: 14px 2px 0; font-size: 13px; line-height: 1.6; color: var(--m-ink-3); }
@@ -1223,6 +1226,12 @@
 .m-gm-clear { padding: 0; border: 0; background: transparent; cursor: pointer; font: inherit; color: inherit;
   text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 .m-gm-total { font-family: var(--m-title); font-style: italic; font-variant-numeric: tabular-nums; }
+/* 评审后：底部的「(158)」改成「显示 N 张」；面板右上角一个 × 关闭按钮 */
+.m-gm-shown { font-variant-numeric: tabular-nums; }
+.m-gm-close { position: absolute; top: 2px; right: 2px; z-index: 3; display: grid; place-items: center; width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: 4px; background: transparent; color: var(--m-ink-2); font-family: var(--m-title); font-size: 18px; line-height: 1; cursor: pointer; }
+.m-gm-close:hover { color: var(--m-ink); }
+.m-gm-close:focus-visible { outline: 2px solid var(--m-clay); outline-offset: -2px; }
 .m-gm-reveal { flex: none; }
 .m-toolbar .m-gm-reveal + .m-gm-reveal { margin-left: 8px; }
 /* 菜单在页面最底部那层渐隐遮罩（GradualBlur，z 40）的上面 */

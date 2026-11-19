@@ -28,6 +28,11 @@ export function wheelDistance(index:number,current:number) {
  while(d< -3)d+=6
  return d
 }
+/** 选平台页手机卷轴（右栏那叠卡）：每往外一档，下一张从上一张后面露出多少——
+ *  REEL_SPREAD 越大越松（0.05 = 原来约露出 55%，0.25 ≈ 75%）；REEL_ARC 是弧线半径（卡高的倍数），
+ *  越大越直，边缘的卡不会被圆弧推到屏幕右边缘外 */
+export const REEL_SPREAD = .25
+export const REEL_ARC = 7
 export function updateWheel(root: HTMLElement | null, current: number, W: number, H: number) {
  // 电脑版：半径由轮盘高度决定；手机版：半径按屏高取一个能放下约 5 行的值，
  // 其余递减比例（scale 1/(1+|d|·.17)、透明度 1-|d|·.24、字重、模糊档位、刻度透明度）和电脑版同一套数值
@@ -83,8 +88,8 @@ export function updateWheel(root: HTMLElement | null, current: number, W: number
    const Z=[0,-32,-68,-108,-152,-200,-252,-308],TILT=Math.PI/30 // 6°/格
    const tilt=(a:number)=>Math.min(a*TILT,Math.PI/6)
    const proj=SIZE.map((s,a)=>h*s*Math.cos(tilt(a))*PERSP/(PERSP-Z[a]))
-   const YS=[0];for(let a=1;a<SIZE.length;a++)YS[a]=YS[a-1]+proj[a-1]/2+proj[a]*.05
-   const RC=h*4.75
+   const YS=[0];for(let a=1;a<SIZE.length;a++)YS[a]=YS[a-1]+proj[a-1]/2+proj[a]*REEL_SPREAD
+   const RC=h*REEL_ARC
    const tier=(v:number[],a:number)=>{const i=Math.min(v.length-1,Math.floor(a));return i>=v.length-1?v[i]:v[i]+(v[i+1]-v[i])*(a-i)}
    imgs.forEach((img,i)=>{
     const d=i-at,a=Math.abs(d),sg=Math.sign(d)

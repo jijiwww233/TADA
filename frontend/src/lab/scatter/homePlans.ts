@@ -1,4 +1,5 @@
 import { PLAN_A, PLAN_B, type Plan, type Pose } from './choreo'
+import { ONE_TAKE_WALL_CARDS, ONE_TAKE_WALL_ROWS, ONE_TAKE_WALL_SCALE, PHONE_ONE_TAKE } from '../intro/oneTake'
 
 export type HomeDirection = 'cover' | 'premotio' | 'book'
 export const COVER_FRONT = [2, 9]
@@ -9,10 +10,10 @@ export const MOBILE_INITIAL_CARD_COUNT = 8
  * 首屏只露这 7 张，其余几张从屏幕下方飞进来组墙。
  */
 export const PHONE_INITIAL_CARD_COUNT = 7
-/** 手机引导首屏图片墙：12 张（电脑版 20 张的 60%），3 列 × 4 行 */
-export const PHONE_WALL_COUNT = 12
+/** 手机引导首屏图片墙：12 张（电脑版 20 张的 60%），3 列 × 4 行（一镜到底开着时卡片放大到 S，改成 3 × 3 = 9 张） */
+export const PHONE_WALL_COUNT = PHONE_ONE_TAKE ? ONE_TAKE_WALL_CARDS : 12
 const PHONE_WALL_COLS = 3
-const PHONE_WALL_ROWS = 4
+const PHONE_WALL_ROWS = PHONE_ONE_TAKE ? ONE_TAKE_WALL_ROWS : 4
 /**
  * 电脑版 1440×900（premotio）实算：k = 0.9，卡片基准宽 148×0.9 = 133px，深度 z 取 -560 / -260 / -40 / 140 四档，
  * 透视后宽 88～153px，平均约 120px（屏宽 8.3%），高 160px；每行 6 张，列距 240px（卡宽:空隙 ≈ 1:1）；
@@ -90,11 +91,16 @@ export function homePlan(direction: HomeDirection, phoneIntro = false): Plan {
         // 屏幕矮一点（如 390×750）最后一行就压到胶囊底下。
         // 卡片尺寸：ScatterStage 排墙时卡宽 = PLAN_B.cardW × .78（单位和这里一致）。
         // 第 13～20 张仍保留在数组里（环/层号等都按 20 张对齐），但 ScatterStage 在手机上把它们藏掉、也不收进胶囊。
-        const cardH = PLAN_B.cardH * .78, cardW = PLAN_B.cardW * .78
+        // 一镜到底：卡片放大到基准尺寸 S（× .78 → × 1.34，见 oneTake.ts），3 列 × 3 行；
+        // 列距 = min(.3W, 1.75 卡宽)，行间空白和列间空白一样大（放不下时按可用高度压，至少 1.05 卡高），墙底仍在胶囊上方约 24px
+        const wall = PHONE_ONE_TAKE ? ONE_TAKE_WALL_SCALE : .78
+        const cardH = PLAN_B.cardH * wall, cardW = PLAN_B.cardW * wall
         const top = H * .09, bottom = H * .73 - 90
-        const pitch = Math.max(cardH * 1.2, Math.min((bottom - top - cardH) / (PHONE_WALL_ROWS - 1), cardH * 2))
+        const colGap = Math.min(W * .3, cardW * (PHONE_ONE_TAKE ? 1.75 : 2.4))
+        const pitch = PHONE_ONE_TAKE
+          ? Math.max(cardH * 1.05, Math.min((bottom - top - cardH) / (PHONE_WALL_ROWS - 1), cardH + colGap - cardW))
+          : Math.max(cardH * 1.2, Math.min((bottom - top - cardH) / (PHONE_WALL_ROWS - 1), cardH * 2))
         const firstY = (top + bottom) / 2 - pitch * (PHONE_WALL_ROWS - 1) / 2 - H / 2
-        const colGap = Math.min(W * .3, cardW * 2.4)
         a.grid = a.grid.map((_, i) => {
           const slot = i % PHONE_WALL_COUNT, row = Math.floor(slot / PHONE_WALL_COLS), col = slot % PHONE_WALL_COLS
           return { x: (col - (PHONE_WALL_COLS - 1) / 2) * colGap, y: firstY + row * pitch, z: 0, rx: 0, ry: 0, rz: 0 }

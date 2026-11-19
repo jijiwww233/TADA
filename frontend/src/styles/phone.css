@@ -565,6 +565,16 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     font-size: var(--m-type-title);
   }
 
+  /* 评审后：标题下固定显示「已保留 N · 不是参考 N」，处理一张就 +1 */
+  .m-app .m-phone-pending-titles { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .m-app .m-phone-pending-tally {
+    margin: 0;
+    font-size: var(--font-size-caption);
+    line-height: 1.2;
+    color: var(--color-text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
   .m-app .m-phone-pending-body {
     flex: 1;
     overflow-y: auto;

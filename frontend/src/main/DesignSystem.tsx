@@ -30,9 +30,9 @@ const COLORS: { group: string; items: { name: string; use: string; text?: boolea
   ] },
   { group: '文字（黑色系中性色）', items: [
     { name: '--color-text-primary', use: '正文、标题：接近黑色', text: true, ratio: '≈ 14 : 1' },
-    { name: '--color-text-secondary', use: '说明、来源、次要信息', text: true, ratio: '≈ 8 : 1' },
-    { name: '--color-text-tertiary', use: '最淡的小字、计数、未连接', text: true, ratio: '≈ 5.7 : 1' },
-    { name: '--color-text-placeholder', use: '输入框里的提示文字', text: true, ratio: '≈ 4.8 : 1' },
+    { name: '--color-text-secondary', use: '说明、来源、次要信息', text: true, ratio: '≈ 11 : 1' },
+    { name: '--color-text-tertiary', use: '最淡的小字、计数、未连接', text: true, ratio: '≈ 7.8 : 1' },
+    { name: '--color-text-placeholder', use: '输入框里的提示文字', text: true, ratio: '≈ 6.3 : 1' },
     { name: '--color-text-accent', use: '悬停的幽灵按钮、链接（陶土橙，只放在米白上）', text: true, ratio: '≈ 4.7 : 1' },
   ] },
   { group: '操作', items: [

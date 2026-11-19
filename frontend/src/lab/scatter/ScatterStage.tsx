@@ -15,9 +15,34 @@ import { SoftText } from '../intro/SoftText'
 import { REFINE } from '../../main/refine'
 import '../intro/intro-refine.css'
 import '../intro/intro-phone.css'
-import { ScatterRenderer, type Card, type Strip } from './renderer'
+import { FOCAL, ScatterRenderer, type Card, type Strip } from './renderer'
 import { cardThumbnailUrl, loadImage } from '../intro/cardThumbnail'
 import { galleryLayers, galleryRow, seedFromReel, snapReel, type ReelShot } from '../intro/phoneHandoff'
+import { ONE_TAKE_WALL_SCALE, OneTake, PHONE_ONE_TAKE, oneTakeS, ringBase, type Formation } from '../intro/oneTake'
+import type { IntroPhase } from '../intro/useIntroFlow'
+
+/**
+ * 一镜到底：每一页画布上是什么队形（第一页仍由 frame() 画；Key 页和原版一样没有卡片）。
+ * 换页淡出期间按「要去的那一页」算，卡片和文字同时开始变
+ */
+const formationOf = (phase: IntroPhase): Formation =>
+  phase === 'home' || phase === 'key' ? 'none' : phase === 'unlock' || phase === 'platforms' ? 'reel'
+    : phase === 'clearing' || phase === 'reveal' ? 'ring' : 'carousel'
+
+/**
+ * 一镜到底的测量记录（只在开关打开时写）：画布这一帧里看得见的卡（不透明度 > .5）中最大的那张（= 焦点卡）
+ * 在屏幕上的宽度和中心，给 frontend/scripts/one-take-shots.mjs 量尺寸用。渲染器按 宽 = cardW × scale × FOCAL / (FOCAL − z) 画。
+ */
+function recordOneTake(cards: Card[], cardW: number, W: number, H: number, extra: Record<string, unknown>) {
+  let best: { w: number; x: number; y: number } | null = null, count = 0
+  for (const c of cards) {
+    if (c.alpha <= .5) continue
+    count++
+    const w = (FOCAL - c.z) / FOCAL, width = cardW * c.scale / w
+    if (!best || width > best.w) best = { w: width, x: W / 2 + c.x / w, y: H / 2 + c.y / w }
+  }
+  ;(window as unknown as { __oneTake?: unknown }).__oneTake = { S: oneTakeS(W), focus: best, count, ...extra }
+}
 
 /** 手机整理结果页：胶囊中心在舞台中线下方多少 px（推导见 tick 里 target.y 的注释；和 intro-phone.css 的 --phone-result-top 成对） */
 const PHONE_RESULT_CAP_Y = 103.4
@@ -105,6 +130,8 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
     return () => { live = false }
   }, [items, phone])
   const flowRef = useRef(flow); flowRef.current = flow
+  /** 手机一镜到底（开关在 intro/oneTake.ts） */
+  const oneTakeOn = phone && PHONE_ONE_TAKE
   /** 手机第一页的胶囊只是展示：不能输入，箭头点了也没反应；只有最后一页的胶囊能搜 */
   const phoneHomeCapsule = phone && flow.state.phase === 'home'
   /** 手机点「开始」：先播一遍电脑版「卡片排好 → 收进胶囊」，播完再进 Key 页（值 = 点下去的时刻，0 = 没点） */
@@ -303,6 +330,21 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
     // 手机 P2：卷轴最后一帧的位置、环/转盘共用的 16 张图、环上卡宽（电脑 0.2W 半径时卡宽:半径 = .46，手机半径 .412W）
     let reelShots = new Map<number, ReelShot>()
     const ringLayers = phone ? galleryLayers(items, galleryCards) : null
+    // 一镜到底（选平台页以后）：同一组 16 张卡（= 原版环上 / 最后一页转盘上那 16 张图）在画布上接着变队形
+    let oneTake = new OneTake()
+    const oneTakeDraw = (formation: Formation, now: number, current: number) => {
+      // 渲染器基准卡宽 = 原版环上卡片基准宽，环上正前方那张正好 = S；卷轴、转盘按 S 换算成相对这个基准的倍数
+      r.cardW = ringBase(W); r.cardH = r.cardW * plan.cardH / plan.cardW
+      let reel: { x: number; y: number } | null = null
+      const track = formation === 'reel' ? wrap.current?.querySelector<HTMLElement>('.intro-phone-reel-track') : null
+      if (track) {
+        const t = track.getBoundingClientRect(), c = el.getBoundingClientRect()
+        if (t.width) reel = { x: t.left + t.width / 2 - c.left - c.width / 2, y: t.top + t.height / 2 - c.top - c.height / 2 }
+      }
+      const cards = oneTake.draw({ formation, now, W, H, base: r.cardW, S: oneTakeS(W), reduced: still, layers: ringLayers ?? [], current, reel })
+      r.draw(cards, [])
+      recordOneTake(cards, r.cardW, W, H, { formation })
+    }
     const ringCardW = () => .46 * W * .412
     const pose: CapsulePose = { x: 0, y: 0, width: 620, height: 60, radius: 30 }
     const velocity: CapsulePose = { x: 0, y: 0, width: 0, height: 0, radius: 0 }
@@ -323,7 +365,7 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
       let moving = false
       const f = flowRef.current, state = f.state
       if (state.run !== observedRun) {
-        observedRun = state.run; rise = 0; startP = 0; headlineDoneAt.current = null; focusStarted=-1;focusFinished=false;focusAnimation?.cancel();if(focusVeil.current)focusVeil.current.style.filter='';setTyped(0); P = 0; clock = 0; q = 0; qv = 0; bounced = false; matrixAt = 0; caughtAt = 0; dirty = true; scene = new FlowScene()
+        observedRun = state.run; rise = 0; startP = 0; headlineDoneAt.current = null; focusStarted=-1;focusFinished=false;focusAnimation?.cancel();if(focusVeil.current)focusVeil.current.style.filter='';setTyped(0); P = 0; clock = 0; q = 0; qv = 0; bounced = false; matrixAt = 0; caughtAt = 0; dirty = true; scene = new FlowScene(); oneTake = new OneTake()
       }
       if (state.phase !== 'home') {
         if(focusAnimation){focusAnimation.cancel();focusAnimation=undefined}
@@ -386,7 +428,13 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
         // 90.2 / 102.2 的一半约 45 / 51，环比那版下移 44.6，常数 −132.6 → −88；
         // 844 高时环顶约 298.3，环底到胶囊约 45.6（零星像素）/ 57.6（卡片主体），胶囊和说明仍不动
         // 手机选平台页画布是藏着的：画空白，免得卷轴卸掉、画布刚露出来的那一帧闪一下旧的散卡
-        if (phone && (state.phase === 'platforms' || state.phase === 'unlock')) r.draw([], [])
+        if (oneTakeOn) {
+          oneTakeDraw(formationOf(f.leavingTo ?? state.phase), now, wheelCurrent)
+          // 第一页给胶囊表面加的「往下弹一下」到这里清掉
+          const surface = capsule.current?.querySelector<HTMLElement>('.capsule')
+          if (surface) { surface.style.translate = ''; surface.style.scale = '' }
+        }
+        else if (phone && (state.phase === 'platforms' || state.phase === 'unlock')) r.draw([], [])
         else r.draw(scene.draw(state, W, H, now, dt, lay.layers, pose, still, lay.scat, plan, lay.collect,
           wheelCurrent, starfieldRef.current, phone ? (phoneRing ? H * .0395 - 88 : -H * .075) : 0, phoneRing ? .412 : .2), [])
         if (capsule.current) {
@@ -495,7 +543,12 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
         }
         // 手机图片墙只要 12 张（homePlans 的 PHONE_WALL_COUNT）：第 13 张以后一直不画
         if (phone) for (let i = PHONE_WALL_COUNT; i < out.cards.length; i++) { out.cards[i].alpha = 0; out.cards[i].scale = 0 }
-        const cx = (mobile ? 0 : direction === 'premotio' ? W * .17 : -W * .23) * (1 - out.neat)
+        if (oneTakeOn) {
+          // 一镜到底：散开、排墙全程同一个卡片尺寸 S（远近只靠景深 z 变化），不再「散开时大、排墙时缩到 .78」。
+          // 收进胶囊和原版一样（frame() 里缩小、淡没）
+          r.cardW = PLAN_B.cardW * k * ONE_TAKE_WALL_SCALE; r.cardH = r.cardW * PLAN_B.cardH / PLAN_B.cardW
+        }
+        const cx =(mobile ? 0 : direction === 'premotio' ? W * .17 : -W * .23) * (1 - out.neat)
         const lift = rise * rise * (3 - 2 * rise)
         const cy = out.capsuleY * (1 - lift) + (mobile ? H * .29 : direction === 'premotio' ? H * .14 : H * .29) * (1 - out.neat)
         pose.x = cx; pose.y = cy; pose.width = Math.min(620, mobile ? W - 32 : W * .42); pose.height = 60; pose.radius = 30
@@ -505,6 +558,7 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
           if (surface) { surface.style.height = '60px'; surface.style.borderRadius = '30px' }
         }
         r.draw(out.cards, out.strips)
+        if (oneTakeOn) recordOneTake(out.cards, r.cardW, W, H, { formation: 'home', neat: out.neat })
         // Two copies cross the type plane in the cover only. The actual card stays in the GL batch,
         // so the wall and collection remain one continuous, reversible A choreography.
         foreground.current?.querySelectorAll<HTMLImageElement>('img').forEach((img, j) => {
@@ -520,6 +574,13 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
             ? `scale(${(1 + q).toFixed(4)})`
             : `translateY(${(q * 8).toFixed(2)}px) scale(${(1 + q * 0.045).toFixed(4)}, ${(1 - q * 0.05).toFixed(4)})`
           capsule.current.style.transform = `translate(calc(-50% + ${cx.toFixed(1)}px), calc(-50% + ${cy.toFixed(1)}px)) ${t}`
+          // 一镜到底：手机首屏胶囊的 transform 被 intro-phone.css 用 !important 钉住，上面那条弹簧写不上去；
+          // 同一个弹簧值（同样的位移 8px × q、同样的挤压比例、同样的刚度/阻尼）改写到胶囊表面的独立 translate / scale 属性上
+          const surface = oneTakeOn ? capsule.current.querySelector<HTMLElement>('.capsule') : null
+          if (surface) {
+            if (b.mode === 'swell') { surface.style.translate = ''; surface.style.scale = (1 + q).toFixed(4) }
+            else { surface.style.translate = `0 ${(q * 8).toFixed(2)}px`; surface.style.scale = `${(1 + q * 0.045).toFixed(4)} ${(1 - q * 0.05).toFixed(4)}` }
+          }
         }
         if (labels.current) labels.current.style.setProperty('--neat', out.neat.toFixed(3))
         const send=capsule.current?.querySelector<HTMLElement>('.capsule-send')
@@ -570,7 +631,7 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
   }, [plan, items, still, direction, phone])
 
   return (
-    <div ref={wrap} className={`relative home-stage intro-stage home-${direction} ${english ? 'home-english' : ''}`} data-home-stage data-clean={clean ? '' : undefined} data-phone={phone ? '' : undefined} data-focusing={!typed && !phone} data-phase={flow.state.phase} data-leaving={phone && flow.leaving ? '' : undefined} data-topbar={topbar} data-key-state={flow.state.keyStatus} data-reduced={still}>
+    <div ref={wrap} className={`relative home-stage intro-stage home-${direction} ${english ? 'home-english' : ''}`} data-home-stage data-clean={clean ? '' : undefined} data-phone={phone ? '' : undefined} data-focusing={!typed && !phone} data-phase={flow.state.phase} data-leaving={phone && flow.leaving ? '' : undefined} data-one-take={oneTakeOn ? '' : undefined} data-topbar={topbar} data-key-state={flow.state.keyStatus} data-reduced={still}>
       <div ref={focusVeil} className="home-screen sticky top-0 overflow-hidden" style={{ background: PAPER }}>
         {/* new canvas per plan: the old renderer gives its context back (loseContext) when the plan changes */}
         <canvas key={`${direction}-${still}`} ref={canvas} className="home-card-stage absolute inset-0 size-full" hidden={fallback} />

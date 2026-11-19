@@ -137,7 +137,10 @@ export function SearchLine({ mode, onMode, text, onText, onSearch, onEscape, fie
             aria-label="搜索"
             autoComplete="off"
             spellCheck={false}
-            placeholder={docked ? (!phone && REFINE && mode === 'ref' ? '写你要做什么' : '搜索收藏') : PLACEHOLDER}
+            // 不聚焦时保持品牌句；点进输入框后换成中文提示（评审要求）
+            placeholder={docked
+              ? (!phone && REFINE && mode === 'ref' ? '写你要做什么' : '搜索收藏')
+              : focused ? '描述你记得的画面…' : PLACEHOLDER}
             onFocus={() => { if (phone) setFocused(true) }}
             onBlur={() => { if (phone) setFocused(false) }}
             onChange={event => onText(event.target.value)}

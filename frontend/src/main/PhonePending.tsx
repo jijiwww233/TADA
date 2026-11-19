@@ -34,6 +34,9 @@ export function PhonePending({ items, status, api, demoReviewed, onClose, onRetu
   const queue = items.filter(item => !previouslyReviewed.has(item.id))
   const remaining = queue.filter(item => !processed.has(item.id))
   const done = status === 'ready' && remaining.length === 0
+  /** 标题下固定显示的两个数：处理一张就 +1（撤销会减回去） */
+  const kept = decisions.reduce((total, decision) => decision.keep ? total + decision.ids.length : total, 0)
+  const dropped = decisions.reduce((total, decision) => decision.keep ? total : total + decision.ids.length, 0)
 
   const run = async (task: () => Promise<void>, failure: string) => {
     if (inFlight.current) return
@@ -75,10 +78,13 @@ export function PhonePending({ items, status, api, demoReviewed, onClose, onRetu
       onCancel={event => { event.preventDefault(); if (!inFlight.current) onClose() }}>
       <header className="m-phone-pending-head">
         <button type="button" aria-label="返回" disabled={busy} onClick={onClose}><Icon icon={ArrowLeft} size={20} /></button>
-        <h2 id="m-phone-pending-title">待确认（{remaining.length}）</h2>
+        <div className="m-phone-pending-titles">
+          <h2 id="m-phone-pending-title">待确认（{remaining.length}）</h2>
+          <p className="m-phone-pending-tally">已保留 {kept} · 不是参考 {dropped}</p>
+        </div>
       </header>
       <div className="m-phone-pending-body" data-lenis-prevent>
-        <p className="m-phone-pending-intro">AI 觉得这些可能不是设计参考，比如截图、表情包。帮它分一下：</p>
+        <p className="m-phone-pending-intro">AI 觉得这些可能不是设计参考，比如截图、表情包。帮它分一下：保留，或者标为不是参考。</p>
         {status === 'loading' && <p role="status">正在读待确认的图片…</p>}
         {status === 'error' && <button type="button" onClick={onRetry}>没读到图片，点这里重试</button>}
         {queue.map((item, index) => {
@@ -89,7 +95,7 @@ export function PhonePending({ items, status, api, demoReviewed, onClose, onRetu
             <article className="m-phone-pending-item" key={item.id}>
               {decision ? (
                 <div className="m-phone-pending-result">
-                  <span>{decision.keep ? '已留着' : '已移出'}{decision.ids.length > 1 ? ` ${decision.ids.length} 张` : ''} · </span>
+                  <span>{decision.keep ? '已保留' : '已标为不是参考'}{decision.ids.length > 1 ? ` ${decision.ids.length} 张` : ''} · </span>
                   <button type="button" disabled={busy} onClick={() => void undo(decision)}>撤销</button>
                 </div>
               ) : (
@@ -97,8 +103,8 @@ export function PhonePending({ items, status, api, demoReviewed, onClose, onRetu
                   <img src={item.src} alt={title} width={item.w} height={item.h} loading={index < 2 ? 'eager' : 'lazy'} />
                   <p className="m-phone-pending-caption" title={title}>{title}</p>
                   <div className="m-phone-pending-actions">
-                    <button type="button" className="m-phone-pending-keep" disabled={busy} onClick={() => void decide([item.id], true)}>留着</button>
-                    <button type="button" disabled={busy} onClick={() => void decide([item.id], false)}>移出</button>
+                    <button type="button" className="m-phone-pending-keep" disabled={busy} onClick={() => void decide([item.id], true)}>保留</button>
+                    <button type="button" disabled={busy} onClick={() => void decide([item.id], false)}>不是参考</button>
                   </div>
                 </>
               )}
@@ -115,7 +121,7 @@ export function PhonePending({ items, status, api, demoReviewed, onClose, onRetu
           </>
         ) : remaining.length > 0 && (
           <button type="button" className="m-phone-pending-keep" disabled={busy}
-            onClick={() => void decide(remaining.map(item => item.id), true)}>剩下的全部留着</button>
+            onClick={() => void decide(remaining.map(item => item.id), true)}>剩下的全部保留</button>
         )}
       </footer>
     </dialog>

@@ -58,6 +58,11 @@
 .m-hb:disabled { opacity: 0.45; cursor: default; }
 .m-hb:focus-visible { outline: 2px solid var(--m-clay); outline-offset: 3px; border-radius: 2px; }
 .m-hb-dot { color: var(--m-ink-3); }
+/* 评审后：顶栏「导入 +」「筛选」的可点范围补到 44×44（外观不变，用透明伪元素撑开） */
+@media (min-width: 769px) {
+  .m-hb, .m-gm-word .m-gm-word-head { position: relative; }
+  .m-hb::before, .m-gm-word .m-gm-word-head::before { content: ''; position: absolute; inset: 0 -3px; }
+}
 /* 触发词后面跟的当前值（全部 / 时间）用 Newsreader 斜体，和菜单里的编号数字同一套 */
 .m-hb i, .m-gm-word-head i { font-family: var(--m-title); font-style: italic; font-variant-numeric: tabular-nums; }
 

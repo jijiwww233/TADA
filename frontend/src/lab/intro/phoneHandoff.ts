@@ -49,9 +49,9 @@ export function reelLayers(items: LabImage[], cards: LabImage[]): number[] {
  *   容器 = intro-phone.css 里 bottom −24px、高 min(34dvh, 350px)；卡高 = 0.6 × 容器高 × itemSize(.89)，
  *   宽 = 高 × .78，卡距 = 宽 × 1.26；弧：depth = bend(2.4) × 容器高 / 16.57。整个转盘 opacity .86（intro.css）。
  */
-export function galleryRow(W: number, H: number, ringCardW: number) {
+export function galleryRow(W: number, H: number, ringCardW: number, /** 一镜到底把转盘卡改成 S 大小时另传；默认 .89 = 原版 */ itemSize = .89) {
   const gh = Math.min(.34 * H, 350)
-  const h0 = .6 * gh * .89, w0 = h0 * .78
+  const h0 = .6 * gh * itemSize, w0 = h0 * .78
   const w = w0 * Math.min(1, W * .82 / w0)
   const depth = 2.4 * gh / 16.57, half = Math.max(W, gh * 1.9) / 2
   return { y: H / 2 + 24 - gh / 2, spacing: w * 1.26, scale: w / ringCardW, alpha: .86, seconds: PHONE_GATHER_S, radius: (half * half + depth * depth) / (2 * depth), half }

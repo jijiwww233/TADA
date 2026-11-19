@@ -38,6 +38,7 @@
   .m-app .m-appbar-center .m-gm-title { top: 0; }
   .m-appbar .m-gm-head { height: 44px; padding-inline: 23px 8px; }
   .m-appbar-tools { height: 44px; }
+  .m-appbar .m-gm-close { top: 0; right: 0; width: 44px; height: 44px; font-size: 22px; }
   .m-appbar :is(.m-hb, .m-gm-word-head, .m-gm-row, .m-gm-clear) { min-height: 44px; min-width: 44px; }
   .m-appbar .m-gm-body {
     max-height: calc(100dvh - 78px);

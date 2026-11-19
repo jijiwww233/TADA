@@ -53,6 +53,11 @@
   font-family: var(--font-family-serif); font-size: var(--font-size-body); line-height: var(--line-height-snug);
   color: var(--color-text-secondary);
 }
+/* 4b. 点进搜索框后换成中文提示（SearchLine.tsx 的 focused） */
+.m-app .m-sl-v2:not(.is-floating) .m-sl-input:focus::placeholder {
+  color: var(--color-text-placeholder);
+  font-style: normal;
+}
 
 /* 5. 卡片标题：最多两行，超出显示「…」；英文按空格断行，不在单词中间断 */
 .m-app .m-tile-title {

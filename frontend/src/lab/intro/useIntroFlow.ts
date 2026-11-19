@@ -7,6 +7,7 @@ import { collectDroppedFiles, collectInputFiles } from '../../localImport/collec
 import type { DropData } from '../../localImport/collect'
 import { DEMO_MS, INTRO_COPY, LIBRARY_COUNTS, PHASE_MS, PLATFORMS } from './copy'
 import { PHONE_GATHER_MS, PHONE_LEAVE_MS } from './phoneHandoff'
+import { ONE_TAKE_GATHER_MS, PHONE_ONE_TAKE } from './oneTake'
 
 export type IntroPhase = 'home' | 'key' | 'unlock' | 'platforms' | 'clearing' | 'reveal' | 'gather' | 'ready'
 export type PlatformStatus = 'idle' | 'connecting' | 'connected' | 'skipped' | 'cooldown'
@@ -102,7 +103,9 @@ export function useIntroFlow(reduced: boolean, phone = false) {
    * （intro-phone.css 的 [data-leaving]，PHONE_LEAVE_MS），到时间再真正换页；新页面由 CSS 淡入并从下方轻微上移。
    * leaving 归零和换页在同一个定时器里一起提交，中间不会露出一帧旧页面。电脑版、减少动效时直接换页。
    */
-  const [leaving, setLeaving] = useState(false)
+  /** 正在淡出旧页面、马上要去的那一页（null = 没在换页）。一镜到底用它让卡片和文字淡出同时开始走 */
+  const [leavingTo, setLeavingTo] = useState<IntroPhase | null>(null)
+  const leaving = leavingTo !== null
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** 已经发起换页、新页面还没提交：舞台每帧都会调 enterKey，这期间不能再发起第二次（否则新页面一出来又被淡出） */
   const leavePending = useRef(false)
@@ -110,19 +113,20 @@ export function useIntroFlow(reduced: boolean, phone = false) {
     if (!phone || reduced) { dispatch(action); return }
     if (leavePending.current) return
     leavePending.current = true
-    setLeaving(true)
-    leaveTimer.current = setTimeout(() => { leaveTimer.current = null; setLeaving(false); dispatch(action) }, PHONE_LEAVE_MS)
+    setLeavingTo(action.type === 'phase' ? action.phase : stateRef.current.phase)
+    leaveTimer.current = setTimeout(() => { leaveTimer.current = null; setLeavingTo(null); dispatch(action) }, PHONE_LEAVE_MS)
   }, [phone, reduced])
   useEffect(() => { if (!leaveTimer.current) leavePending.current = false }, [state.phase, state.run])
-  const cancelLeave = () => { if (leaveTimer.current) clearTimeout(leaveTimer.current); leaveTimer.current = null; leavePending.current = false; setLeaving(false) }
+  const cancelLeave = () => { if (leaveTimer.current) clearTimeout(leaveTimer.current); leaveTimer.current = null; leavePending.current = false; setLeavingTo(null) }
   useEffect(() => () => { if (leaveTimer.current) clearTimeout(leaveTimer.current) }, [])
   const enterKey = useCallback(() => go({ type: 'phase', phase: 'key' }), [go])
   const select = useCallback((index: number, activate=false) => dispatch({ type: 'select', index, activate }), [])
   useEffect(()=>{
     if(state.phase!=='platforms'||state.active!==5)return
-    const id=setTimeout(()=>dispatch({type:'phase',phase:'clearing'}),1000)
+    // 一镜到底（手机）：选平台页 → 整理页也用统一的淡出转场，卡片在淡出时就开始从卷轴卷成环
+    const id=setTimeout(()=>phone&&PHONE_ONE_TAKE?go({type:'phase',phase:'clearing'}):dispatch({type:'phase',phase:'clearing'}),1000)
     return()=>clearTimeout(id)
-  },[state.phase,state.active,state.run])
+  },[state.phase,state.active,state.run,phone,go])
   const connect = useCallback((index: number) => {
     if (!platformSyncAvailable && index !== 2) return
     if (stateRef.current.platforms[index] !== 'idle') return
@@ -198,7 +202,8 @@ export function useIntroFlow(reduced: boolean, phone = false) {
     const phase = state.phase as keyof typeof next
     // 手机：没有电脑版那块平台面板要退场，clearing 直接过；卷轴在 reveal 里卷成环。gather 是「环滑下去变转盘」，0.56 秒
     const delay = phase === 'clearing' ? (phone ? 0 : PHASE_MS.clear)
-      : phase === 'gather' && phone ? PHONE_GATHER_MS
+      // 一镜到底：gather 只留文字淡出的 0.3 秒，卡片飞进转盘跨过 gather 和 ready（oneTake.ts 的时间线）
+      : phase === 'gather' && phone ? (PHONE_ONE_TAKE ? ONE_TAKE_GATHER_MS : PHONE_GATHER_MS)
       : phase === 'reveal' && state.demo ? DEMO_MS.reveal
       : PHASE_MS[phase]
     const id = setTimeout(() => dispatch({ type: 'phase', phase: next[phase] }), reduced && !(phone && phase === 'reveal') ? 0 : delay)
@@ -254,7 +259,7 @@ export function useIntroFlow(reduced: boolean, phone = false) {
     return () => clearTimeout(id)
   }, [state.demo, state.phase, state.keyStatus, state.platforms, publicDemo ? state.active : -1, publicDemo, select, connect, go])
   const jump = (phase: IntroPage) => { cancelLeave();setDraft('');setAdvanced(false);setFail(false);dispatch({type:'jump', phase}) }
-  return { real, platformSyncAvailable, publicDemo, filePicker, dropLocal, leaving,
+  return { real, platformSyncAvailable, publicDemo, filePicker, dropLocal, leaving, leavingTo,
     chooseFiles: (files: FileList) => startLocal(collectInputFiles(files).map(item => item.file)),
     importError: importError || localImport.error, restartRequired,
     totals: real ? counts : LIBRARY_COUNTS,

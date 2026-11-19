@@ -37,6 +37,8 @@ export const GlassMenu = forwardRef<HTMLDivElement, {
   layoutId?: string
   reduce?: boolean
   footer?: ReactNode
+  /** 传了就在面板右上角放一个 × 关闭按钮（筛选面板用） */
+  onClose?: () => void
   width?: number
   /** 'pill'：主页筛选菜单那颗胶囊（默认）；'text'：一颗带下划线的字当触发 */
   variant?: 'pill' | 'text'
@@ -44,7 +46,7 @@ export const GlassMenu = forwardRef<HTMLDivElement, {
   head?: ReactNode
   /** 菜单上沿离窗口顶部至少留多少像素；不传就自己避开顶栏 */
   topInset?: number
-}>(function GlassMenu({ title, label, open, onOpenChange, rows = [], splitAt, sections = ['筛选', '排序'], body, children, searchIcon, layoutId, reduce, footer, width = 180, variant = 'pill', head, topInset }, ref) {
+}>(function GlassMenu({ title, label, open, onOpenChange, rows = [], splitAt, sections = ['筛选', '排序'], body, children, searchIcon, layoutId, reduce, footer, onClose, width = 180, variant = 'pill', head, topInset }, ref) {
   const n = rows.length
   const inner = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -116,6 +118,7 @@ export const GlassMenu = forwardRef<HTMLDivElement, {
 
   const panel = (
     <div className="m-gm-panel">
+      {onClose && <button type="button" className="m-gm-close" aria-label="关闭面板" onClick={onClose}>×</button>}
       {variant === 'pill' && (
         <button type="button" className="m-gm-head" aria-expanded={open} aria-label={label} onClick={() => { stay(); onOpenChange(searchIcon ? true : !open) }}>
           {searchIcon ?? <span className="m-gm-icon" aria-hidden="true"><i /><i /><i /></span>}

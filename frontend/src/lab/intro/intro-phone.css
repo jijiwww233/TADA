@@ -858,3 +858,30 @@
   .lab .intro-stage[data-phone] :is(.home-capsule, .intro-phone-platform, .intro-ready, .intro-enter, .intro-circular-gallery) { animation: none; }
   .lab .intro-stage[data-phone][data-leaving] * { transition: none; }
 }
+
+/* ===== 一镜到底（intro/oneTake.ts 的 PHONE_ONE_TAKE；关着时舞台上没有 data-one-take，下面全部不生效） =====
+   第一页、收进胶囊、Key 页和原版一样；从选平台页起画布上同一组卡接着变队形，所以画布要一直露出来：
+   - 选平台页 / unlock：原来把画布藏起来、用 DOM 卷轴的图；现在画布上的卡排成右栏的卷轴（DOM 卷轴只剩空的定位框）
+   - 换页淡出：文字和按钮照常淡出，画布不淡（卡片在镜头里接着变队形）
+   - 最后一页：卡片 1.1 秒内飞进底部转盘那一排；转盘（CircularGallery）挂上后等 850ms 再 0.4 秒淡入，
+     画布那排卡 1.6～2.0 秒淡出（从 gather 算，gather 0.3 秒），所以画布到 ready 后 1.8 秒才藏 */
+@media (width < 600px) {
+  .lab .intro-stage[data-phone][data-one-take] .home-card-stage { opacity: 1; visibility: visible; }
+  .lab .intro-stage[data-phone][data-one-take][data-phase] canvas.home-card-stage { visibility: visible; animation: none; }
+  .lab .intro-stage[data-phone][data-one-take][data-leaving] canvas.home-card-stage { opacity: 1; translate: none; }
+  .lab .intro-stage[data-phone][data-one-take][data-phase='ready'] canvas.home-card-stage {
+    animation: intro-phone-canvas-off 0s 1800ms forwards;
+  }
+  .lab .intro-stage[data-phone][data-one-take][data-phase='ready'] .intro-circular-gallery {
+    animation: intro-phone-fade-in 400ms cubic-bezier(.4, 0, .2, 1) 850ms backwards;
+  }
+  /* 选平台页 → 整理页现在也走统一的淡出；整理页的胶囊和说明跟着淡入上移 */
+  .lab .intro-stage[data-phone][data-one-take][data-phase='reveal'] :is(.home-capsule, .intro-totals-caption) {
+    animation: intro-phone-page-in 340ms cubic-bezier(.4, 0, .2, 1) backwards;
+  }
+  .lab .intro-stage[data-phone][data-one-take][data-reduced='true'] :is(.home-capsule, .intro-totals-caption, .intro-circular-gallery) { animation: none; }
+  .lab .intro-stage[data-phone][data-one-take][data-reduced='true'][data-phase='ready'] canvas.home-card-stage { visibility: hidden; animation: none; }
+}
+@media (width < 600px) and (prefers-reduced-motion: reduce) {
+  .lab .intro-stage[data-phone][data-one-take] :is(.home-capsule, .intro-totals-caption, .intro-circular-gallery) { animation: none; }
+}

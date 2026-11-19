@@ -32,9 +32,9 @@
 
   /* ---------- 颜色 · 文字（黑色系中性色） ---------- */
   --color-text-primary: oklch(0.25 0.02 55);             /* 正文、标题：接近黑色 ≈ 14:1 */
-  --color-text-secondary: oklch(0.40 0.016 62);          /* 说明、次要信息        ≈ 8:1  */
-  --color-text-tertiary: oklch(0.50 0.012 70);           /* 小字、来源、计数      ≈ 5.7:1 */
-  --color-text-placeholder: oklch(0.54 0.012 70);        /* 输入框提示文字        ≈ 4.8:1 */
+  --color-text-secondary: oklch(0.34 0.016 62);          /* 说明、来源、次要信息  ≈ 11:1（评审后加深一档） */
+  --color-text-tertiary: oklch(0.43 0.012 70);           /* 小字、计数            ≈ 7.8:1（评审后加深一档） */
+  --color-text-placeholder: oklch(0.48 0.012 70);        /* 输入框提示文字        ≈ 6.3:1 */
   --color-text-search-placeholder: oklch(0.25 0.02 55 / 0.3); /* 保留最初版的大字占位 */
   --color-text-on-primary: #fff;                         /* 白字叠陶土橙 ≈ 4.87:1 */
   --color-text-on-inverse: var(--brand-cream);

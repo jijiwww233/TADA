@@ -192,6 +192,10 @@ export default function MainApp() {
   const [toast, setToast] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const [keep, setKeep] = useState<Set<number>>(new Set())
+  /** 待确认页标题下固定显示「已保留 N · 不是参考 N」，处理一批就实时累加 */
+  const [pendingTally, setPendingTally] = useState({ keep: 0, drop: 0 })
+  /** 已经处理过的图：API 还没刷回来之前先从网格里拿掉，计数立刻更新 */
+  const [decidedIds, setDecidedIds] = useState<Set<number>>(new Set())
   const [platforms, setPlatforms] = useState<Set<string>>(new Set())
 
   const toastTimer = useRef<number | null>(null)
@@ -280,7 +284,8 @@ export default function MainApp() {
   if (manifest === null) return <div className="m-app" />
   const allPendingItems = pendingData.value.status === 'ready'
     ? pendingData.value.data.map(row => fromLibrary({ ...row, colors: [] })) : []
-  const pendingItems = demoReviewed ? allPendingItems.filter(item => !demoReviewed.has(item.id)) : allPendingItems
+  const pendingItems = (demoReviewed ? allPendingItems.filter(item => !demoReviewed.has(item.id)) : allPendingItems)
+    .filter(item => !decidedIds.has(item.id))
   const projects = projectData.value.status === 'ready' ? projectData.value.data.map(project => projectView(project, manifest.items)) : []
   // 详情页“打开小窗”：当前图在哪个项目里就开哪个项目；不在任何项目里就开“全部收藏”。
   const openPipForImage = (image: LabImage) => {
@@ -496,14 +501,24 @@ export default function MainApp() {
     else scrollToY(0)
   }
   const decide = async (retain: boolean) => {
-    if (!keep.size) return
+    const ids = [...keep]
+    if (!ids.length) return
     try {
-      await api.decideReference([...keep], retain)
+      // 演示模式不改后端数据（和手机版一致），只记在这一页
+      if (!demoReviewed) await api.decideReference(ids, retain)
       if (actionMode.current !== api) return
       setKeep(new Set())
+      setDecidedIds(previous => {
+        const next = new Set(previous)
+        ids.forEach(id => next.add(id))
+        return next
+      })
+      setPendingTally(previous => retain
+        ? { ...previous, keep: previous.keep + ids.length }
+        : { ...previous, drop: previous.drop + ids.length })
       pendingData.reload()
       library.reload()
-      setPendingOpen(false)
+      // 面板不关：标题下的「已保留 / 不是参考」要看得见，剩下的可以接着处理
     } catch { say('没保存上：网络或服务出错，选中的图还在，请再点一次') }
   }
   /** 顶栏右侧的工具：每一页自己那一行带下划线的衬线小字（样式见 app-header.css） */
@@ -564,13 +579,14 @@ export default function MainApp() {
       )}
       <HeaderColor open={colorOpen} onOpenChange={setColorOpen} hue={hue} onHue={value => { clearResults(); setHue(value) }} />
       <GlassMenu variant="text" label="筛选" title="筛选" width={180} open={filterOpen} onOpenChange={open => { setFilterOpen(open); if (open) setColorOpen(false) }}
+        onClose={() => setFilterOpen(false)}
         head={<><RollingLabel text="筛选" />{(platforms.size > 0 || hue !== null) && <span className="m-hb-filter-active" aria-hidden="true" />}</>}
         rows={[...filterRows, ...sortRows]} splitAt={filterRows.length}
         footer={<>
           {platforms.size > 0 || hue !== null
             ? <button type="button" className="m-gm-clear" onClick={clearFilters}>清除筛选</button>
             : <span />}
-          <i className="m-gm-total">({filteredCount})</i>
+          <span className="m-gm-shown">显示 {filteredCount} 张</span>
         </>} />
 
     </>
@@ -713,9 +729,10 @@ export default function MainApp() {
             <span className="m-spacer" />
             <button type="button" className="m-close" style={{ position: 'static' }} aria-label="关闭" onClick={closePending}><Icon icon={X} size={16} /></button>
           </div>
+          <p className="m-pending-tally">已保留 {pendingTally.keep} · 不是参考 {pendingTally.drop}</p>
           {/* 引导版：「待确认」三个字第一次看不知道在确认什么，补一句 */}
           {REFINE && <p className="m-empty-line" style={{ padding: '0 0 14px' }}>
-            {pendingItems.length ? '这些图可能不是设计参考，点选后选择保留或移除。你的选择会让以后的分类更准。' : '现在没有需要确认的图。'}
+            {pendingItems.length ? '这些图可能不是设计参考。点图选中，再选「保留」或「不是参考」；你的选择会让以后的分类更准。' : pendingTally.keep + pendingTally.drop > 0 ? '都分好了，可以关闭了。' : '现在没有需要确认的图。'}
           </p>}
           <div className="m-pending-grid">
             {pendingItems.map(it => {
@@ -736,9 +753,9 @@ export default function MainApp() {
           </div>
           <div className="m-modal-foot">
             <span className="m-spacer" />
-            <button type="button" className="ds-btn ds-btn--secondary" disabled={!keep.size} onClick={() => void decide(false)}>不是参考 {keep.size} 张</button>
+            <button type="button" className="ds-btn ds-btn--secondary" disabled={!keep.size} onClick={() => void decide(false)}>不是参考</button>
             <button type="button" className="ds-btn ds-btn--primary" disabled={!keep.size} onClick={() => void decide(true)}>
-              保留 {keep.size} 张
+              保留
             </button>
           </div>
         </div>

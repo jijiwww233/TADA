@@ -8,6 +8,7 @@ import { INTRO_COPY as C, PHASE_MS, PLATFORMS } from './copy'
 import { updateWheel } from './motion'
 import { SoftText } from './SoftText'
 import { IntroGallery } from './IntroGallery'
+import { PHONE_ONE_TAKE } from './oneTake'
 import { AlignmentGuides } from './AlignmentGuides'
 import type { IntroFlow } from './useIntroFlow'
 import { REFINE } from '../../main/refine'
@@ -47,6 +48,8 @@ function PhoneReel() {
   // 正好是整理页环上 / 最后一页转盘上的前 11 张图，后面两段动画交接时图对得上。
   const layers = useMemo(() => reelLayers(items, gallery), [items, gallery])
   if (!items.length) return null
+  // 一镜到底：右栏只留一个空的定位框（ScatterStage 量它的中心，画布上那一叠卡排成卷轴就排在这里），不再加载另一批图
+  if (PHONE_ONE_TAKE) return <div className="intro-phone-reel" aria-hidden="true"><div className="intro-phone-reel-track" /></div>
   const cards = layers.map(layer => items[layer])
   // 放三份，从任何一个平台滚到另一个时都有卡片经过（像老虎机）；停的位置永远在中间那一份里
   return (
