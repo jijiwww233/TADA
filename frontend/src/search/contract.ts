@@ -4,9 +4,13 @@ export interface Source {
   post_id: number; platform: string; source_id: string | null; canonical_url: string | null
   title: string | null; position: number; is_video: boolean; image_count?: number
 }
+/** Backend relevance line for a hit: strong is a real match, weak is an approximate one. */
+export type Relevance = 'strong' | 'weak'
 export interface SearchHit {
   image_id: number; score: number; url: string; width: number | null; height: number | null
   original_name: string | null; created_at: string; sources: Source[]; is_video: boolean
+  /** Optional: older backends omit it and the UI treats the hit as strong. */
+  relevance?: Relevance
 }
 export interface ImageEntity extends ImageItem { sources?: Source[]; is_video?: boolean }
 // degraded means the paid text route was unreachable and only local channels answered.

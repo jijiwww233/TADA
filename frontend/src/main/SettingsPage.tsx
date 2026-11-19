@@ -8,16 +8,16 @@ import { scrollToY } from './smooth'
 import { enterDelayMs } from './motion'
 import type { WiringApi } from '../api/wiring'
 import { useWiringResource } from '../api/useWiring'
-import { useMobileLayout } from './useMobileLayout'
+import { useMobileLayout, useNarrowPhoneLayout, usePhoneLayout } from './useMobileLayout'
 import { filterImageFiles, IMAGE_EXTENSIONS } from '../localImport/collect'
 import { errorText } from '../api/errors'
 
 const GROUPS = [
-  { id: 'api', label: 'API' },
-  { id: 'platforms', label: '平台' },
-  { id: 'import', label: '本地导入' },
-  { id: 'analysis', label: '分析' },
-  { id: 'about', label: '关于' },
+  { id: 'api', label: 'API', description: '填写密钥，启用云端分析' },
+  { id: 'platforms', label: '平台', description: '连接小红书等平台，同步收藏' },
+  { id: 'import', label: '本地导入', description: '选图片导入，或监听电脑文件夹' },
+  { id: 'analysis', label: '分析', description: '设置自动打标签和写描述' },
+  { id: 'about', label: '关于', description: '查看素材数量，调整显示偏好' },
 ] as const
 type GroupId = typeof GROUPS[number]['id']
 
@@ -26,6 +26,10 @@ const topbarHeight = () => parseFloat(getComputedStyle(document.querySelector('.
 
 const readKey = (api: WiringApi) => api.getKeyStatus()
 const readWatch = (api: WiringApi) => api.getWatchStatus()
+
+function DemoUnavailable() {
+  return <span className="m-setp-unavailable">体验版不可用</span>
+}
 
 /**
  * 设置页（导航 SETTINGS 打开，取代右侧抽屉；抽屉组件还在 SettingsDrawer.tsx）。
@@ -45,8 +49,14 @@ export function SettingsPage({ items, onToast, reduce, onReduce, api, demo, onDe
   onReduce: (v: boolean) => void
 }) {
   const mobile = useMobileLayout()
-  const key = useWiringResource(api, readKey)
-  const watch = useWiringResource(api, readWatch)
+  const phone = usePhoneLayout()
+  const publicDemo = import.meta.env.VITE_PUBLIC_DEMO === '1'
+  const narrowPhone = useNarrowPhoneLayout()
+  const phonePublicDemo = narrowPhone && publicDemo
+  const phoneDemoApi = phone && publicDemo
+  const platformUnavailable = demo || publicDemo
+  const key = useWiringResource(api, readKey, !phonePublicDemo)
+  const watch = useWiringResource(api, readWatch, !phonePublicDemo)
   const keyStatus = key.value.status === 'ready' ? key.value.data : null
   const watchStatus = watch.value.status === 'ready' ? watch.value.data : null
   const [limit, setLimit] = useState<number | null>(null)
@@ -70,7 +80,7 @@ export function SettingsPage({ items, onToast, reduce, onReduce, api, demo, onDe
     catch { onToast('没保存上：文件夹路径不存在或服务没响应。检查路径后再试') }
   }
   const save = async () => {
-    if (saving) return
+    if (saving || phonePublicDemo) return
     setSaving(true)
     setNote('')
     try {
@@ -124,8 +134,13 @@ export function SettingsPage({ items, onToast, reduce, onReduce, api, demo, onDe
     'aria-labelledby': `settings-${id}-h`,
     style: { '--rv-d': enterDelayMs(i) } as React.CSSProperties,
   })
-  const heading = (id: GroupId, i: number) => (
-    <h2 className="m-setp-h" id={`settings-${id}-h`}><i>({pad2(i + 1)})</i>{GROUPS[i].label}</h2>
+  const heading = (id: GroupId, i: number, unavailable = false) => (
+    <>
+      <h2 className="m-setp-h" id={`settings-${id}-h`}>
+        <i>({pad2(i + 1)})</i>{GROUPS[i].label}{unavailable && <DemoUnavailable />}
+      </h2>
+      {narrowPhone && <p className="m-setp-description">{GROUPS[i].description}</p>}
+    </>
   )
 
   return (
@@ -147,9 +162,12 @@ export function SettingsPage({ items, onToast, reduce, onReduce, api, demo, onDe
       </nav>
 
       <div className="m-setp-body m-set">
-        {import.meta.env.VITE_PUBLIC_DEMO === '1' && <p role="status">演示版不提供此功能</p>}
+        {publicDemo && !phone && <p role="status">演示版不提供此功能</p>}
         <section {...group('api', 0)}>
-          {heading('api', 0)}
+          {heading('api', 0, phonePublicDemo)}
+          {phoneDemoApi
+            ? !narrowPhone && <p className="m-setp-demo-note" role="status">演示版不能在这里填 API Key，这一项只在自己电脑上运行时可用。</p>
+            : <>
           <div className="m-set-row"><label htmlFor="m-api-key-page">API Key</label>
             {keyStatus?.configured && !editing ? <span className="m-setp-key">
               <b>{keyStatus.last4 ? `···· ${keyStatus.last4}` : '已配置'}</b>
@@ -158,62 +176,65 @@ export function SettingsPage({ items, onToast, reduce, onReduce, api, demo, onDe
               autoComplete="off" value={draft} onChange={e => setDraft(e.target.value)} />}
           </div>
           {(note || keyStatus?.restart_required) && <small role="status">{note || '重启后生效'}</small>}
+            </>}
         </section>
 
         <section {...group('platforms', 1)}>
-          {heading('platforms', 1)}
-          {demo || import.meta.env.VITE_PUBLIC_DEMO === '1'
-            ? null
-            : <PlatformSync onSynced={onSynced} />}
+          {heading('platforms', 1, narrowPhone && platformUnavailable)}
+          {!platformUnavailable && <PlatformSync onSynced={onSynced} />}
         </section>
 
         <section {...group('import', 2)}>
-          {heading('import', 2)}
-          {mobile && onImport && <div className="m-set-row">
-            {/* 手机：label 直接包着文件框，安卓点了就是相册；accept 用 image/*（只写扩展名时安卓会打开文件管理器而不是相册） */}
-            <label className="ds-btn ds-btn--secondary ds-file-btn">选图片
-              <input type="file" multiple accept="image/*"
-                onChange={event => {
-                  const files = filterImageFiles(Array.from(event.currentTarget.files ?? []))
-                  event.currentTarget.value = ''
-                  if (files.length) onImport(files)
-                  else onToast(`选的文件里没有能导入的图片：支持 ${IMAGE_EXTENSIONS.slice(0, 5).join('、')} 等格式`)
-                }} />
-            </label>
-          </div>}
-          <div className="m-set-row"><span>自动导入文件夹</span><b>{watchStatus?.folders.length || '未添加'}</b></div>
-          {watchStatus?.folders.map(item => <div key={item.id} className="m-set-row">
-            <span>{item.path}</span>
-            <label><input type="checkbox" checked={item.enabled}
-              onChange={e => { const value = e.target.checked; void updateWatch(() => api.setWatchFolderEnabled(item.id, value)) }} />监听</label>
-            <label><input type="checkbox" checked={item.include_subfolders}
-              onChange={e => { const value = e.target.checked; void updateWatch(() => api.setWatchFolderSubfolders(item.id, value)) }} />包含子文件夹</label>
-            <button className="m-setp-link" type="button" onClick={() => void updateWatch(() => api.removeWatchFolder(item.id))}>移除</button>
-          </div>)}
-          {addingFolder && <form className="m-set-row" onSubmit={e => {
-            e.preventDefault()
-            if (folder.trim()) void updateWatch(async () => { await api.addWatchFolder(folder.trim()); setFolder(''); setAddingFolder(false) })
-          }}>
-            <input className="m-set-input" aria-label="文件夹路径" value={folder} onChange={e => setFolder(e.target.value)} />
-            <button type="submit" className="m-setp-link">添加</button>
-          </form>}
-          <button type="button" className="m-set-add" onClick={() => setAddingFolder(!addingFolder)}>
-            <Icon icon={FolderPlus} size={13} /> 添加文件夹
-          </button>
+          {heading('import', 2, phonePublicDemo)}
+          {!phonePublicDemo && <>
+            {mobile && onImport && <div className="m-set-row">
+              {/* 手机：label 直接包着文件框，安卓点了就是相册；accept 用 image/*（只写扩展名时安卓会打开文件管理器而不是相册） */}
+              <label className="ds-btn ds-btn--secondary ds-file-btn">选图片
+                <input type="file" multiple accept="image/*"
+                  onChange={event => {
+                    const files = filterImageFiles(Array.from(event.currentTarget.files ?? []))
+                    event.currentTarget.value = ''
+                    if (files.length) onImport(files)
+                    else onToast(`选的文件里没有能导入的图片：支持 ${IMAGE_EXTENSIONS.slice(0, 5).join('、')} 等格式`)
+                  }} />
+              </label>
+            </div>}
+            <div className="m-set-row"><span>自动导入文件夹</span><b>{watchStatus?.folders.length || '未添加'}</b></div>
+            {watchStatus?.folders.map(item => <div key={item.id} className="m-set-row">
+              <span>{item.path}</span>
+              <label><input type="checkbox" checked={item.enabled}
+                onChange={e => { const value = e.target.checked; void updateWatch(() => api.setWatchFolderEnabled(item.id, value)) }} />监听</label>
+              <label><input type="checkbox" checked={item.include_subfolders}
+                onChange={e => { const value = e.target.checked; void updateWatch(() => api.setWatchFolderSubfolders(item.id, value)) }} />包含子文件夹</label>
+              <button className="m-setp-link" type="button" onClick={() => void updateWatch(() => api.removeWatchFolder(item.id))}>移除</button>
+            </div>)}
+            {addingFolder && <form className="m-set-row" onSubmit={e => {
+              e.preventDefault()
+              if (folder.trim()) void updateWatch(async () => { await api.addWatchFolder(folder.trim()); setFolder(''); setAddingFolder(false) })
+            }}>
+              <input className="m-set-input" aria-label="文件夹路径" value={folder} onChange={e => setFolder(e.target.value)} />
+              <button type="submit" className="m-setp-link">添加</button>
+            </form>}
+            <button type="button" className="m-set-add" onClick={() => setAddingFolder(!addingFolder)}>
+              <Icon icon={FolderPlus} size={13} /> 添加文件夹
+            </button>
+          </>}
         </section>
 
         <section {...group('analysis', 3)}>
-          {heading('analysis', 3)}
-          <div className="m-set-row"><span>本地分析</span>
-            <button type="button" className={`m-switch ${watchStatus?.auto_analysis_enabled ? 'is-on' : ''}`}
-              aria-label="自动分析" aria-pressed={watchStatus?.auto_analysis_enabled ?? false}
-              disabled={!watchStatus} onClick={() => void updateWatch(() => api.setAutoAnalysis(!watchStatus?.auto_analysis_enabled))} />
-          </div>
-          <div className="m-set-row">
-            <label htmlFor="m-daily-limit-page">每天自动分析上限</label>
-            <input id="m-daily-limit-page" className="m-set-input" type="number" min={0} max={500} value={limit ?? watchStatus?.daily_limit ?? ''}
-              onChange={e => setLimit(Number(e.target.value))} />
-          </div>
+          {heading('analysis', 3, phonePublicDemo)}
+          {!phonePublicDemo && <>
+            <div className="m-set-row"><span>本地分析</span>
+              <button type="button" className={`m-switch ${watchStatus?.auto_analysis_enabled ? 'is-on' : ''}`}
+                aria-label="自动分析" aria-pressed={watchStatus?.auto_analysis_enabled ?? false}
+                disabled={!watchStatus} onClick={() => void updateWatch(() => api.setAutoAnalysis(!watchStatus?.auto_analysis_enabled))} />
+            </div>
+            <div className="m-set-row">
+              <label htmlFor="m-daily-limit-page">每天自动分析上限</label>
+              <input id="m-daily-limit-page" className="m-set-input" type="number" min={0} max={500} value={limit ?? watchStatus?.daily_limit ?? ''}
+                onChange={e => setLimit(Number(e.target.value))} />
+            </div>
+          </>}
         </section>
 
         <section {...group('about', 4)}>
@@ -233,7 +254,7 @@ export function SettingsPage({ items, onToast, reduce, onReduce, api, demo, onDe
             <span>设计系统<small className="ds-help" style={{ display: 'block', marginTop: 2 }}>颜色与组件规范</small></span>
             <a className="m-setp-link" href="/design-system">打开 ↗</a>
           </div>
-          <button type="button" className="m-set-save" disabled={saving} aria-busy={saving || undefined} onClick={() => void save()}>{saving ? '保存中…' : '保存设置'}</button>
+          {!phonePublicDemo && <button type="button" className="m-set-save" disabled={saving} aria-busy={saving || undefined} onClick={() => void save()}>{saving ? '保存中…' : '保存设置'}</button>}
         </section>
       </div>
     </section>

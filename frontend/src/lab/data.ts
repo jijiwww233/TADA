@@ -31,10 +31,10 @@ const LIBRARY = { total: 0, visual_ref: 0 }
 const FALLBACK = ['#CFE3FF', '#CFF5EA', '#FAD9E6', '#E6DDFB']
 
 /** Loads the showcase, with optional extra images for the library. */
-export function useManifest(includeLibrary = false): Manifest | null | 'missing' {
+export function useManifest(includeLibrary = false, source = '/lab-assets/show/show.json'): Manifest | null | 'missing' {
   const [m, setM] = useState<Manifest | null | 'missing'>(null)
   useEffect(() => {
-    fetch('/lab-assets/show/show.json')
+    fetch(source)
       .then(r => (r.ok ? r.json() : Promise.reject()))
       .then((j: {
         items: Omit<LabImage, 'hues'>[]
@@ -49,7 +49,7 @@ export function useManifest(includeLibrary = false): Manifest | null | 'missing'
         const cards = items.slice(0, rows.length).filter(it => !it.face)
         setM({ total: items.length, visual_ref: items.length, fallback: FALLBACK, items, cards, libraryProjects: includeLibrary ? j.libraryProjects : undefined })
       }, () => setM('missing'))
-  }, [includeLibrary])
+  }, [includeLibrary, source])
   return m
 }
 

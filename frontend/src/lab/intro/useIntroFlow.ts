@@ -6,6 +6,7 @@ import { getSyncStatus, startSync } from '../../api'
 import { collectDroppedFiles, collectInputFiles } from '../../localImport/collect'
 import type { DropData } from '../../localImport/collect'
 import { DEMO_MS, INTRO_COPY, LIBRARY_COUNTS, PHASE_MS, PLATFORMS } from './copy'
+import { PHONE_GATHER_MS } from './phoneHandoff'
 
 export type IntroPhase = 'home' | 'key' | 'unlock' | 'platforms' | 'clearing' | 'reveal' | 'gather' | 'ready'
 export type PlatformStatus = 'idle' | 'connecting' | 'connected' | 'skipped' | 'cooldown'
@@ -33,7 +34,9 @@ const remotePlatforms = ['xhs', 'pinterest', null, 'zcool', 'huaban'] as const
 const platformSyncAvailable = import.meta.env.VITE_PUBLIC_DEMO !== '1'
 
 /** Keep the same animation phases while supplying either rehearsal or local backend data. */
-export function useIntroFlow(reduced: boolean) {
+export function useIntroFlow(reduced: boolean, phone = false) {
+  /** 手机 + 公网体验版：Key 页照样出现（和电脑版流程一致），但只说明「已经接好 AI」，不让填；选平台页不出现「连接」 */
+  const publicDemo = phone && !platformSyncAvailable
   const [state, dispatch] = useReducer(introReducer, undefined, initial)
   const [draft, setDraft] = useState('')
   const [fail, setFail] = useState(false)
@@ -63,7 +66,7 @@ export function useIntroFlow(reduced: boolean) {
     if (real && localImport.status === 'error') dispatch({ type: 'platform', index: 2, status: 'idle' })
   }, [real, localImport.status, localImport.progress.added, localImport.progress.duplicates])
   useEffect(() => {
-    if (!real || state.phase !== 'key') return
+    if (publicDemo || !real || state.phase !== 'key') return
     let live = true
     api.getKeyStatus().then(result => {
       if (live && result.configured && stateRef.current.keyStatus === 'idle') {
@@ -72,7 +75,7 @@ export function useIntroFlow(reduced: boolean) {
       }
     }, () => {})
     return () => { live = false }
-  }, [api, real, state.phase, state.run])
+  }, [api, real, state.phase, state.run, publicDemo])
   useEffect(() => {
     if (!platformSyncAvailable || !real || !['unlock', 'platforms'].includes(state.phase)) return
     let live = true
@@ -174,15 +177,23 @@ export function useIntroFlow(reduced: boolean) {
     const next = { clearing: 'reveal', reveal: 'gather', gather: 'ready' } as const
     if (!(state.phase in next)) return
     const phase = state.phase as keyof typeof next
-    const delay = phase === 'clearing' ? PHASE_MS.clear
+    // 手机：没有电脑版那块平台面板要退场，clearing 直接过；卷轴在 reveal 里卷成环。gather 是「环滑下去变转盘」，0.56 秒
+    const delay = phase === 'clearing' ? (phone ? 0 : PHASE_MS.clear)
+      : phase === 'gather' && phone ? PHONE_GATHER_MS
       : phase === 'reveal' && state.demo ? DEMO_MS.reveal
       : PHASE_MS[phase]
-    const id = setTimeout(() => dispatch({ type: 'phase', phase: next[phase] }), reduced ? 0 : delay)
+    const id = setTimeout(() => dispatch({ type: 'phase', phase: next[phase] }), reduced && !(phone && phase === 'reveal') ? 0 : delay)
     return () => clearTimeout(id)
-  }, [state.phase, state.demo, reduced])
+  }, [state.phase, state.demo, reduced, phone])
   // Entry is sequenced from the title's actual ink completion, not overlapping clocks.
   useEffect(()=>{
     if(state.phase!=='unlock')return
+    if (phone) {
+      // 进来就停在第一个平台（以前体验版会先选到「本地相册」，转盘一进页就自己滑两格）
+      dispatch({type:'entry', step:'cards'})
+      dispatch({type:'phase', phase:'platforms'})
+      return
+    }
     const delay = state.platformEntry === 'capsule' ? (state.demo ? DEMO_MS.platformTitle : PHASE_MS.platformTitle)
       : state.platformEntry === 'wheel' ? PHASE_MS.platformNames
       : state.platformEntry === 'cards' ? (state.demo ? DEMO_MS.ejectDuration : PHASE_MS.ejectDuration)
@@ -190,7 +201,7 @@ export function useIntroFlow(reduced: boolean) {
     if(delay===null)return
     const id=setTimeout(()=>dispatch(state.platformEntry==='cards'?{type:'phase',phase:'platforms'}:{type:'entry',step:state.platformEntry==='capsule'?'title':'cards'}),reduced?0:delay)
     return()=>clearTimeout(id)
-  },[state.phase,state.platformEntry,state.demo,reduced,state.run])
+  },[state.phase,state.platformEntry,state.demo,reduced,state.run,phone])
   useEffect(() => {
     if (real) return
     state.platforms.forEach((status, i) => {
@@ -204,10 +215,17 @@ export function useIntroFlow(reduced: boolean) {
   useEffect(() => {
     if (!state.demo) return
     let id: ReturnType<typeof setTimeout> | undefined
-    if (state.phase === 'key' && (state.keyStatus === 'idle' || state.keyStatus === 'error')) id = setTimeout(() => {
+    // 手机体验版的 Key 页没有输入框：停同样久，然后等于点了「下一步」
+    if (publicDemo && state.phase === 'key' && state.keyStatus === 'idle') id = setTimeout(() => {
+      dispatch({ type: 'key', status: 'closing', intent: 'skip' })
+    }, DEMO_MS.autoKey)
+    else if (state.phase === 'key' && (state.keyStatus === 'idle' || state.keyStatus === 'error')) id = setTimeout(() => {
       setFail(false); setDraft(INTRO_COPY.demoKey); dispatch({ type: 'key', status: 'closing', intent: 'verify', last4: INTRO_COPY.demoTail })
     }, DEMO_MS.autoKey)
-    if (state.phase === 'platforms' && !state.platforms.includes('connecting')) {
+    // 手机体验版的选平台页不连接：一格一格往下转，每格停的时间 = 电脑版每个平台「停一下 + 连接」的时长，转到「下一步」后照常进整理页
+    if (publicDemo && state.phase === 'platforms') {
+      if (state.active < 5) id = setTimeout(() => select(state.active + 1), DEMO_MS.sourcePause + DEMO_MS.connect)
+    } else if (state.phase === 'platforms' && !state.platforms.includes('connecting')) {
       const i = state.platforms.findIndex((p, index) => p === 'idle' && (platformSyncAvailable || index === 2))
       id = setTimeout(() => {
         if (i < 0) select(5)
@@ -215,9 +233,9 @@ export function useIntroFlow(reduced: boolean) {
       }, i < 0 ? DEMO_MS.allPause : DEMO_MS.sourcePause)
     }
     return () => clearTimeout(id)
-  }, [state.demo, state.phase, state.keyStatus, state.platforms, select, connect])
-  const jump = (phase: IntroPage) => { setDraft('');setAdvanced(false);setFail(false);dispatch({type:'jump',phase}) }
-  return { real, platformSyncAvailable, filePicker, dropLocal,
+  }, [state.demo, state.phase, state.keyStatus, state.platforms, publicDemo ? state.active : -1, publicDemo, select, connect])
+  const jump = (phase: IntroPage) => { setDraft('');setAdvanced(false);setFail(false);dispatch({type:'jump', phase}) }
+  return { real, platformSyncAvailable, publicDemo, filePicker, dropLocal,
     chooseFiles: (files: FileList) => startLocal(collectInputFiles(files).map(item => item.file)),
     importError: importError || localImport.error, restartRequired,
     totals: real ? counts : LIBRARY_COUNTS,

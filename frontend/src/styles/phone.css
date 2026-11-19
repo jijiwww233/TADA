@@ -406,17 +406,17 @@
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 @media (hover: none) and (pointer: coarse) and (max-width: 600px) {
-  /* 详情页返回：左上角 44px 圆形按钮，只留箭头（读屏仍念「返回」）；回去后停在原来滚到的位置（MainApp 里原有逻辑） */
+  /* 详情页返回：左上角 44px 触摸区，只留箭头（读屏仍念「返回」），不画圆、不填底色 */
   .m-app .m-ld .m-ld-back {
     position: relative; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0;
     display: inline-flex; align-items: center; justify-content: center;
     margin-top: var(--space-2);
-    border: 1px solid var(--color-border-default); border-radius: 50%;
-    background: var(--color-bg-surface); color: var(--color-text-primary);
+    border: 0; border-radius: 0; background: transparent; box-shadow: none;
+    color: var(--color-text-primary);
     font-size: 20px; line-height: 1; text-decoration: none;
   }
   .m-app .m-ld .m-ld-back:hover { color: var(--color-text-primary); }
-  .m-app .m-ld .m-ld-back:active { background: var(--color-bg-subtle); }
+  .m-app .m-ld .m-ld-back:active { background: transparent; }
   .m-app .m-ld .m-ld-back-word {
     position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
   }
@@ -439,7 +439,197 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .m-app .m-tile-cap [data-local] { display: none; }
 }
 
+/* ---------- 第五批 1. 项目页（手机）：只把一列改成两列，封面和文字保持第一版 ---------- */
+@media (hover: none) and (pointer: coarse) and (max-width: 600px) {
+  /* 这里只需要覆盖 fable.css 的 auto-fill/minmax(260px)（宽 366 时算成 1 列） */
+  .m-app .m-proj-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6) var(--space-3); }
+  /* 说明行照第一版排（编号 名字 · N 张），但 177 宽放不下时名字换行显示完整，不再截成省略号 */
+  .m-app .m-proj-cap { display: block; white-space: normal; }
+  .m-app .m-proj-cap .m-proj-name {
+    display: inline; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere;
+  }
+}
+
+/* ---------- 第五批 2. 设置页（手机） ---------- */
+@media (hover: none) and (pointer: coarse) and (max-width: 600px) {
+  /* 五个标签一行放下，放不下就横向滑动；去掉 (01)～(05) 编号（分组小标题里的也去掉） */
+  .m-app .m-setp-toc ol {
+    flex-flow: row nowrap; gap: 0 var(--space-5);
+    overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  }
+  .m-app .m-setp-toc ol::-webkit-scrollbar { display: none; }
+  .m-app .m-setp-toc li { flex: none; }
+  .m-app .m-setp-toc button { min-height: 44px; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+  .m-app :is(.m-setp-toc button, .m-setp-h) > i { display: none; }
+  /* 演示版 API：一句说明紧跟在「API」小标题下面 */
+  .m-app .m-setp-demo-note {
+    margin: var(--space-3) 0 0;
+    font-size: var(--font-size-body); line-height: var(--line-height-body); color: var(--color-text-secondary);
+  }
+}
+
+/* ---------- 第五批 4. 色环（手机）：用注册引导页那个浅色色环（HueRing），不再是彩虹粗环 + 灰圆心 ---------- */
+@media (hover: none) and (pointer: coarse) and (max-width: 600px) {
+  .m-app .m-wheel-pop.m-wheel-pale { width: 220px; padding: var(--space-4); }
+  .m-app .m-wheel-pale-ring { display: block; width: 168px; height: 168px; margin: 0 auto; cursor: crosshair; outline: none; }
+  .m-app .m-wheel-pale-ring:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; border-radius: 50%; }
+  .m-app .m-wheel-pale-caption {
+    margin: var(--space-3) 0 0; text-align: center;
+    font-size: 13px; line-height: 1.4; color: var(--color-text-secondary);
+  }
+}
+
 @keyframes m-sheet-up { from { transform: translateY(100%); } }
+@media (hover: none) and (pointer: coarse) and (width < 600px) {
+  .m-app .m-setp-description {
+    margin: var(--space-2) 0 0;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    line-height: var(--line-height-snug);
+  }
+
+  .m-app .m-setp-unavailable {
+    flex: none;
+    padding: 2px 5px;
+    border-radius: 4px;
+    background: var(--brand-tan);
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+
+  .m-app .m-sl-phone-hint {
+    margin: var(--space-2) 0 0;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-family: var(--font-family-serif);
+    font-size: 13px;
+    line-height: var(--line-height-snug);
+    color: var(--color-text-secondary);
+  }
+
+  .m-app .m-sl-phone-hint button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-text-tertiary);
+    font: inherit;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .m-app .m-phone-pending[open] {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    border: 0;
+    background: var(--color-bg-page);
+    color: var(--color-text-primary);
+  }
+
+  .m-app .m-phone-pending button {
+    min-height: 44px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .m-app .m-phone-pending button:disabled { opacity: 0.55; }
+
+  .m-app .m-phone-pending-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) 16px;
+    border-bottom: 1px solid var(--color-border-default);
+  }
+
+  .m-app .m-phone-pending-head button {
+    display: grid;
+    width: 44px;
+    place-items: center;
+    margin-left: -12px;
+  }
+
+  .m-app .m-phone-pending-head h2 {
+    margin: 0;
+    font-family: var(--m-title);
+    font-size: var(--m-type-title);
+  }
+
+  .m-app .m-phone-pending-body {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-inline: 16px;
+  }
+
+  .m-app .m-phone-pending-intro {
+    margin: var(--space-4) 0;
+    color: var(--color-text-secondary);
+  }
+
+  .m-app .m-phone-pending-item {
+    padding-block: var(--space-4);
+    border-bottom: 1px solid var(--color-border-default);
+  }
+
+  .m-app .m-phone-pending-item img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 60vh;
+    max-height: 60dvh;
+    object-fit: contain;
+  }
+
+  .m-app .m-phone-pending-caption {
+    margin: var(--space-2) 0;
+    overflow: hidden;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .m-app .m-phone-pending-actions,
+  .m-app .m-phone-pending-result {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .m-app .m-phone-pending-actions button { padding-inline: var(--space-4); }
+  .m-app .m-phone-pending-result { color: var(--color-text-secondary); font-size: 13px; }
+  .m-app .m-phone-pending-result button { min-width: 44px; text-decoration: underline; }
+  .m-app .m-phone-pending .m-phone-pending-keep {
+    padding-inline: var(--space-4);
+    border-radius: 8px;
+    background: var(--brand-tan);
+  }
+
+  .m-app .m-phone-pending-foot {
+    padding: var(--space-3) 16px calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--color-border-default);
+    text-align: center;
+  }
+
+  .m-app .m-phone-pending-foot:empty { display: none; }
+  .m-app .m-phone-pending-foot p { margin: 0 0 var(--space-2); }
+  .m-app .m-phone-pending-foot button { width: 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .m-app .m-import-dialog[open] { animation: none !important; }
 }

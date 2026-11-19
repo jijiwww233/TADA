@@ -282,10 +282,10 @@ export type Frame = { cards: Card[]; strips: Strip[]; capsuleY: number; neat: nu
  * The capsule sits at the stage centre while scattered and settles lower as the grid forms; cards in the
  * collect fly to wherever it is.
  */
-export function frame(plan: Plan, H: number, lay: Layout, stripPlan: StripPlan[], p: number, clock: number, out: Frame): Frame {
+export function frame(plan: Plan, H: number, lay: Layout, stripPlan: StripPlan[], p: number, clock: number, out: Frame, /** 排好后胶囊中心离舞台中线多远（× H）；手机首屏胶囊钉在 73%，传 .23 */ capsuleDrop = 0.33): Frame {
   const { scat, grid, order, collect, layers } = lay
   const neat = easeInOut(clamp01((p - P_START) / (P_NEAT - P_START)))
-  out.capsuleY = lerp(0, H * 0.33, neat)
+  out.capsuleY = lerp(0, H * capsuleDrop, neat)
   out.neat = neat
   const capsule = { x: 0, y: out.capsuleY }
   const rank = new Array<number>(scat.length).fill(-1)

@@ -24,11 +24,13 @@ import { PAGE, installMotionVars } from './motion'
 import { SORTS, type SortKey } from './sorts'
 import { PLATFORMS, sourceLabel } from './meta'
 import { useDemoMode } from '../api/mode'
+import type { Relevance } from '../search/contract'
 import { flushSync } from 'react-dom'
 import type { ImageItem } from '../api'
 import PipButton, { type PipHandle } from '../PipButton'
 import { PhoneBoard } from './PhoneBoard'
-import { usePhoneLayout } from './useMobileLayout'
+import { PhonePending } from './PhonePending'
+import { useNarrowPhoneLayout, usePhoneLayout } from './useMobileLayout'
 import { useWiringApi, useWiringImport, useWiringResource } from '../api/useWiring'
 import { errorText } from '../api/errors'
 import type { WiringApi } from '../api/wiring'
@@ -55,7 +57,8 @@ installMotionVars()
 type View = 'library' | 'projects' | 'activity' | 'settings'
 /** 打开的详情：哪张图、从哪个列表进来、在列表里第几张 */
 type Opened = { list: LabImage[]; index: number; project?: Project }
-export type LibraryResult = { text: string; items: LabImage[]; groups?: LabImage[][]; reasons?: Record<number, string>; referenceNotes?: Record<number, string>[]; referenceSource?: string; projectId?: number; similar?: boolean; docked?: boolean }
+/** 找图结果里每张图的相关度：strong 是像的，weak 是「不太像但可能有用」；老后端没有这个字段，缺省按 strong。 */
+export type LibraryResult = { text: string; items: LabImage[]; relevance?: Record<number, Relevance>; groups?: LabImage[][]; reasons?: Record<number, string>; referenceNotes?: Record<number, string>[]; referenceSource?: string; projectId?: number; similar?: boolean; docked?: boolean }
 
 function toPipImage(item: LabImage): ImageItem {
   return {
@@ -131,6 +134,8 @@ export default function MainApp() {
   const extrasOn = demo || firstShown
   const projectData = useWiringResource(api, loadProjects, extrasOn)
   const pendingData = useWiringResource(api, loadPending, extrasOn)
+  const demoReviewed = useMemo(() => demo ? new Set<number>() : null, [demo, api])
+  const pendingChanged = useRef(false)
   const importer = useWiringImport(api, { onImported: library.reload })
   /** 分析状态（只在真实模式下请求）：卡片和详情页的「分析中」提示用 */
   const analysis = useAnalysisStatus(!demo && firstShown)
@@ -209,6 +214,7 @@ export default function MainApp() {
 
   // 手机上的参考画板：不开画布小窗，在本页显示两列图片（PhoneBoard）；切到别的页面时清掉
   const phone = usePhoneLayout()
+  const narrowPhone = useNarrowPhoneLayout()
   const [phoneBoard, setPhoneBoard] = useState<{ projectId: number | null; name: string | null; items: LabImage[] } | null>(null)
   const boardOn = phone && phoneBoard !== null
   // 网页标题跟着页面走：只有手机参考画板这一页改标题，离开就换回来
@@ -272,7 +278,9 @@ export default function MainApp() {
   // 导入结果不再用 2.4 秒就消失的提示条，改成页面底部的结果卡片（ImportResult），看完自己关
 
   if (manifest === null) return <div className="m-app" />
-  const pendingItems = pendingData.value.status === 'ready' ? pendingData.value.data.map(row => fromLibrary({ ...row, colors: [] })) : []
+  const allPendingItems = pendingData.value.status === 'ready'
+    ? pendingData.value.data.map(row => fromLibrary({ ...row, colors: [] })) : []
+  const pendingItems = demoReviewed ? allPendingItems.filter(item => !demoReviewed.has(item.id)) : allPendingItems
   const projects = projectData.value.status === 'ready' ? projectData.value.data.map(project => projectView(project, manifest.items)) : []
   // 详情页“打开小窗”：当前图在哪个项目里就开哪个项目；不在任何项目里就开“全部收藏”。
   const openPipForImage = (image: LabImage) => {
@@ -320,6 +328,13 @@ export default function MainApp() {
     pushDetailEntry()
     detailOpenRef.current = true
     setFirstShown(true)
+    if (!project) {
+      // 不是从项目进来的：只看被点的这一张，同帖其它图作为下面那排小图（点了哪张就显示哪张）
+      const post = postOf(item)
+      const at = post.findIndex(entry => entry.id === item.id)
+      setDetail(at >= 0 ? { list: post, index: at } : { list: [item], index: 0 })
+      return
+    }
     setDetail(index >= 0 && list[index] ? { list, index, project } : { list: [item], index: 0, project })
   }
   // 「← 返回」/ Esc：退掉详情历史条目（交给 popstate 收口）并回到打开前的滚动位置
@@ -390,7 +405,10 @@ export default function MainApp() {
       } else {
         const response = await api.search(text)
         if (version !== requestVersion.current || actionMode.current !== api) return
-        setResults({ text, items: hitImages(response.items, manifest.items), docked })
+        // 后端给每项 relevance；缺失（老后端 / 本地检索）一律当 strong，界面与改前一致。
+        const relevance: Record<number, Relevance> = {}
+        for (const hit of response.items) relevance[hit.image_id] = hit.relevance ?? 'strong'
+        setResults({ text, items: hitImages(response.items, manifest.items), relevance, docked })
         if ('degraded' in response && response.degraded) say('已使用本地搜索')
       }
     } catch (error) {
@@ -512,11 +530,30 @@ export default function MainApp() {
     { key: 'color', label: '按颜色', on: hue !== null, act: () => { setFilterOpen(false); setColorOpen(true) } },
     // 「待确认」不再藏在筛选里：搜索框下方的提示条和顶栏切换菜单各有一个入口（openPending）
   ]
-  const openPending = () => { setFilterOpen(false); setColorOpen(false); setKeep(new Set()); setPendingOpen(true) }
-  const sortRows = SORTS.map(option => ({
-    key: `sort-${option.k}`, label: option.label, on: sort === option.k,
-    act: () => { setSort(option.k); setFilterOpen(false) },
-  }))
+  const openPending = () => {
+    if (narrowPhone) setFirstShown(true)
+    setFilterOpen(false)
+    setColorOpen(false)
+    setKeep(new Set())
+    setPendingOpen(true)
+  }
+  const closePending = () => {
+    setPendingOpen(false)
+    if (!pendingChanged.current) return
+    pendingChanged.current = false
+    if (!demo) {
+      pendingData.reload()
+      library.reload()
+    }
+  }
+  // 手机：排序写成人话
+  const PHONE_SORT_LABEL: Record<SortKey, string> = { time: '时间正序', color: '颜色相似', similar: '画面相近' }
+  const sortRows = SORTS
+    .filter(option => !(phone && option.k === 'similar' && !results))
+    .map(option => ({
+      key: `sort-${option.k}`, label: phone ? PHONE_SORT_LABEL[option.k] : option.label, on: sort === option.k,
+      act: () => { setSort(option.k); setFilterOpen(false) },
+    }))
   const headerTools = detail || boardOn ? undefined : view === 'library' ? (
     <>
       {(REFINE || !demo) && (
@@ -649,7 +686,7 @@ export default function MainApp() {
 
       {detail && (
         <Detail key={detail.project ? detail.list.map(item => item.id).join(',') + ':' + detail.index : `${detail.list[detail.index]?.id}-${detail.index}`} postOf={postOf}
-          list={detail.list} index={detail.index}
+          list={detail.list} index={detail.index} single={!detail.project}
           onClose={closeDetail} onToast={say} onColor={findByColor} api={api} analysis={analysis}
           projects={projects} onAdd={addToProject} onSimilar={findSimilar}
           onProjectEdit={detail.project && !demo && import.meta.env.VITE_PUBLIC_DEMO === '1' ? editProjectImage : undefined}
@@ -662,13 +699,19 @@ export default function MainApp() {
       )}
       <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} onToast={say} reduce={reduce} onReduce={setReduce} />
 
-      <div className={`m-modal ${pendingOpen ? 'is-on' : ''}`}>
-        <div className="m-modal-bg" onClick={() => setPendingOpen(false)} />
+      {narrowPhone && pendingOpen && (
+        <PhonePending
+          items={allPendingItems} status={pendingData.value.status} api={api} demoReviewed={demoReviewed}
+          onClose={closePending} onReturn={() => { closePending(); goHome() }}
+          onRetry={pendingData.reload} onChanged={() => { if (actionMode.current === api) pendingChanged.current = true }} />
+      )}
+      {!narrowPhone && <div className={`m-modal ${pendingOpen ? 'is-on' : ''}`}>
+        <div className="m-modal-bg" onClick={closePending} />
         <div className="m-modal-panel">
           <div className="m-modal-head">
             <h2>待确认</h2>
             <span className="m-spacer" />
-            <button type="button" className="m-close" style={{ position: 'static' }} aria-label="关闭" onClick={() => setPendingOpen(false)}><Icon icon={X} size={16} /></button>
+            <button type="button" className="m-close" style={{ position: 'static' }} aria-label="关闭" onClick={closePending}><Icon icon={X} size={16} /></button>
           </div>
           {/* 引导版：「待确认」三个字第一次看不知道在确认什么，补一句 */}
           {REFINE && <p className="m-empty-line" style={{ padding: '0 0 14px' }}>
@@ -699,7 +742,7 @@ export default function MainApp() {
             </button>
           </div>
         </div>
-      </div>
+      </div>}
 
       <div className={`m-drop ${dragging ? 'is-on' : ''}`}><p>松手导入</p></div>
       <ImportResult status={importer.status} progress={importer.progress} cancelled={importer.cancelled} error={importer.error}

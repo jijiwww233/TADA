@@ -14,12 +14,33 @@ from .collection_classification import normalize_input, input_hash
 
 CATEGORIES = ('visual_ref', 'text_card', 'life', 'uncertain')
 VISUAL = ('visual_ref', 'uncertain')
-VERSION = 'reference_value_v1'
+# v2 adds the network-meme/sticker rule (image 173 was a WeChat sticker classified
+# as a design reference because its subject also said 插画). The version change makes
+# classify_pending reclassify every already-analysed image once.
+VERSION = 'reference_value_v2'
 PROMPTS = (
     '一张设计作品，海报排版，插画，艺术摄影，建筑设计展板',
     '一张纯文字截图，文字卡片，聊天记录，没有图案的文字笔记',
     '日常生活随手拍，购物订单，食物记录，生活用品，自拍',
 )
+
+# A shared internet meme is not a design reference even when the analysis also says
+# 插画/设计. Only explicit network wording counts: a bare 表情 (人物表情) or 贴纸
+# (文创贴纸/包装贴纸) stays a visual reference, since those are normal design work.
+MEME_TERMS = ('表情包', '网络表情', '聊天表情', '表情图', '梗图', '迷因', 'meme')
+STICKER_TERMS = ('贴纸',)
+STICKER_CONTEXT = ('网络', '聊天', '微信', '表情', '梗', '迷因', 'meme', '社交')
+MEME_REASON = '现有分析：网络表情包/贴图，疑似不是设计参考，待人工确认'
+
+
+def is_network_meme(subject, description, style) -> bool:
+    """True when the analysis text describes a chat sticker/meme, not design work."""
+    text = ' '.join((subject or '', description or '',
+                     str((style or {}).get('style_note') or ''))).lower()
+    if any(term in text for term in MEME_TERMS):
+        return True
+    return (any(term in text for term in STICKER_TERMS)
+            and any(word in text for word in STICKER_CONTEXT))
 
 
 def heuristic(row):
@@ -39,7 +60,10 @@ def heuristic(row):
     if dominant and len(text) >= 180 and (style.get('medium') == 'typography' or
             any(x in description for x in ('纯文字', '聊天记录', '文字截图', '文字卡片'))):
         return 'text_card', '现有分析：文字占主导、长文字及文字媒介/卡片证据', fingerprint
-    subject = ' '.join(parse('subject', [])) + ' ' + description
+    subject_parts = parse('subject', [])
+    subject = ' '.join(subject_parts) + ' ' + description
+    if is_network_meme(' '.join(subject_parts), description, style):
+        return 'uncertain', MEME_REASON, fingerprint
     design = any(x in subject for x in ('设计', '海报', '插画', '展板', '排版', '摄影作品', '建筑', '信息图'))
     if not design and any(x in description for x in ('生活记录', '购物订单', '聊天截图', '日常自拍', '随手拍')):
         return 'life', '现有分析：生活记录证据，缺少视觉作品证据', fingerprint
@@ -65,8 +89,13 @@ def candidate_heuristic(row):
     if dominant and len(text) >= 180 and (style.get('medium') == 'typography' or
             any(x in description for x in ('纯文字', '聊天记录', '文字截图', '文字卡片'))):
         return 'text_card', '现有分析：文字占主导、长文字及文字媒介/卡片证据', fingerprint
-    subject = ' '.join(parse('subject', [])) + ' ' + description
+    subject_parts = parse('subject', [])
+    subject = ' '.join(subject_parts) + ' ' + description
     evidence = subject + ' ' + str(style.get('style_note', ''))
+    if is_network_meme(' '.join(subject_parts), description, style):
+        # Sticker/meme images often analyse as 插画/设计, so this runs before the
+        # document/life/image-dominant branches instead of after them.
+        return 'uncertain', MEME_REASON, fingerprint
     design = any(x in subject for x in ('设计', '海报', '插画', '展板', '排版', '摄影作品', '建筑', '信息图', 'Logo', '标志', '字体'))
     document = any(x in evidence for x in ('聊天', '对话界面', '技术文档', '学习笔记', '语法', '教材', '教程', '操作指南', '备忘录', '纯文字', '社交媒体帖子'))
     if document and ('text_dominant' in ratio or 'balanced' in ratio) and len(text) >= 60:

@@ -1,0 +1,814 @@
+@media (width < 600px) {
+  .lab .intro-stage[data-phone] {
+    --phone-gutter: clamp(16px, 5vw, 28px);
+    --phone-safe-bottom: max(16px, env(safe-area-inset-bottom));
+    --phone-paper: #faf8f3;
+    --phone-line: #dfd3c7;
+    --phone-brown: #685348;
+  }
+
+  .lab .intro-stage[data-phone][data-phase='home'] {
+    --home-title-width: min(65vw, 31dvh, 300px);
+    height: 100dvh;
+  }
+
+  .lab .intro-stage[data-phone]:not([data-phase='home']) .home-type { display: none; }
+
+  .lab .intro-stage[data-phone] .intro-topbar .intro-masthead {
+    background: linear-gradient(#faf8f3ee, #faf8f3b8);
+    backdrop-filter: none;
+  }
+
+  .lab .intro-stage[data-phone][data-phase='home'] .home-heading {
+    top: 51%;
+    left: var(--phone-gutter);
+    transform: none;
+  }
+
+  .lab .intro-stage[data-phone][data-phase='home'] .home-capsule {
+    top: 73%;
+    width: calc(100% - 2 * var(--phone-gutter)) !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  .lab .intro-stage[data-phone][data-phase='home'] .home-copy {
+    inset: 79% var(--phone-gutter) auto;
+    width: min(68%, 280px);
+    margin-left: auto;
+    text-align: right;
+    transform: none;
+    text-wrap: pretty;
+  }
+
+  .lab .intro-stage[data-phone][data-phase='home'] .home-copy > span { text-align: inherit; }
+
+  .lab .intro-stage[data-phone][data-phase='home'] .home-start-cta {
+    bottom: var(--phone-safe-bottom);
+  }
+
+  /* 开场页（重做）：卡片不再裁在顶栏下面，和电脑版一样从屏幕顶边出血；
+     顶上一层渐变模糊（越往下越淡），顶栏文字仍用电脑版那条 mix-blend-mode: difference，压到卡片上自动反色 */
+  .lab .intro-stage[data-phone][data-phase='home'] .home-card-stage { clip-path: none; }
+  .lab .intro-stage[data-phone][data-phase='home'] .home-screen::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 11; /* 卡片和胶囊之上、顶栏（12）之下 */
+    height: 96px;
+    pointer-events: none;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    -webkit-mask-image: linear-gradient(#000 0%, #000 40%, transparent 100%);
+    mask-image: linear-gradient(#000 0%, #000 40%, transparent 100%);
+  }
+
+  .lab .intro-stage[data-phone] .home-fallback {
+    padding-top: max(74px, 10dvh);
+    background: transparent;
+    z-index: 0;
+  }
+
+  .lab .intro-stage[data-phone] .home-fallback-grid {
+    width: 82%;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    row-gap: clamp(14px, 3.5dvh, 32px);
+    transform: none;
+  }
+
+  .lab .intro-stage[data-phone] .home-fallback-grid img { transform: rotate(-6deg); }
+  .lab .intro-stage[data-phone] .home-fallback-grid img:nth-child(3n + 2) {
+    transform: translateY(16%) rotate(7deg) scale(.86);
+  }
+
+  @media (height < 650px) {
+    .lab .intro-stage[data-phone][data-phase='home'] .home-screen {
+      height: max(620px, 100dvh);
+    }
+
+    .lab .intro-stage[data-phone][data-phase='home'] {
+      height: max(620px, 100dvh);
+    }
+  }
+}
+
+@media (width < 600px) {
+  .lab .intro-stage[data-phone]:is([data-phase='unlock'], [data-phase='platforms']) {
+    height: 100dvh;
+  }
+
+  .lab .intro-stage[data-phone]:is([data-phase='unlock'], [data-phase='platforms']) .home-card-stage {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .lab .intro-stage[data-phone][data-phase='unlock'] :is(.home-fallback, .home-capsule) {
+    display: none;
+  }
+
+  .lab .intro-stage[data-phone] .intro-phone-platform {
+    position: absolute;
+    inset: 60px 0 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    padding-inline: var(--phone-gutter);
+    color: var(--phone-brown);
+  }
+
+  .intro-phone-platform-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding-block: 16px;
+  }
+
+  .intro-phone-platform-content { margin-block: auto; }
+
+  .lab .intro-stage[data-phone] .intro-phone-platform h2 {
+    color: var(--wm-title);
+    font: 300 clamp(26px, 7vw, 38px)/1.2 'Intro Serif SC', 'Lab Serif SC', serif;
+  }
+
+  .lab .intro-stage[data-phone] .intro-phone-platform p {
+    margin: 10px 0 clamp(18px, 4dvh, 34px);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .intro-phone-platform ul {
+    position: relative;
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 22px;
+  }
+
+  .intro-phone-platform ul::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    background: repeating-linear-gradient(to bottom, var(--phone-line) 0 1px, transparent 1px 9px);
+    mask-image: linear-gradient(transparent, black 12%, black 88%, transparent);
+    pointer-events: none;
+  }
+
+  .intro-phone-platform ul > li {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0 4px;
+    min-height: clamp(54px, 8.5dvh, 76px);
+  }
+
+  .intro-phone-platform ul > .is-current::before {
+    content: '';
+    position: absolute;
+    left: -22px;
+    top: 50%;
+    width: 16px;
+    height: 1px;
+    background: var(--phone-brown);
+  }
+
+  .lab .intro-stage[data-phone] .intro-phone-source {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #806d61;
+    font: 300 clamp(25px, 8vw, 36px)/1 'Lab Newsreader', 'Intro Serif SC', 'Main Serif SC', 'Songti SC', 'STSong', serif;
+    letter-spacing: -.04em;
+    text-align: left;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .intro-phone-source .intro-current-arrow {
+    flex: none;
+    width: 18px;
+    font-size: 20px;
+    transition: none;
+  }
+
+  .lab .intro-stage[data-phone] .intro-phone-source[aria-pressed='true'] {
+    color: var(--wm-title);
+    font-size: clamp(32px, 10vw, 47px);
+    font-weight: 600;
+  }
+
+  .intro-phone-source[aria-pressed='true'] .intro-current-arrow { opacity: 1; }
+
+  .intro-phone-source-note { font-size: 12px; }
+
+  /* ---- 选平台页（重做）：左边大字平台名 + 刻度，右边约三分之一屏宽的竖向胶片卷 ----
+     电脑版：文字栏从屏宽 4% 起、宽 400（28%），卡片转盘占右侧；手机上转盘改成竖着滚的卡片带。
+     390 宽：内容宽 351，右栏 33%（116px，屏宽 30%），左栏 223px，两栏间隔 12px，不重叠。
+     卡片宽 = 右栏宽，高 = 宽 × 4/3（和电脑卡片同比例），卡间 10px；上下两端各 20% 渐隐。 */
+  .intro-phone-platform-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 33%;
+    column-gap: 12px;
+    align-items: stretch;
+  }
+  .intro-phone-platform-cols > ul { min-width: 0; }
+  .intro-phone-platform ul::before { display: none; }
+  /* 刻度：跟着选中的平台一格一格转（和右边卷轴同一条曲线、同样时长） */
+  .intro-phone-platform ul > li.intro-phone-ruler {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    min-height: 0;
+    overflow: hidden;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(transparent, #000 12%, #000 88%, transparent);
+    mask-image: linear-gradient(transparent, #000 12%, #000 88%, transparent);
+  }
+  .intro-phone-ruler > i {
+    position: absolute;
+    inset: -240px 0;
+    background: repeating-linear-gradient(to bottom, var(--phone-line) 0 1px, transparent 1px 9px);
+    transform: translateY(calc(var(--reel-active, 0) * -54px));
+    transition: transform 900ms cubic-bezier(.2, .85, .25, 1.06);
+  }
+  .lab .intro-stage[data-phone] .intro-phone-source { font-size: clamp(24px, 7.2vw, 32px); }
+  .lab .intro-stage[data-phone] .intro-phone-source[aria-pressed='true'] { font-size: clamp(28px, 9vw, 38px); }
+  .intro-phone-reel {
+    position: relative;
+    min-height: 320px;
+    overflow: hidden;
+    container-type: inline-size;
+    -webkit-mask-image: linear-gradient(transparent, #000 20%, #000 80%, transparent);
+    mask-image: linear-gradient(transparent, #000 20%, #000 80%, transparent);
+  }
+  .intro-phone-reel-track {
+    --reel-h: calc(100cqw * 4 / 3);
+    --reel-gap: 10px;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--reel-gap);
+    transform: translateY(calc(-1 * (var(--reel-at) * (var(--reel-h) + var(--reel-gap)) + var(--reel-h) / 2)));
+    transition: transform 900ms cubic-bezier(.2, .85, .25, 1.06);
+    will-change: transform;
+  }
+  .intro-phone-reel-track img {
+    flex: none;
+    display: block;
+    width: 100%;
+    height: var(--reel-h);
+    object-fit: cover;
+    border-radius: 10px;
+    background: #ece8e4;
+    opacity: .6;
+    transition: opacity 400ms ease;
+  }
+  .intro-phone-reel-track img.is-on { opacity: 1; }
+  /* 减少动效：卷轴和刻度直接切过去，不滚 */
+  .lab .intro-stage[data-reduced='true'] :is(.intro-phone-reel-track, .intro-phone-reel-track img, .intro-phone-ruler > i) { transition: none; }
+  @media (prefers-reduced-motion: reduce) {
+    :is(.intro-phone-reel-track, .intro-phone-reel-track img, .intro-phone-ruler > i) { transition: none; }
+  }
+
+  .intro-phone-platform .intro-platform-actions:empty { display: none; }
+
+  .lab .intro-stage[data-phone] .intro-phone-platform .intro-platform-actions {
+    max-width: 100%;
+  }
+
+  .lab .intro-stage[data-phone] .intro-phone-platform :is(.intro-connect, .intro-link) {
+    min-height: 44px;
+    padding-inline: 10px;
+    background: transparent;
+    color: var(--phone-brown);
+    font-size: 12px;
+  }
+
+  .intro-phone-platform-footer {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-block: 12px var(--phone-safe-bottom);
+    border-top: 1px solid var(--phone-line);
+    font-size: 13px;
+  }
+
+  .intro-phone-platform-footer .intro-progress { position: static; margin-left: -6px; }
+  .intro-phone-platform-footer .intro-progress-label { inset: auto auto 100% 0; }
+  .lab .intro-stage[data-phone] .intro-phone-platform-footer .lab-btn-primary {
+    min-height: 44px;
+    padding-inline: 21px;
+  }
+}
+
+@media (width < 600px) {
+  .lab .intro-stage[data-phone][data-phase='key'] { height: 100dvh; }
+  .lab .intro-stage[data-phone][data-phase='key'] .home-screen { overflow-y: auto; }
+
+  .lab .intro-stage[data-phone][data-phase='key'] .intro-key-title {
+    top: clamp(94px, 16dvh, 155px);
+  }
+
+  .lab .intro-stage[data-phone][data-phase='key'] .home-capsule:has(.capsule-card) {
+    top: clamp(172px, 30dvh, 290px);
+    width: min(calc(100% - 2 * var(--phone-gutter)), 420px) !important;
+    padding-bottom: var(--phone-safe-bottom);
+    transform: translateX(-50%) !important;
+  }
+
+  .lab .intro-stage[data-phone][data-phase='key'] .capsule-card {
+    height: auto !important;
+    min-height: 280px;
+  }
+
+  .lab .intro-stage[data-phone][data-phase='key'] .capsule-card .capsule-field { height: auto; }
+  .lab .intro-stage[data-phone] .intro-key-input input { font-size: 16px; }
+  .lab .intro-stage[data-phone] .intro-key-links button { min-height: 36px; }
+
+  .intro-key-guide {
+    position: fixed;
+    inset: auto 0 0;
+    width: min(100%, 510px);
+    max-width: none;
+    max-height: 92dvh;
+    margin: 0 auto;
+    padding: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--phone-line);
+    border-radius: 20px 20px 0 0;
+    background: var(--phone-paper);
+    color: var(--phone-brown);
+    text-align: left;
+  }
+
+  .intro-key-guide::backdrop { background: #47382e78; }
+
+  .intro-key-guide header {
+    position: sticky;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px var(--phone-gutter);
+    border-bottom: 1px solid var(--phone-line);
+    background: var(--phone-paper);
+  }
+
+  .lab .intro-key-guide h2 { font: 600 19px/1.3 'Lab Serif SC', serif; color: var(--wm-title); }
+
+  .intro-key-guide header button {
+    min-width: 44px;
+    min-height: 44px;
+    border: 1px solid var(--phone-line);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .intro-key-guide-body {
+    padding: 16px var(--phone-gutter) var(--phone-safe-bottom);
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .intro-key-guide-body ol { padding-inline-start: 20px; margin-block: 20px; }
+  .intro-key-guide-body li { margin-bottom: 20px; padding-inline-start: 4px; }
+  .lab .intro-key-guide h3 { font-size: 15px; font-weight: 600; color: var(--wm-title); }
+
+  .intro-key-guide-body img {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    border: 1px solid var(--phone-line);
+    border-radius: 8px;
+  }
+
+  .intro-key-guide a { text-decoration: underline; text-underline-offset: 3px; }
+  .intro-key-guide-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-top: 12px;
+    font-size: 12px;
+  }
+}
+
+@media (width < 600px) {
+  .lab .intro-stage[data-phone] .capsule:not(.capsule-presenting) {
+    height: 48px !important;
+    gap: clamp(8px, 2.8vw, 14px);
+  }
+
+  /* 开场页搜索胶囊（重做）：电脑版高 60、圆按钮 40（按钮占高 2/3）、上下各留 10；
+     手机高 52，圆按钮 40 → 上下、右边都留 6px（同心）；左边内边距 12px；
+     「找图 / 要参考」、放大镜、输入框、按钮之间各留 8px（电脑同为 8px） */
+  /* 「进入素材库」页的胶囊同样处理 */
+  .lab .intro-stage[data-phone]:is([data-phase='home'], [data-phase='ready']) .home-capsule .capsule:not(.capsule-presenting) {
+    height: 52px !important;
+    gap: 8px;
+    padding: 0 6px 0 12px;
+  }
+  .lab .intro-stage[data-phone]:is([data-phase='home'], [data-phase='ready']) .home-capsule .capsule:not(.capsule-presenting) .capsule-track { padding: 2px; }
+  .lab .intro-stage[data-phone]:is([data-phase='home'], [data-phase='ready']) .home-capsule .capsule:not(.capsule-presenting) .capsule-seg {
+    height: 36px; min-height: 36px; padding-inline: 10px; font-size: 13px;
+  }
+  .lab .intro-stage[data-phone]:is([data-phase='home'], [data-phase='ready']) .home-capsule .capsule:not(.capsule-presenting) .capsule-icon { margin-inline: 0; }
+  .lab .intro-stage[data-phone]:is([data-phase='home'], [data-phase='ready']) .home-capsule .capsule:not(.capsule-presenting) .capsule-send {
+    width: 40px; height: 40px;
+  }
+
+  .lab .intro-stage[data-phone] .capsule:not(.capsule-presenting) > .capsule-icon-btn { display: none; }
+
+  .lab .intro-stage[data-phone] .capsule:not(.capsule-presenting) .capsule-track { padding: 2px; }
+
+  .lab .intro-stage[data-phone] .capsule:not(.capsule-presenting) .capsule-seg {
+    min-height: 38px;
+    padding-inline: clamp(6px, 2vw, 12px);
+  }
+
+  .lab .intro-stage[data-phone] .capsule:not(.capsule-presenting) .capsule-icon {
+    width: 16px;
+    margin-inline: 0 -4px;
+  }
+
+  .lab .intro-stage[data-phone] .capsule:not(.capsule-presenting) .capsule-send {
+    border: 1px solid var(--phone-line);
+    background: transparent;
+    color: var(--phone-brown);
+  }
+
+  .lab .intro-stage[data-phone] .capsule:not(.capsule-presenting) .capsule-send:hover {
+    background: #f1e9df;
+  }
+
+  .lab .intro-stage[data-phone] .capsule:not(.capsule-presenting) .capsule-field {
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .lab .intro-stage[data-phone] .home-search-input {
+    animation: none;
+    text-overflow: ellipsis;
+  }
+
+  .lab .intro-stage[data-phone][data-phase='ready'] { height: 100dvh; }
+
+  .lab .intro-stage[data-phone][data-phase='ready'] .home-capsule {
+    top: 42%;
+    width: min(calc(100% - 2 * var(--phone-gutter)), 520px) !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  .lab .intro-stage[data-phone][data-phase='ready'] .intro-ready { top: 27%; }
+  .lab .intro-stage[data-phone][data-phase='ready'] .intro-enter { top: 50%; min-height: 40px; padding-inline: 20px; font-size: 14px; }
+
+  .lab .intro-stage[data-phone][data-phase='ready'] :is(canvas.home-card-stage, .home-fallback) { visibility: hidden; }
+
+  .lab .intro-stage[data-phone][data-phase='ready'] .intro-circular-gallery {
+    bottom: -24px;
+    height: min(34dvh, 350px);
+  }
+}
+
+@media (width < 600px) {
+  .lab .intro-stage[data-phone]:is([data-phase='clearing'], [data-phase='reveal'], [data-phase='gather']) {
+    height: 100dvh;
+  }
+
+  /* 胶囊中心（.home-capsule 用 top: var(--phone-result-top) + translate(-50%,-50%)，所以这个值就是中心 y）。
+     整理结果页要求「卡片环 + 胶囊 + 说明文字」作为一组：环顶 170（ScatterStage 里环心上移到 -H*.2168），
+     环底：卡片主体（>25/255 的像素成片处）到 309.5，再往下只有零星阴影像素到 321.5、阴影尾到 332.5。
+     胶囊顶 = 321.5 + 50 = 371.7，这样按「卡片主体」量是 62.2、按「最靠下的一点卡片/阴影像素」量也还有 50.2，两种量法都 ≥48。
+     胶囊高 60 → 中心 = 401.7；模型：环顶 = 0.2437H − 36.8、环底 = 0.2437H + 103.8，胶囊中心 = 0.2437H + 196，
+     844 高时 = 401.68（实测胶囊顶 371.68 / 底 431.68，说明文字顶 447.68）。
+     原来写 50% + 10.5dvh（844 时中心 510.6、顶 480.6）：环顶提到 170 后离胶囊 171，整组散了。
+     第二版（反馈「还是近的要死」）：环不动，胶囊和说明一起再往下 40 → 中心 0.2437H + 236，
+     844 高时胶囊 411.7–471.7、说明顶 487.7；离环底：按零星像素 321.5 量 90.2，按卡片主体 309.5 量 102.2。
+     必须和 ScatterStage.tsx 里 target.y = H * (.2437 - .5) + 236 同步改。 */
+  /* 第三版（P2-8）：「环 + 胶囊 + 说明」整组在屏幕上垂直居中、组内距离不变 → 胶囊中心 = 中线下 103.4px（和屏高无关）。
+     844 高时：环顶 253.7、胶囊 495.4–555.4、说明顶 571.4；离环底仍是 90.2 / 102.2。
+     必须和 ScatterStage.tsx 的 PHONE_RESULT_CAP_Y = 103.4、环心 H × .0395 − 132.6 同步改。 */
+  .lab .intro-stage[data-phone]:is([data-phase='reveal'], [data-phase='gather']) {
+    --phone-result-top: calc(50% + 103.4px);
+  }
+
+  .lab .intro-stage[data-phone]:is([data-phase='reveal'], [data-phase='gather']) .home-fallback {
+    display: none;
+  }
+
+  .lab .intro-stage[data-phone]:is([data-phase='reveal'], [data-phase='gather']) .home-capsule {
+    top: var(--phone-result-top);
+    width: min(420px, calc(100% - 2 * var(--phone-gutter))) !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  .lab .intro-stage[data-phone]:is([data-phase='reveal'], [data-phase='gather']) .capsule-status {
+    backdrop-filter: none;
+  }
+
+  /* 说明文字顶边 = 胶囊底边 + 16：胶囊高 60、top 是它的中心（translate -50%），所以 30 + 16 = 46。
+     实测 390×844：胶囊 top 359.67 / bottom 419.67 → 文字 top 435.67（原来 +44 只有 14） */
+  .lab .intro-stage[data-phone]:is([data-phase='reveal'], [data-phase='gather']) .intro-totals-caption {
+    top: calc(var(--phone-result-top) + 46px);
+    bottom: auto;
+  }
+}
+
+/* ===== 手机选平台页（按电脑版重做）：左边竖着转的平台名转盘，右边有景深的卡片带 ===== */
+@media (width < 600px) {
+  /* 底部和电脑版统一：一条「已连接 0/5」胶囊，右侧橙色圆箭头，贴底放 */
+  .lab .intro-stage[data-phone][data-phase='platforms'] .home-capsule {
+    display: block;
+    top: auto;
+    bottom: calc(var(--phone-safe-bottom) + 18px);
+    left: 50%;
+    transform: translate(-50%, 0) !important;
+  }
+  .lab .intro-stage[data-phone][data-phase='platforms'] .home-capsule .capsule:not(.capsule-presenting) {
+    height: 52px !important;
+    gap: 8px;
+    padding: 0 6px 0 12px;
+  }
+  .lab .intro-stage[data-phone][data-phase='platforms'] .home-capsule .capsule:not(.capsule-presenting) .capsule-track { padding: 2px; }
+  .lab .intro-stage[data-phone][data-phase='platforms'] .home-capsule .capsule:not(.capsule-presenting) .capsule-seg {
+    height: 36px; min-height: 36px; padding-inline: 10px; font-size: 13px;
+  }
+  .lab .intro-stage[data-phone][data-phase='platforms'] .home-capsule .capsule:not(.capsule-presenting) .capsule-icon { margin-inline: 0; }
+  .lab .intro-stage[data-phone][data-phase='platforms'] .home-capsule .capsule:not(.capsule-presenting) .capsule-send {
+    width: 40px; height: 40px; border: 0;
+    background: var(--wm-accent); color: var(--wm-on-accent);
+  }
+
+  /* 整页往上：先把底部胶囊占的高度扣出来（胶囊贴底 18 + 高 60 + 让开 34），剩下的都留给内容；
+     内容从上往下排，标题固定离顶部 44，两栏吃掉剩下的高度，所以不会再在标题上面空出 110px */
+  .lab .intro-stage[data-phone] .intro-phone-platform-body {
+    padding-block: 14px 0;
+    padding-bottom: calc(var(--phone-safe-bottom) + 96px);
+    overflow: hidden;
+  }
+  .intro-phone-platform-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    margin-block: 0;
+    /* 标题顶边对齐右上角进度点：点 li 是 24×24、top 72，点本身 10×10 居中 → 点顶 y=79；
+       这一段区域从 y=60 起、body 有 14px padding-top，所以 margin-top = 79 − 60 − 14 = 5。 */
+    margin-top: 5px;
+  }
+  /* 两栏：左 1fr / 右 34%，卡片带宽 119；高度按屏高撑满到胶囊上方 */
+  .intro-phone-platform-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 34%;
+    column-gap: 12px;
+    flex: 1 1 auto;
+    min-height: 260px;
+    max-height: 560px;
+    margin-top: 4px;
+  }
+  .intro-phone-wheel {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    cursor: grab;
+    -webkit-mask-image: linear-gradient(transparent, #000 9%, #000 91%, transparent);
+    mask-image: linear-gradient(transparent, #000 9%, #000 91%, transparent);
+  }
+  .intro-phone-wheel.is-dragging { cursor: grabbing; }
+  .intro-phone-wheel.is-dragging .intro-platform-actions { opacity: 0; visibility: hidden; }
+  .intro-phone-wheel-list {
+    position: absolute;
+    inset: 0;
+    perspective: 900px;
+    transform-style: preserve-3d;
+  }
+  /* 行高固定：选中行不因多了「连接/跳过」而变高，转盘旋转时行距才稳定 */
+  .intro-phone-wheel-row {
+    position: absolute;
+    left: 24px;
+    top: 50%;
+    display: flex;
+    align-items: center;
+    gap: 4px 8px;
+    width: calc(100% - 24px);
+    height: 56px;
+    transform-origin: left center;
+    will-change: transform, opacity;
+  }
+  .lab .intro-stage[data-phone] .intro-phone-wheel .intro-phone-source {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--wm-title);
+    font: 300 clamp(24px, 7.6vw, 30px)/1 'Lab Newsreader', 'Intro Serif SC', 'Main Serif SC', 'Songti SC', 'STSong', serif;
+    letter-spacing: -.04em;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .intro-phone-wheel .intro-current-arrow { width: 18px; font-size: 20px; margin-left: -2px; }
+  .lab .intro-stage[data-phone] .intro-phone-wheel-row.is-current .intro-phone-wheel-name {
+    color: var(--wm-title);
+    font-size: clamp(30px, 9.2vw, 36px);
+  }
+  .intro-phone-wheel-row.is-current .intro-current-arrow { opacity: 1; }
+  /* 选中行的「连接 / 跳过」吊在名字下面，不参与行高（行高固定 56，按钮 absolute，出现/消失都不改行距）。
+     横向：行内容左起 24px 是箭头（宽 18、margin-left -2）再隔 6px 是名字，所以名字离行左 22px；
+     这层 absolute 的基准是行，left: 22px 正好落在「选中平台名」的左边（实测两处 x 都是 65.5）。
+     竖向：56 高的行里名字垂直居中、行高 35.88，名字底边在行顶下 45.94；按钮顶边 = 名字底边 + 8 = 53.94
+     ≈ 54 = 100% - 2px（按钮自己 32 高，挂到行外，不撑高行）。 */
+  .lab .intro-stage[data-phone] .intro-phone-wheel .intro-platform-actions {
+    position: absolute;
+    left: 22px;
+    top: calc(100% - 2px);
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    max-width: 100%;
+  }
+  .lab .intro-stage[data-phone] .intro-phone-wheel .intro-connect {
+    min-height: 32px; padding: 4px 11px; font-size: 12px;
+    background: var(--wm-soft-bg); color: var(--wm-soft-text); border: 1px solid var(--wm-soft-edge);
+  }
+  .lab .intro-stage[data-phone] .intro-phone-wheel .intro-link {
+    min-height: 32px; font-size: 12px; color: var(--wm-body);
+  }
+  /* 左边刻度：31 格，和电脑版同一个 arc / 透明度递减 */
+  .intro-phone-wheel-ruler {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 16px;
+    height: 0;
+    perspective: 900px;
+    transform-style: preserve-3d;
+    pointer-events: none;
+  }
+  .intro-phone-wheel-ruler i {
+    position: absolute;
+    left: 0;
+    top: -1px;
+    width: 9px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--phone-line);
+    will-change: transform, opacity;
+  }
+  .intro-phone-wheel-ruler i.is-current { width: 16px; background: var(--phone-brown); }
+  /* 右边卡片带：一圈绕横轴转的卡片（滚筒），位置/转角/景深/模糊都由 updateWheel 每帧写
+     —— 中间那张正对屏幕最实，上下两张往后倒、缩一圈、糊掉，像电脑版那种近实远虚。
+     perspective 620px 沿用原值（可微调）：它让第 1 圈卡只缩到 96%、第 3 圈缩到 74%，前后差够、又不至于
+     把两边的卡拉得太夸张；motion.ts 里的滚筒半径（≈391 = 2.46 × 卡高）正是按 620 反推「相邻卡按投影
+     高度算再轻微叠住约 10px」的；若改透视，半径要跟着重算，所以这两个数绑定，本轮不动。
+     渐隐 12%/88%：滚筒实高 512.7 时纯色区 280.5–670.5，中间三张卡占约 305–646，完整落在纯色区里，
+     只在最外缘淡出；更深的第 2、3 圈卡在后半段渐隐区里消失。 */
+  /* 第二版：卡片沿圆弧往右收（外圈最多约 48px），列宽只有 119，所以滚筒盒子向右伸到屏幕边
+     （margin-right = −页边距），轨道再用 right = 页边距 把中心拉回原列中线——中间那张的位置和大小不变，
+     两栏也不会重叠（只往右收，不往左）。渐隐带从 12% 缩到 6%：远近的变化交给 motion.ts 的 8 档梯子，
+     遮罩只负责最外缘收口，不再自己造一道断崖。perspective 620 和 motion.ts 的 PERSP 绑定。 */
+  .intro-phone-reel {
+    position: relative;
+    min-width: 0;
+    margin-right: calc(-1 * var(--phone-gutter));
+    overflow: hidden;
+    perspective: 620px;
+    perspective-origin: calc(50% - var(--phone-gutter) / 2) 50%;
+    -webkit-mask-image: linear-gradient(transparent, #000 6%, #000 94%, transparent);
+    mask-image: linear-gradient(transparent, #000 6%, #000 94%, transparent);
+  }
+  /* 卡片的位置/角度全由 updateWheel 逐张写，track 自身不做位移（旧版那条 translateY 已作废） */
+  .intro-phone-reel-track {
+    position: absolute;
+    inset: 0 var(--phone-gutter) 0 0;
+    transform: none;
+    transform-style: preserve-3d;
+    transition: none;
+  }
+  .intro-phone-reel-track img {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border-radius: 10px;
+    background: #ece8e4;
+    /* 底部投影由 updateWheel 按离中心几格逐张写（越远越浅），这里只留一个兜底值 */
+    box-shadow: 0 14px 26px -12px rgb(56 40 30 / .55);
+    transform-origin: 50% 50%;
+    transition: none;
+    will-change: transform, opacity, filter;
+  }
+}
+
+/* ===== 引导页手机版修正 P0 ===== */
+@media (width < 600px) {
+  /* 第一页胶囊只是展示：一行灰字，不是输入框 */
+  .lab .intro-stage[data-phone] .home-search-static {
+    display: block;
+    overflow: hidden;
+    color: var(--wm-muted);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    user-select: none;
+  }
+  .lab .intro-stage[data-phone][data-phase='home'] .home-capsule .capsule-send:disabled { cursor: default; }
+
+  /* 点了「开始」：按钮淡出，让位给「卡片排好 → 收进胶囊」那段动画 */
+  .lab .intro-stage[data-phone] .home-start-cta.is-starting {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 300ms ease;
+  }
+
+  /* 体验版 Key 页：一句说明 + 网页教程链接 + 下一步 */
+  .lab .intro-stage[data-phone][data-phase='key'] .capsule-card:has(.intro-key-public) { min-height: 0; }
+  .lab .intro-stage[data-phone] .intro-key-public { gap: 14px; padding-block: 8px 4px; }
+  .lab .intro-stage[data-phone] .intro-key-public-text {
+    color: var(--wm-title);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .lab .intro-stage[data-phone] .intro-key-public-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    min-height: 44px;
+    padding-inline: 8px;
+    color: var(--phone-brown);
+    font-size: 13px;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-color: var(--phone-line);
+  }
+}
+@media (width < 600px) and (prefers-reduced-motion: reduce) {
+  .lab .intro-stage[data-phone] .home-start-cta.is-starting { transition: none; }
+}
+
+/* ===== P1 速度：Main Serif SC（约 2.8MB）延后 =====
+   第一屏画出来之前，手机上所有用到它的地方都先跳过它、落到系统宋体；ScatterStage 下完字体后给舞台挂
+   data-serif-ready，这几条就不再生效，换回原来的字体栈。电脑版没有 data-phone，不受影响。 */
+@media (width < 600px) {
+  .lab .intro-stage[data-phone]:not([data-serif-ready]) {
+    --font-family-serif: 'Songti SC', 'STSong', 'Noto Serif SC', SimSun, serif;
+  }
+  .lab .intro-stage[data-phone]:not([data-serif-ready]) :is(.home-stair-zh .home-stair-main, .home-stair-zh strong) {
+    font-family: 'Lab Serif SC', 'Noto Serif SC', 'Songti SC', SimSun, serif;
+  }
+  .lab .intro-stage[data-phone]:not([data-serif-ready]) .intro-phone-source {
+    font-family: 'Lab Newsreader', 'Intro Serif SC', 'Songti SC', 'STSong', SimSun, serif;
+  }
+}
+
+/* ===== P2-9 整理页 → 最后一页 =====
+   gather（0.56 秒）：画布上的环滑下去排成底部转盘那一排（flowScene 的 row），胶囊和说明一起淡出；
+   ready：转盘挂上，画布那排卡再留 0.4 秒垫底（转盘纹理到之前不露白），标题、胶囊、按钮 0.25 秒淡入。合计约 0.8 秒。 */
+@keyframes intro-phone-ready-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes intro-phone-canvas-off { to { visibility: hidden; } }
+@media (width < 600px) {
+  .lab .intro-stage[data-phone][data-phase='gather'] .home-capsule {
+    opacity: 0;
+    transition: opacity 250ms ease-in-out;
+  }
+  .lab .intro-stage[data-phone][data-phase='ready'] canvas.home-card-stage {
+    visibility: visible;
+    animation: intro-phone-canvas-off 0s 400ms forwards;
+  }
+  .lab .intro-stage[data-phone][data-phase='ready'] :is(.intro-ready, .home-capsule, .intro-enter) {
+    animation: intro-phone-ready-in 250ms ease-in-out both;
+  }
+  .lab .intro-stage[data-phone][data-reduced='true'][data-phase='ready'] canvas.home-card-stage { visibility: hidden; animation: none; }
+  .lab .intro-stage[data-phone][data-reduced='true'] :is(.intro-ready, .home-capsule, .intro-enter) { animation: none; }
+  .lab .intro-stage[data-phone][data-reduced='true'][data-phase='gather'] .home-capsule { transition: none; }
+}

@@ -4,9 +4,30 @@ export type HomeDirection = 'cover' | 'premotio' | 'book'
 export const COVER_FRONT = [2, 9]
 export const INITIAL_CARD_COUNT = 16
 export const MOBILE_INITIAL_CARD_COUNT = 8
+/**
+ * 手机引导首屏（/intro，宽 < 600）：按电脑版 1440×900 的比例换算出来的散卡（换算过程见 PHONE_SCATTER 的注释）。
+ * 首屏只露这 7 张，其余几张从屏幕下方飞进来组墙。
+ */
+export const PHONE_INITIAL_CARD_COUNT = 7
+/**
+ * 电脑版 1440×900（premotio）实算：k = 0.9，卡片基准宽 148×0.9 = 133px，深度 z 取 -560 / -260 / -40 / 140 四档，
+ * 透视后宽 88～153px，平均约 120px（屏宽 8.3%），高 160px；每行 6 张，列距 240px（卡宽:空隙 ≈ 1:1）；
+ * 行距 0.18H = 162px（≈ 一张卡高）；第一行中心在 0.08H = 72px（≈ 0.45 张卡高），所以上沿出血到屏幕顶外。
+ * 手机 390×844：卡片平均宽取现状（约 70px）的 4/3 ≈ 93px（屏宽 24%），高 124px；保持卡宽:空隙 ≈ 1:1，
+ * 一行放 2 张（中心 0.26W / 0.74W，间距 187px），中间一行 3 张、左右两张一半出血；行距 = 一张卡高 124px = 0.147H；
+ * 第一行中心 = 0.45 张卡高 ≈ 56px = 0.066H，同样出血到顶边外。抖动按卡片尺寸等比换算。
+ * 实测（6eb493d）卡宽约 96、高 128；因为上下抖动 ±25px，第一行写 0.04H（落在 30～60px，两张都出血），
+ * 行距按实测卡高 128 ≈ 0.15H。这些是屏幕上的真实位置（透视差值在 ScatterStage 里补）。
+ * （试过再补两张填缝卡把中间那条空白填掉，覆盖率 63%，老师选了不补的这版，就留在 7 张。）
+ */
+const PHONE_SCATTER: [number, number][] = [
+  [.26, .04], [.74, .04],
+  [-.02, .19], [.5, .19], [1.02, .19],
+  [.26, .34], [.74, .34],
+]
 
 /** Home-only adapters of pure A. No mixed-plan background, strips or invented card metadata. */
-export function homePlan(direction: HomeDirection): Plan {
+export function homePlan(direction: HomeDirection, phoneIntro = false): Plan {
   return {
     ...PLAN_A,
     cardW: 148, cardH: 148 * 4 / 3,
@@ -17,7 +38,7 @@ export function homePlan(direction: HomeDirection): Plan {
         const perspective = (1100 - z) / 1100
         return { ...p, x: (x - 0.5) * W * perspective, y: (y - 0.5) * H * perspective, z }
       }
-      if (mobile) {
+      if (mobile && !phoneIntro) {
         const positions = [
           [.16, .17], [.39, .21], [.63, .15], [.85, .22],
           [.15, .66], [.39, .69], [.63, .65], [.85, .70],
@@ -34,9 +55,20 @@ export function homePlan(direction: HomeDirection): Plan {
         ]
         a.scat = a.scat.map((p, i) => screenPose(p, positions[i][0], positions[i][1], COVER_FRONT.includes(i) ? 70 : p.z))
       } else if (direction === 'premotio') {
-        a.scat = a.scat.map((p, i) => screenPose(p,
-          (i % 6 + .45) / 6 + Math.sin(i * 2.3) * .025,
-          .08 + Math.floor(i / 6) * .18 + Math.cos(i * 1.7) * .035))
+        a.scat = a.scat.map((p, i) => {
+          const x = (i % 6 + .45) / 6 + Math.sin(i * 2.3) * .025
+          const row = Math.floor(i / 6)
+          const drift = Math.cos(i * 1.7)
+          if (phoneIntro) {
+            // 首屏 7 张按电脑比例散开（深度四档和电脑一样）；其余的放在屏幕下方外面，组墙时才飞进来
+            const spot = PHONE_SCATTER[i]
+            return spot
+              // 中间一行左右两张要稳定露一半，不加横向抖动
+              ? screenPose(p, spot[0] + (spot[0] < 0 || spot[0] > 1 ? 0 : Math.sin(i * 2.3) * .05), spot[1] + drift * .03)
+              : screenPose(p, .2 + (i % 4) * .2, 1.18 + (i % 2) * .08)
+          }
+          return screenPose(p, x, .08 + row * .18 + drift * .035)
+        })
       } else {
         a.scat = a.scat.map((p, i) => screenPose(p, .57 + (i % 4) * .135 + Math.sin(i) * .012, .09 + Math.floor(i / 4) * .245, [-180, 40, -340, -80][i % 4]))
       }

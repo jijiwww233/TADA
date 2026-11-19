@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { GlassMenu, type GlassMenuRow } from './GlassMenu'
 import { Onboarding } from './Onboarding'
 import { REFINE } from './refine'
+import { HueRing } from '../lab/HueRing'
+import { usePhoneLayout } from './useMobileLayout'
 
 /** 中间胶囊菜单里的一页：(01) 素材库 … (06) 帮助 */
 const PAGES: { k: 'library' | 'projects' | 'activity' | 'pip' | 'settings' | 'help'; label: string }[] = [
@@ -99,6 +101,7 @@ export function AppHeader({ title, current, onHome, onGo, onPip, tools, pendingC
 /** 顶栏右侧的「颜色」：点开还是原来那个可拖的色环，只是从搜索行挪到了顶栏 */
 export function HeaderColor({ hue, onHue, open, onOpenChange }: { hue: number | null; onHue: (h: number | null) => void; open: boolean; onOpenChange: (open: boolean) => void }) {
   const [dragging, setDragging] = useState(false)
+  const phone = usePhoneLayout()
   const wrap = useRef<HTMLSpanElement | null>(null)
   const ring = useRef<HTMLDivElement | null>(null)
 
@@ -123,6 +126,36 @@ export function HeaderColor({ hue, onHue, open, onOpenChange }: { hue: number | 
     top: `calc(50% + ${Math.sin((hue - 90) * Math.PI / 180) * RING_R}px)`,
     background: `oklch(0.72 0.15 ${hue})`,
   }
+
+  // 手机：换成注册引导页搜索胶囊里那个浅色色环（同一个组件 HueRing），圆心点一下取消
+  const phoneRing = useRef<SVGSVGElement | null>(null)
+  const phoneHueAt = (clientX: number, clientY: number) => {
+    const box = phoneRing.current?.getBoundingClientRect()
+    if (!box) return
+    const dx = clientX - (box.left + box.width / 2)
+    const dy = clientY - (box.top + box.height / 2)
+    // 圆心那块（半径 30/120 宽）点一下 = 取消颜色
+    if (Math.hypot(dx, dy) < box.width * 0.25) { onHue(null); return }
+    onHue((Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360)
+  }
+  if (phone) return (
+    <span className="m-appbar-wheel-host" ref={wrap}>
+      {open && (
+        <div className="m-wheel-pop m-appbar-wheel m-wheel-pale">
+          <HueRing ref={phoneRing} hue={hue} className="m-wheel-pale-ring" style={{ touchAction: 'none' }}
+            onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); setDragging(true); phoneHueAt(event.clientX, event.clientY) }}
+            onPointerMove={event => { if (dragging) phoneHueAt(event.clientX, event.clientY) }}
+            onPointerUp={() => setDragging(false)}
+            onPointerCancel={() => setDragging(false)}
+            onKeyDown={event => {
+              if (event.key === 'ArrowRight' || event.key === 'ArrowUp') onHue(((hue ?? 0) + 10) % 360)
+              if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') onHue(((hue ?? 0) + 350) % 360)
+            }} />
+          <p className="m-wheel-pale-caption">拖动选一个颜色，按它重新排</p>
+        </div>
+      )}
+    </span>
+  )
 
   return (
     <span className="m-appbar-wheel-host" ref={wrap}>

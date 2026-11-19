@@ -4,6 +4,7 @@ import 'react-photo-album/masonry.css'
 import type { LabImage, Manifest } from '../lab/data'
 import { thumbnailSrc } from '../imageThumbnail'
 import type { LibraryResult } from './MainApp'
+import type { Relevance } from '../search/contract'
 import { SearchLine, type Mode } from './SearchLine'
 import { scrollToInstant, scrollToY } from './smooth'
 import { sourceLabel } from './meta'
@@ -23,8 +24,14 @@ const COL_UNIT = 288
 const colCount = (width: number) => Math.min(5, Math.max(2, Math.round(width / COL_UNIT)))
 /** 首屏优先加载的图片张数：这几张 eager + 高优先级，其余懒加载 */
 const FIRST_IMAGES = 4
+/** 找图结果里 weak 最多显示 6 张（后端已经截过，这里再防御一次） */
+const WEAK_LIMIT = 6
 /** 加载中的灰色占位块：高矮不一，看起来像瀑布流 */
 const PLACEHOLDER_RATIOS = [0.78, 1.25, 1, 0.8, 1.3, 0.72, 1.1, 0.9]
+/** 一面墙的相册数据：strong / weak 两面墙共用同一套换算 */
+const wallPhotos = (list: LabImage[]): WallPhoto[] => list.map((item, index) => ({
+  key: String(item.id), src: thumbnailSrc(item.src), width: item.w || 1, height: item.h || 1, item, index,
+}))
 
 /** 加载中：一句话 + 几块灰色占位，不放任何按钮（免得数据回来时误点到换上来的图） */
 function WallLoading({ text }: { text: string }) {
@@ -120,9 +127,21 @@ export function Library({ manifest, initialQuery = '', onOpen, onPending, platfo
 
   const filtered = useMemo(() => sorted.filter(it => platforms.size === 0 || platforms.has(sourceLabel(it))), [sorted, platforms])
 
-  const photos = useMemo<WallPhoto[]>(() => filtered.map((item, index) => ({
-    key: String(item.id), src: thumbnailSrc(item.src), width: item.w || 1, height: item.h || 1, item, index,
-  })), [filtered])
+  // 找图结果带 relevance 时：strong 全量在前，weak 最多 6 张放最后（后端也会排好序、截到 6，这里防御性再切一次）。
+  // 没有 relevance（老后端 / 找相似 / 按颜色找 / 刚导入）时仍然只有一面墙，行为和改前完全一致。
+  const [strongItems, weakItems] = useMemo<[LabImage[], LabImage[]]>(() => {
+    const relevance: Record<number, Relevance> | undefined = results?.relevance
+    if (!relevance) return [filtered, []]
+    const strong: LabImage[] = []; const weak: LabImage[] = []
+    for (const item of filtered) {
+      if (relevance[item.id] === 'weak') weak.push(item)
+      else strong.push(item)
+    }
+    return [strong, weak.slice(0, WEAK_LIMIT)]
+  }, [filtered, results?.relevance])
+
+  const photos = useMemo<WallPhoto[]>(() => wallPhotos(strongItems), [strongItems])
+  const weakPhotos = useMemo<WallPhoto[]>(() => wallPhotos(weakItems), [weakItems])
 
   // 换筛选 / 排序时保持当前滚动位置：结果变少、页面变短时，给墙垫一个最小高度，再回到原来的位置
   const lastY = useRef(0)
@@ -199,6 +218,38 @@ export function Library({ manifest, initialQuery = '', onOpen, onPending, platfo
       data-reveal style={{ '--rv-d': enterDelayMs(i) } as React.CSSProperties}>
       <img src={thumbnailSrc(it.src)} alt="" loading="lazy" width={it.w} height={it.h} />
     </button>
+  )
+
+  // 瀑布流相册：strong / weak 两面墙共用（图注、首屏优先加载、打开详情的逻辑完全一样）
+  const album = (list: WallPhoto[]) => (
+    <MasonryPhotoAlbum<WallPhoto> photos={list} spacing={gap} columns={mobile ? 2 : colCount} padding={0}
+      render={{ photo: (_, { photo: { item: it, index: i, src } }) => {
+      const title = cardTitle(it.title, it.description, it.tags)
+      const source = sourceLabel(it)
+      const busy = analyzing?.has(it.id) ?? false
+      // 首屏前 4 张先下载（公网慢时不让它们排在别的请求后面），其余照旧懒加载
+      const firstRow = i < FIRST_IMAGES
+      // 没有云端分析的图不写「还没有标题 / 本地」；只在有标题或正在分析时显示图注。
+      const showCaption = !!title || busy
+      return (
+        <button type="button" key={it.id} className="m-tile" onClick={() => onOpen(it, filtered, filtered.indexOf(it))}
+          data-id={it.id}
+          aria-label={`${title ? `${title} · ` : ''}${source}${busy ? ' · 分析中' : ''}`} data-reveal
+          style={{ '--rv-d': enterDelayMs(i) } as React.CSSProperties}>
+          <img src={src} alt="" loading={firstRow ? 'eager' : 'lazy'}
+            fetchPriority={firstRow ? 'high' : undefined} width={it.w} height={it.h}
+            onLoad={firstRow ? firstImageDone : undefined} onError={firstRow ? firstImageDone : undefined} />
+          {showCaption && <span className="m-tile-cap">
+            {title && <span className="m-tile-title">{title}</span>}
+            <span className="m-tile-src">
+              {/* data-local：手机上不显示「本地」两个字 */}
+              {title && <span data-local={source === '本地' || undefined}>{source}</span>}
+              {busy && <span className="ds-analyzing" title="正在分析这张图，标题和标签稍后出现">分析中</span>}
+            </span>
+          </span>}
+        </button>
+      )
+    } }} />
   )
 
   const refGroups = [0, 1, 2].map(index =>
@@ -313,35 +364,29 @@ export function Library({ manifest, initialQuery = '', onOpen, onPending, platfo
             ))}
           </div>
         ) : (
-          <div className="m-tiles" ref={wallEl} key={`${sort}-${hue ?? 'all'}`}>
-            <MasonryPhotoAlbum<WallPhoto> photos={photos} spacing={gap} columns={mobile ? 2 : colCount} padding={0}
-              render={{ photo: (_, { photo: { item: it, index: i, src } }) => {
-              const title = cardTitle(it.title, it.description, it.tags)
-              const source = sourceLabel(it)
-              const busy = analyzing?.has(it.id) ?? false
-              // 首屏前 4 张先下载（公网慢时不让它们排在别的请求后面），其余照旧懒加载
-              const firstRow = i < FIRST_IMAGES
-              // 没有云端分析的图不写「还没有标题 / 本地」；只在有标题或正在分析时显示图注。
-              const showCaption = !!title || busy
-              return (
-                <button type="button" key={it.id} className="m-tile" onClick={() => onOpen(it, filtered, i)}
-                  data-id={it.id}
-                  aria-label={`${title ? `${title} · ` : ''}${source}${busy ? ' · 分析中' : ''}`} data-reveal
-                  style={{ '--rv-d': enterDelayMs(i) } as React.CSSProperties}>
-                  <img src={src} alt="" loading={firstRow ? 'eager' : 'lazy'}
-                    fetchPriority={firstRow ? 'high' : undefined} width={it.w} height={it.h}
-                    onLoad={firstRow ? firstImageDone : undefined} onError={firstRow ? firstImageDone : undefined} />
-                  {showCaption && <span className="m-tile-cap">
-                    {title && <span className="m-tile-title">{title}</span>}
-                    <span className="m-tile-src">
-                      {/* data-local：手机上不显示「本地」两个字 */}
-                      {title && <span data-local={source === '本地' || undefined}>{source}</span>}
-                      {busy && <span className="ds-analyzing" title="正在分析这张图，标题和标签稍后出现">分析中</span>}
-                    </span>
-                  </span>}
-                </button>
-              )
-            } }} />
+          <div className="m-result-walls">
+            {/* 一张 strong 都没有：先说清这些都是“接近的”，再给 weak 墙 */}
+            {strongItems.length === 0 && weakItems.length > 0 && (
+              <p className="m-relevance-hint">没找到很像的，看看这些接近的？</p>
+            )}
+            {strongItems.length > 0 && (
+              <div className="m-tiles" ref={wallEl} key={`${sort}-${hue ?? 'all'}`}>
+                {album(photos)}
+              </div>
+            )}
+            {/* 有 strong 也有 weak：分隔线 + 一句提示，然后才是 weak 墙 */}
+            {strongItems.length > 0 && weakItems.length > 0 && (
+              <>
+                <hr className="m-relevance-sep" />
+                <p className="m-relevance-hint">下面这些不太像，但可能有用</p>
+              </>
+            )}
+            {/* weak 只作补充提示，最多 6 张；strong 全没有时它就是主结果 */}
+            {weakItems.length > 0 && (
+              <div className="m-tiles m-tiles-weak" key={`${sort}-${hue ?? 'all'}-weak`}>
+                {album(weakPhotos)}
+              </div>
+            )}
           </div>
         )}
 

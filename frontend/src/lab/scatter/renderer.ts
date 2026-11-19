@@ -223,7 +223,8 @@ export class ScatterRenderer {
 
   readonly canvas: HTMLCanvasElement
 
-  constructor(canvas: HTMLCanvasElement, images: string[]) {
+  /** @param first 先加载的纹理层（第一屏用到的）；不传 = 全部一起加载（电脑版原样） */
+  constructor(canvas: HTMLCanvasElement, images: string[], first?: number[]) {
     this.canvas = canvas
     const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, premultipliedAlpha: true, powerPreference: 'low-power' })
     if (!gl) throw new Error('WebGL2 unavailable')
@@ -261,19 +262,48 @@ export class ScatterRenderer {
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
     const aniso = gl.getExtension('EXT_texture_filter_anisotropic')
     if (aniso) gl.texParameterf(gl.TEXTURE_2D_ARRAY, aniso.TEXTURE_MAX_ANISOTROPY_EXT, 4)
-    this.ready = Promise.all(images.map((src, i) => cardTextureCanvas(src, TEX_W, TEX_H).then(canvas => {
+    const upload = (i: number, canvas: HTMLCanvasElement) => {
       gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.tex)
       // The canvas is exactly TEX_W x TEX_H; Edge/D3D11 no longer sees an image with a different intrinsic size.
       gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, i, TEX_W, TEX_H, 1, gl.RGBA, gl.UNSIGNED_BYTE, canvas)
       if (gl.getError() !== gl.NO_ERROR) throw new Error('纹理上传失败')
-    }))).then(() => {
+    }
+    const load = (i: number) => cardTextureCanvas(images[i], TEX_W, TEX_H).then(canvas => { if (!this.disposed) upload(i, canvas) })
+    const finish = () => {
+      if (this.disposed) return
       gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.tex)
       gl.generateMipmap(gl.TEXTURE_2D_ARRAY)
       this.loaded = 1
+    }
+    if (!first) {
+      this.ready = Promise.all(images.map((_, i) => load(i))).then(finish)
+      this.rest = this.ready
+      return
+    }
+    // 手机引导页：只先等第一屏用到的那几层；其余各层先铺一层纸色（不然没到的卡是黑块），
+    // ready 之后再在后台两张两张地补，补完重新生成一次 mip。
+    const head = [...new Set(first)].filter(i => i >= 0 && i < images.length)
+    const tail = images.map((_, i) => i).filter(i => !head.includes(i))
+    const blank = document.createElement('canvas')
+    blank.width = TEX_W; blank.height = TEX_H
+    const paper = blank.getContext('2d')
+    if (paper) { paper.fillStyle = '#ebe7e1'; paper.fillRect(0, 0, TEX_W, TEX_H) }
+    for (const i of tail) upload(i, blank)
+    this.ready = Promise.all(head.map(load)).then(finish)
+    this.rest = this.ready.then(async () => {
+      const queue = [...tail]
+      const worker = async () => {
+        for (let i = queue.shift(); i !== undefined && !this.disposed; i = queue.shift()) await load(i).catch(() => {})
+      }
+      await Promise.all([worker(), worker()])
+      finish()
     })
   }
 
-  readonly ready: Promise<void>
+  readonly ready!: Promise<void>
+  /** 全部纹理都到齐（手机引导页的后台补齐也算在内） */
+  readonly rest!: Promise<void>
+  private disposed = false
 
   resize(cssW: number, cssH: number, dpr: number) {
     const gl = this.gl
@@ -378,6 +408,7 @@ export class ScatterRenderer {
   }
 
   dispose() {
+    this.disposed = true
     const gl = this.gl
     for (const t of [this.scene, ...this.down, ...this.tmp, ...this.up]) if (t) { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo) }
     gl.deleteTexture(this.tex)

@@ -57,6 +57,24 @@ def fuse_hits(combined, clip_scores: dict, *, alpha: float = CLIP_FUSION_ALPHA,
     return [SearchHit(image_id, min(1.0, max(0.0, score))) for image_id, score in fused]
 
 
+def attach_evidence(items, **channels) -> None:
+    """Attach the raw absolute scores behind a ranked row for the relevance gate.
+
+    The fused 0..1 score is min-max normalised per query, so its top row is ~1.0 even
+    when the library has nothing close; only these pre-fusion values (raw text cosine,
+    raw local-CLIP cosine, boost contribution) are comparable across queries. Keys stay
+    private (leading underscore) and the HTTP layer strips them before returning.
+    """
+    for item in items:
+        image_id = item.get("image_id")
+        for name, values in channels.items():
+            if not values:
+                continue
+            value = values.get(image_id)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                item["_" + name] = float(value)
+
+
 class SearchUnavailable(RuntimeError):
     """Fixed public message: never includes provider response, Key or raw exception."""
 
@@ -177,6 +195,8 @@ class SearchApplication:
             mode = "文字检索"
             if clip_scores:
                 mode = "图文融合" if combined else "本地检索"
+            attach_evidence(items, text_cos={hit.image_id: hit.score for hit in combined},
+                            clip_cos=clip_scores or {}, boost=boosts or {})
             return {"status": "ok", "items": items, "search_mode": mode}
         except Exception:
             # Includes config/client/DB/malformed-vector errors. Never log raw upstream data.
@@ -212,6 +232,7 @@ class SearchApplication:
                 return {"status": "ok", "items": [], "degraded": True}
             with readonly_connection(self.database()) as conn:
                 items = hydrate_hits(conn, hits)
+            attach_evidence(items, clip_cos=clip_scores)
             return {"status": "ok", "items": items, "degraded": True}
         except Exception:
             return {"status": "ok", "items": [], "degraded": True}

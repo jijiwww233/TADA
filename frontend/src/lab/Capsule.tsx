@@ -2,8 +2,9 @@ import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode }
 import { AnimatePresence, motion } from 'motion/react'
 import { MorphIcon } from 'morphicons/react'
 import { ArrowUp, GalleryVerticalEnd, Palette, Search, type IconNode } from 'lucide'
-import { useImages, oklchToHex } from './data'
+import { useImages } from './data'
 import { Icon } from './Icon'
+import { HueRing } from './HueRing'
 
 /**
  * Capsule (round 5): a clear body with a fine ink edge, nothing under it (values in lab.css .capsule*). Layout like
@@ -94,22 +95,15 @@ function ColorWheel({ onClose }: { onClose: () => void }) {
     const a = Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2))
     setHue(((a * 180) / Math.PI + 90 + 360) % 360)
   }
-  const segs = Array.from({ length: 36 }, (_, i) => i * 10)
   return (
     // Blur Fade timing, 1.3x round 2 (220 → 286ms)
     <motion.div className="capsule-panel absolute left-0 top-[calc(100%+10px)] z-20 flex w-[360px] gap-4 p-4"
       initial={{ opacity: 0, y: -6, filter: 'blur(6px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
       exit={{ opacity: 0, y: -6, filter: 'blur(6px)' }} transition={{ duration: 0.286, ease: [0.4, 0, 0.2, 1] }}
       onKeyDown={e => e.key === 'Escape' && onClose()}>
-      <svg ref={ring} viewBox="-60 -60 120 120" className="size-[104px] shrink-0 cursor-crosshair touch-none" onPointerDown={pick} onPointerMove={pick} role="slider" aria-label="色相" aria-valuenow={Math.round(hue ?? 0)} tabIndex={0}
-        onKeyDown={e => { if (e.key === 'ArrowRight' || e.key === 'ArrowUp') setHue(h => ((h ?? 0) + 10) % 360); if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') setHue(h => ((h ?? 0) + 350) % 360) }}>
-        {segs.map(h => {
-          const a0 = ((h - 90 - 5.4) * Math.PI) / 180, a1 = ((h - 90 + 5.4) * Math.PI) / 180
-          return <path key={h} d={`M${Math.cos(a0) * 56} ${Math.sin(a0) * 56} A56 56 0 0 1 ${Math.cos(a1) * 56} ${Math.sin(a1) * 56} L${Math.cos(a1) * 38} ${Math.sin(a1) * 38} A38 38 0 0 0 ${Math.cos(a0) * 38} ${Math.sin(a0) * 38}Z`} fill={oklchToHex(0.84, 0.06, h)} />
-        })}
-        {hue !== null && <circle cx={Math.cos(((hue - 90) * Math.PI) / 180) * 47} cy={Math.sin(((hue - 90) * Math.PI) / 180) * 47} r="7" fill="#fbf9f4" stroke="rgba(60,40,20,.2)" />}
-        <circle r="30" fill={hue === null ? '#fbf9f4' : oklchToHex(0.9, 0.045, hue)} stroke="rgba(60,40,20,.08)" />
-      </svg>
+      {/* 色环本体抽到 HueRing.tsx，素材库手机顶栏的色环也用它；这里画出来和原来一模一样 */}
+      <HueRing ref={ring} hue={hue} className="size-[104px] shrink-0 cursor-crosshair touch-none" onPointerDown={pick} onPointerMove={pick}
+        onKeyDown={e => { if (e.key === 'ArrowRight' || e.key === 'ArrowUp') setHue(h => ((h ?? 0) + 10) % 360); if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') setHue(h => ((h ?? 0) + 350) % 360) }} />
       <div className="min-w-0 flex-1">
         <p className="text-[12px] text-[var(--ink-2)]">{hue === null ? '拖动色环，按颜色重排' : '离这个颜色最近的在前'}</p>
         <div className="mt-2 [display:grid] grid-cols-5 gap-1.5">

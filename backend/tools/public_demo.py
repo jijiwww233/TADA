@@ -350,6 +350,9 @@ def create_public_app():
                                           cache_control=BRAND_CACHE_CONTROL), name="public-brand")
     app.mount("/lab-assets/show", CachedStaticFiles(directory=SAMPLES / "show",
                                                     cache_control=BRAND_CACHE_CONTROL),
+              name="public-show-samples")
+    app.mount("/intro-samples", CachedStaticFiles(directory=ROOT / "frontend/public/intro-samples",
+                                                   cache_control=BRAND_CACHE_CONTROL),
               name="public-intro-samples")
 
     # 中间件顺序（Starlette 中后加的在更外层）：Vary → public_boundary → GZip → 路由。

@@ -501,6 +501,10 @@
 .m-result-line button { border: 0; background: transparent; color: var(--m-ink-3); font-size: var(--m-type-ui); cursor: pointer; }
 .m-empty-line { padding: 28px 2px; font-size: var(--m-type-ui); color: var(--m-ink-3); }
 
+/* 找图结果的分组提示：有 strong 时在 strong 墙之后分出一条线 + 一句灰字，再放最多 6 张 weak（见 Library.tsx）。 */
+.m-relevance-hint { padding: 14px 2px 0; font-size: 13px; line-height: 1.6; color: var(--m-ink-3); }
+.m-relevance-sep { margin: 26px 0 0; border: 0; border-top: 1px solid var(--m-line); }
+
 /* 要参考：三列只留分类名和图片 */
 .m-ref-cols { gap: 20px; padding-top: 14px; }
 .m-ref-col h3 { font-family: var(--m-ui); font-size: var(--m-type-ui); font-weight: 400; letter-spacing: 0; color: var(--m-ink-2); margin: 0 0 10px; }

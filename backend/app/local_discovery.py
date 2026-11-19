@@ -1,5 +1,6 @@
 """Local discovery over saved text and measured image palettes."""
 import colorsys
+import os
 import re
 from functools import lru_cache
 
@@ -7,7 +8,7 @@ from PIL import Image, ImageOps
 
 from . import config, palette
 from .embedding.search import SearchHit
-from .embedding.search_application import hydrate_hits
+from .embedding.search_application import attach_evidence, hydrate_hits
 from .recommendation import COLORS
 from .recommendation_service import load_candidate_context
 
@@ -22,7 +23,18 @@ COLOR_TERMS = sorted(set(COLOR_PAIRS) | {term for terms in COLORS.values() for t
 HUE_LIMITS = {
     "#ff0000": (345, 17), "#ffa500": (16, 45), "#ffff00": (41, 72),
     "#008000": (70, 166), "#0000ff": (184, 258), "#800080": (251, 325),
+    # Search-only pigments: the brief vocabulary stops at ten colours, but a query
+    # may name pink or cyan as a hard requirement. Hue tolerance, never RGB distance,
+    # so a saturated pink/teal neighbour still counts.
+    "#ff9ec4": (315, 355), "#00a8a8": (165, 205), "#ffb84d": (24, 70),
+    # 蓝绿 compound colours are teal/mint hues; RGB distance rejected pale mint.
+    "#2e8b8b": (150, 200),
 }
+
+# A colour family may name a pale palette colour: 浅薄荷 #d7e5e3 has saturation .06, so
+# the generic chromatic cut (sat >= .16) would reject a real mint. Only this teal family
+# relaxes the two floors; every other hue keeps the strict values.
+SAT_FLOORS = {"#2e8b8b": (0.05, 0.55)}  # (min saturation, min value)
 
 
 def normalize_colors(query):
@@ -39,7 +51,8 @@ def color_affinity(rgb, target):
         angle = hue * 360
         low, high = low_high
         inside = low <= angle <= high if low < high else angle >= low or angle <= high
-        return (0.65 + 0.35 * sat) if inside and sat >= .16 and value >= .16 else 0
+        min_sat, min_value = SAT_FLOORS.get(target.hex, (.16, .16))
+        return (0.65 + 0.35 * sat) if inside and sat >= min_sat and value >= min_value else 0
     if target.hex == "#000000":
         return 1.0 - value if value <= .37 else 0
     if target.hex in {"#ffffff", "#f5f0e6"}:
@@ -77,6 +90,69 @@ def color_targets(query):
 
 
 
+# Search-only pigments absent from both COLORS and COMPOUND_COLOR_TARGETS. Only full
+# colour words count, so 青年/粉丝 style compounds never become a hard requirement.
+SEARCH_COLOR_WORDS = {
+    "粉": ("#ff9ec4", ("粉色", "粉红", "粉调", "粉系")),
+    "青": ("#00a8a8", ("青色", "青调", "青系", "藏青", "靛青")),
+    # 暖黄 is an amber, not pure yellow: the warm lamp glow extracts as hue 28-36, so a
+    # #ffff00 requirement alone would reject the very lamp the query names.
+    "暖黄": ("#ffb84d", ("暖黄", "鹅黄", "米黄")),
+}
+COLOR_MIN_SHARE = float(os.environ.get("SEARCH_COLOR_MIN_SHARE", "0.10"))
+
+
+def search_color_targets(query):
+    """Concrete colour words a result's dominant palette must contain (any one of them).
+
+    Reuses `color_targets` (brief vocabulary + compound palette words) and adds the
+    search-only pigments. Vague colour talk (颜色很多 / 暖色 / 深色 / 彩色) yields no
+    target: only a named colour may become a hard requirement.
+    """
+    if not isinstance(query, str):
+        return ()
+    targets = list(color_targets(query))
+    for hex_value, forms in SEARCH_COLOR_WORDS.values():
+        if any(form in query for form in forms):
+            targets.append(palette.Target(hex_value, False))
+    merged = {}
+    for target in targets:
+        merged[target.hex] = palette.Target(target.hex, target.main or merged.get(target.hex, target).main)
+    return tuple(merged.values())
+
+
+def palette_covers(conn, image_ids, targets, min_share=COLOR_MIN_SHARE):
+    """Image ids whose dominant swatches cover one of the target colour families.
+
+    A swatch counts when its hue affinity times the swatch share reaches min_share, so
+    a stray 2% accent cannot satisfy a colour requirement. Rows without an extracted
+    palette are returned as covered (unknown, not proven wrong), so a missing palette
+    never empties the wall by itself.
+    """
+    ids = [int(image_id) for image_id in image_ids]
+    if not targets or not ids:
+        return set(ids)
+    marks = ",".join("?" for _ in ids)
+    best = {}
+    seen = set()
+    for row in conn.execute(
+            f"SELECT image_id,hex,ratio FROM colors WHERE image_id IN ({marks})", ids):
+        image_id = int(row["image_id"])
+        seen.add(image_id)
+        rgb = palette.rgb(row["hex"])
+        try:
+            share = float(row["ratio"] or 0)
+        except (TypeError, ValueError):
+            continue
+        if not rgb or share <= 0:
+            continue
+        for target in targets:
+            affinity = color_affinity(rgb, target)
+            if affinity and affinity * share > best.get(image_id, 0):
+                best[image_id] = affinity * share
+    return {image_id for image_id in ids if best.get(image_id, 0) >= min_share} | (set(ids) - seen)
+
+
 def palette_matches(conn, targets):
     if not targets:
         return {}
@@ -106,8 +182,9 @@ def with_colors(conn, query, found):
     if hits and not color_only_query(query):
         ordered = sorted(hits, key=lambda hit: -(hit["score"] + scores.get(hit["image_id"], 0)))
         return {**found, "items": ordered}
-    return {"status": "ok", "degraded": True,
-            "items": hydrate_hits(conn, [SearchHit(i, score) for i, score in list(scores.items())[:LIMIT]])}
+    items = hydrate_hits(conn, [SearchHit(i, score) for i, score in list(scores.items())[:LIMIT]])
+    attach_evidence(items, palette_score=scores)
+    return {"status": "ok", "degraded": True, "items": items}
 
 
 COLOR_RICH = re.compile(
@@ -231,14 +308,20 @@ def visual_scores(query, similarity):
 
 def visual_hits(conn, query, similarity):
     if COLOR_RICH.fullmatch(search_subject(query)):
-        return hydrate_scores(conn, diverse_colors(conn)), "palette"
+        return hydrate_scores(conn, diverse_colors(conn), evidence="palette_score"), "palette"
     scores, channel = visual_scores(query, similarity)
-    return hydrate_scores(conn, scores), channel
+    # Only the semantic route's score is a raw text/image cosine that the relevance gate
+    # may compare across queries; a scene margin is a within-query decision, not a
+    # similarity, so it is deliberately left without absolute evidence.
+    return hydrate_scores(conn, scores, evidence="local_cos" if channel == "semantic" else None), channel
 
 
-def hydrate_scores(conn, scores):
+def hydrate_scores(conn, scores, evidence=None):
     ranked = sorted(scores.items(), key=lambda item: (-item[1], item[0]))[:120]
-    return hydrate_hits(conn, [SearchHit(image_id, score) for image_id, score in ranked])
+    items = hydrate_hits(conn, [SearchHit(image_id, score) for image_id, score in ranked])
+    if evidence:
+        attach_evidence(items, **{evidence: dict(ranked)})
+    return items
 
 
 def local_columns(conn, effective, found, color_need=None, excluded=()):

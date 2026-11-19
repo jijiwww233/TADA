@@ -25,15 +25,8 @@ const fileName = (src: string) => src.split('/').pop() || 'image'
 const pad2 = (n: number) => String(n).padStart(2, '0')
 const pad3 = (n: number) => String(n).padStart(3, '0')
 const ROMAN = ['i.', 'ii.', 'iii.']
-type DetailData = NonNullable<Awaited<ReturnType<WiringApi['getDetail']>>>
 /** 有真正的字（不是空串、空格或「· · ·」这类只有符号的占位） */
 const meaningful = (s?: string | null): s is string => !!s && /[\p{L}\p{N}]/u.test(s)
-/** 按帖内顺序，取第一张有这项信息的图的值 */
-function firstOf<T>(items: LabImage[], pick: (item: LabImage) => T | null | undefined): T | undefined {
-  for (const item of items) { const value = pick(item); if (value != null) return value }
-  return undefined
-}
-const postKeyOf = (item: LabImage | undefined) => !item ? '' : item.post_id != null ? `p${item.post_id}` : `i${item.id}`
 /**
  * 刚进详情页那一下用原有的逐词出现；往下滚换图以后不再逐字播，直接换成新内容，只做 0.15 秒淡入。
  */
@@ -47,7 +40,13 @@ function Words({ text, moved }: { text: string; moved: boolean }) {
  * 文字只在进入时逐词出现一次，之后换图时右上编号、标题、参数表直接换内容（0.15 秒淡入）。
  */
 export function Detail({ list, index, postOf, onClose, onToast, onColor, api, projects, onAdd, onSimilar, onPip,
-  onProjectEdit, projectEditPending, analysis = null }: {
+  onProjectEdit, projectEditPending, analysis = null, single = false }: {
+  /**
+   * 一次只看一张（从素材库、日历、手机画板点进来时）：list 是被点那张所在的同一帖，
+   * 页面只放被点的这一张，标题、描述、标签、主色、按钮全按这一张；同帖其它图在下面一排小图里点着换。
+   * 项目里点进来时为 false，照旧整组往下翻。
+   */
+  single?: boolean
   /** 全局分析状态：这张图还没分析结果时，说明它在排队、正在分析，还是不会被分析 */
   analysis?: AnalysisStatus | null
   list: LabImage[]
@@ -90,27 +89,7 @@ export function Detail({ list, index, postOf, onClose, onToast, onColor, api, pr
   // 进入后有没有滚到过别的图：滚过以后文字不再逐词出现
   const [moved, setMoved] = useState(false)
 
-  // 触屏（手机 / iPad）：右侧信息按「帖子」固定显示——同一帖里往下滑换图，标题、标签、描述都不变；
-  // 某张图自己没分析时沿用同帖其它图的。为此把同帖每张图的详情都取回来（最多 12 张）。电脑上不走这套。
   const touch = useTouchLayout()
-  const [known, setKnown] = useState<Map<number, DetailData>>(() => new Map())
-  const asked = useRef(new Set<number>())
-  useEffect(() => {
-    if (detail) setKnown(previous => previous.get(detail.id) === detail ? previous : new Map(previous).set(detail.id, detail))
-  }, [detail])
-  const siblingIds = touch && image ? postOf(image).slice(0, 12).map(item => item.id).join(',') : ''
-  useEffect(() => {
-    if (!siblingIds) return
-    for (const id of siblingIds.split(',').map(Number)) {
-      if (asked.current.has(id)) continue
-      asked.current.add(id)
-      api.getDetail(id).then(value => { if (value) setKnown(previous => new Map(previous).set(id, value)) }, () => {})
-    }
-  }, [api, siblingIds])
-  const postKey = postKeyOf(image)
-  const [startPost] = useState(() => postKeyOf(list[Math.max(0, index)]))
-  const [leftStartPost, setLeftStartPost] = useState(false)
-  useEffect(() => { if (postKey !== startPost) setLeftStartPost(true) }, [postKey, startPost])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !adding) onClose() }
@@ -121,7 +100,7 @@ export function Detail({ list, index, postOf, onClose, onToast, onColor, api, pr
   // 点开哪张就直接停在哪张（用原有滚动的瞬移）
   useLayoutEffect(() => {
     const el = plates.current[index]
-    const y = !mobile && el && index > 0 ? el.getBoundingClientRect().top + window.scrollY - 24 : 0
+    const y = !mobile && !single && el && index > 0 ? el.getBoundingClientRect().top + window.scrollY - 24 : 0
     scrollToInstant(y)
     const seen = new Set<number>()
     plates.current.forEach((p, i) => { if (!p) return; const r = p.getBoundingClientRect(); if (r.top < window.innerHeight && r.bottom > 0) seen.add(i) })
@@ -141,7 +120,8 @@ export function Detail({ list, index, postOf, onClose, onToast, onColor, api, pr
 
   // 当前张 = 跨过视口中线的那张；页面滚动由 Lenis 驱动，这里只读位置
   useEffect(() => {
-    if (mobile) return
+    // 只看一张时页面上只有这一张，不按滚动位置换「当前张」
+    if (mobile || single) return
     let raf = 0
     let firstAt: number | null = null
     const pick = () => {
@@ -157,7 +137,7 @@ export function Detail({ list, index, postOf, onClose, onToast, onColor, api, pr
     pick()
     window.addEventListener('scroll', kick, { passive: true })
     return () => { window.removeEventListener('scroll', kick); if (raf) cancelAnimationFrame(raf) }
-  }, [mobile])
+  }, [mobile, single])
 
   // 图先出，文字紧跟着（晚 160ms）逐词出现。原来要等图完全出完再等一下，点开一张图要一秒多才看到字
   const textAt = 160
@@ -173,24 +153,19 @@ export function Detail({ list, index, postOf, onClose, onToast, onColor, api, pr
   const saved = savedLabel(current.saved_at)
   const imported = savedLabel(current.createdAt)
   const source = sourceLabel(current)
-  // 触屏：整帖的信息（帖内顺序，当前这张用已合并详情的版本）
-  const postImages = post.map(item => item.id === current.id ? current : known.has(item.id) ? mergeDetail(item, known.get(item.id)!) : item)
-  const postTitle = firstOf(postImages, item => meaningful(item.post_title) ? item.post_title.trim() : null)
-  const postSubject = firstOf(postImages, item => { const s = (item.subject ?? []).filter(meaningful); return s.length ? s : null }) ?? []
-  const postStyle = firstOf(postImages, item => { const s = (item.style_tags ?? []).filter(meaningful); return s.length ? s : null }) ?? []
-  const postIntro = firstOf(postImages, item => meaningful(item.description) ? item.description.trim() : null) ?? ''
   const local = source === '本地'
   // 什么分析都没有时的标题：不出现「本地」
   const plainTitle = local
     ? (saved ? `${saved}收藏的图` : imported ? `${imported}导入的图` : '未命名的图')
     : (saved ? `${source} · ${saved}` : source)
-  const title = touch ? postTitle || postSubject.join('、') || plainTitle
-    : subject.join('、') || current.post_title || (saved ? `${source} · ${saved}` : source)
-  const postTheme = [postSubject.join('、'), ...postStyle.slice(0, 2)].filter(Boolean).join(' · ')
-  // 触屏：主题行只是把标题重复一遍时就不显示
-  const theme = touch ? (postTheme === title ? '' : postTheme)
-    : [subject.join('、'), ...(current.style_tags ?? []).slice(0, 2)].filter(Boolean).join(' · ')
-  const intro = touch ? postIntro : current.description || current.post_title || ''
+  // 标题先用这张图自己的 title；没有再用帖子标题，都没有才用来源 / 日期，不拿标签拼
+  const ownTitle = meaningful(current.title) ? current.title.trim() : ''
+  const ownPostTitle = meaningful(current.post_title) ? current.post_title.trim() : ''
+  const title = ownTitle || ownPostTitle || plainTitle
+  const imageTheme = [subject.join('、'), ...(current.style_tags ?? []).slice(0, 2)].filter(Boolean).join(' · ')
+  // 主题行只是把标题重复一遍时就不显示
+  const theme = imageTheme === title ? '' : imageTheme
+  const intro = meaningful(current.description) ? current.description.trim() : ownPostTitle !== title ? ownPostTitle : ''
   const notes = [intro && { key: 'intro', text: intro }, theme && { key: 'theme', text: theme }].filter(Boolean) as { key: string; text: string }[]
   // 详情页长相退回最初版；唯一的文字改动：「收藏」一栏原来显示「未知」，改成「未记录收藏夹」+ 一行小字说明原因
   const savedNote = imported ? `导入时没带收藏夹信息 · ${imported}导入` : '导入时没带收藏夹信息'
@@ -199,15 +174,8 @@ export function Detail({ list, index, postOf, onClose, onToast, onColor, api, pr
   const sourceText = touch && local ? '自己导入' : source
   const colors = current.palette.slice(0, 3)
   const currentTags = tags.get(current.id) ?? current.tags ?? []
-  // 触屏：显示整帖所有图的标签（去重、去掉空占位）；「+ 标签」仍加在当前这张上
-  const shownTags = touch
-    // 按帖内顺序合并（第一张的标签在前），换图时顺序不变；当前这张不在帖内列表里时它的标签排最后
-    ? [...new Set([...postImages.flatMap(item => tags.get(item.id) ?? item.tags ?? []), ...currentTags].filter(meaningful))]
-    : currentTags
-  // 触屏：同一帖里换图时，帖子级的文字不重播、不闪；换到别的帖子才淡入新内容
-  const infoKey = touch ? postKey : String(at)
-  const postMoved = touch ? leftStartPost || postKey !== startPost : moved
-  const last = at === list.length - 1
+  // 「(最后一张)」是整组往下翻时用的；只看一张时不说
+  const last = !single && at === list.length - 1
   const addTag = async () => {
     const t = draft.trim()
     setDraft('')
@@ -230,22 +198,23 @@ export function Detail({ list, index, postOf, onClose, onToast, onColor, api, pr
             <span className="m-ld-back-arrow" aria-hidden="true">←</span> <span className="m-ld-back-word">返回</span>
           </button>
           {notes[0]?.key === 'intro' && (
-            <p className="m-ld-note m-ld-intro" key={`intro-${infoKey}`}><i>{ROMAN[0]}</i><Words text={notes[0].text} moved={postMoved} /></p>
+            <p className="m-ld-note m-ld-intro" key={`intro-${current.id}`}><i>{ROMAN[0]}</i><Words text={notes[0].text} moved={moved} /></p>
           )}
         </div>
         {notes.find(n => n.key === 'theme') && (
-          <p className="m-ld-note m-ld-theme" key={`theme-${infoKey}`}>
-            <i>{ROMAN[notes.findIndex(n => n.key === 'theme')]}</i><Words text={theme} moved={postMoved} />
+          <p className="m-ld-note m-ld-theme" key={`theme-${current.id}`}>
+            <i>{ROMAN[notes.findIndex(n => n.key === 'theme')]}</i><Words text={theme} moved={moved} />
           </p>
         )}
         <div className="m-ld-bottom">
-          {post.length > 1 && <p className="m-ld-cap">(同帖 {post.length} 张)</p>}
+          {/* 只看一张时，同帖的图在大图下面那排能点的小图里，这里不再重复 */}
+          {!single && post.length > 1 && <p className="m-ld-cap">(同帖 {post.length} 张)</p>}
           <div className="m-ld-foot">
-            <div className="m-ld-thumbs">
+            {!single && <div className="m-ld-thumbs">
               {post.slice(0, 4).map((p, i) => (
                 <img key={`${p.id}-${i}`} src={thumbnailSrc(p.src)} alt="" className={p.id === current.id ? 'is-on' : ''} />
               ))}
-            </div>
+            </div>}
             <p className="m-ld-links">
               <a href={current.src} download={actual?.download.filename || current.source || fileName(current.src)}>保存 ↓</a>
               {originalUrl && <a href={originalUrl} target="_blank" rel="noopener noreferrer">打开原帖 ↗</a>}
@@ -259,12 +228,19 @@ export function Detail({ list, index, postOf, onClose, onToast, onColor, api, pr
       {!pane && leftAside}
       {mobile && list.length > 1 && <ThumbnailStrip list={list} index={at} onSelect={selectImage} active />}
       <div className="m-ld-center" style={onProjectEdit && !mobile && list.length > 1 ? { paddingBottom: '50vh' } : undefined}>
-        {list.map((p, i) => (!mobile || i === at) && (
+        {list.map((p, i) => (!(mobile || single) || i === at) && (
           <div className="m-ld-plate" key={`${p.id}-${i}`}
-            data-reveal={(mobile ? !moved : firstScreen === null || firstScreen.has(i)) ? '' : undefined} ref={el => { plates.current[i] = el }}>
-            <img src={p.src} alt="" width={p.w} height={p.h} loading={mobile || Math.abs(i - index) < 2 ? 'eager' : 'lazy'} />
+            data-reveal={((mobile || single) ? !moved : firstScreen === null || firstScreen.has(i)) ? '' : undefined} ref={el => { plates.current[i] = el }}>
+            <img src={p.src} alt="" width={p.w} height={p.h} loading={mobile || single || Math.abs(i - index) < 2 ? 'eager' : 'lazy'} />
           </div>
         ))}
+        {/* 电脑 / iPad：同帖其它图放在大图下面一排，点哪张就换成哪张（手机用顶上那排） */}
+        {single && !mobile && list.length > 1 && (
+          <div className="m-ld-post">
+            <p className="m-ld-post-cap">同帖还有 {list.length - 1} 张</p>
+            <ThumbnailStrip list={list} index={at} onSelect={selectImage} active />
+          </div>
+        )}
       </div>
 
       <aside className="m-ld-side m-ld-right" data-lenis-prevent={pane ? '' : undefined}>
@@ -278,8 +254,8 @@ export function Detail({ list, index, postOf, onClose, onToast, onColor, api, pr
           {/* 不写“往下滚”这类解释界面的话；到头了才说一声 */}
           <p className="m-ld-hint">{last ? '(最后一张)' : ' '}</p>
           <p className="m-ld-tags">
-            {shownTags.map((t, i) => <span key={t}>{i > 0 && ' · '}{t}</span>)}
-            {shownTags.length > 0 && ' · '}
+            {currentTags.map((t, i) => <span key={t}>{i > 0 && ' · '}{t}</span>)}
+            {currentTags.length > 0 && ' · '}
             {adding ? (
               <input className="m-ld-taginput" autoFocus value={draft} aria-label="新标签"
                 onChange={e => setDraft(e.target.value)}
@@ -300,14 +276,14 @@ export function Detail({ list, index, postOf, onClose, onToast, onColor, api, pr
             <button type="button" disabled={projectEditPending} onClick={() => onProjectEdit(current, 'remove')}>从项目移除</button>
           </p>}
         </div>
-        <div className="m-ld-bottom" key={`spec-${infoKey}`}>
+        <div className="m-ld-bottom" key={`spec-${current.id}`}>
           {analysisNote && (
             <p className="ds-analysis-note" role="status">
               <span className="ds-analyzing">{analysisNote.label}</span>
               <span>{analysisNote.note}</span>
             </p>
           )}
-          <h1 className="m-ld-title"><Words text={title} moved={postMoved} /></h1>
+          <h1 className="m-ld-title"><Words text={title} moved={moved} /></h1>
           <dl className="m-ld-spec">
             <div><dt>来源</dt><dd><Words text={sourceText} moved={moved} /></dd></div>
             <div className={saved ? undefined : 'm-ld-spec-saved'}><dt>收藏</dt><dd>

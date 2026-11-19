@@ -21,6 +21,10 @@ export function usePhoneLayout() {
   return useMedia(PHONE_QUERY)
 }
 
+export function useNarrowPhoneLayout() {
+  return useMedia('(hover: none) and (pointer: coarse) and (width < 600px)')
+}
+
 /** 触屏设备（手机 + iPad，不论宽窄）；带鼠标的电脑永远不命中 */
 export function useTouchLayout() {
   return useMedia('(hover: none) and (pointer: coarse)')

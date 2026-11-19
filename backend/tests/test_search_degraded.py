@@ -103,7 +103,10 @@ def test_no_key_search_uses_local_clip_text_route(data_dir, backend_options):
     body = response.json()
     assert response.status_code == 200
     assert body['status'] == 'ok' and body['degraded'] is True
-    assert [item['image_id'] for item in body['items']] == [2, 3]
+    # The relevance gate adds a relative line on the raw CLIP cosine: hit 3 (.4) is
+    # only 0.44 of the best hit (.9), under the weak ratio (0.55), so it is dropped
+    # instead of being shown as a "similar" row next to a much closer one.
+    assert [item['image_id'] for item in body['items']] == [2]
     assert clip.queries == ['暖色海报']
     assert forbidden.calls == []
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MotionConfig } from 'motion/react'
 import './lab-reset.css'
 import './lab.css'
@@ -15,8 +15,16 @@ import '../main/main-serif-sc.css'
  * 只是不带选样页的说明文字，调试开关也收起来。地址后面加 ?play 会自动从头播放；加 ?page=key / platforms / ready 直接从那一页开始（排练用）。
  */
 export default function IntroPage() {
-  const manifest = useManifest()
-  const plan = useMemo(() => homePlan('premotio'), [])
+  const manifest = useManifest(false, '/intro-samples/original.json')
+  const [phone, setPhone] = useState(() => window.matchMedia('(width < 600px)').matches)
+  useEffect(() => {
+    const query = window.matchMedia('(width < 600px)')
+    const update = () => setPhone(query.matches)
+    query.addEventListener('change', update)
+    update()
+    return () => query.removeEventListener('change', update)
+  }, [])
+  const plan = useMemo(() => homePlan('premotio', phone), [phone])
   const autoplay = useMemo(() => new URLSearchParams(location.search).has('play'), [])
   const startPage = useMemo(() => {
     const page = new URLSearchParams(location.search).get('page')
@@ -32,7 +40,7 @@ export default function IntroPage() {
     <ManifestProvider value={manifest}>
       <MotionConfig reducedMotion="user">
         <div className="lab" style={{ '--paper-h': warmHue(manifest) } as React.CSSProperties}>
-          <ScatterStage plan={plan} bounce={BOUNCES[1]} direction="premotio" english={false} reduced={false} clean autoplay={autoplay} startPage={startPage} />
+          <ScatterStage plan={plan} bounce={BOUNCES[1]} direction="premotio" english={false} reduced={false} clean phone={phone} autoplay={autoplay} startPage={startPage} />
         </div>
       </MotionConfig>
     </ManifestProvider>

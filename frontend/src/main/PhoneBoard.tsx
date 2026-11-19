@@ -35,7 +35,7 @@ export function PhoneBoard({ projectId, name, items, library, onOpen }: {
 
   return (
     <section className="m-page m-pboard">
-      <p className="m-pboard-hint">拖动编排请在电脑或 iPad 上打开</p>
+      <p className="m-pboard-hint">拖动编排请在电脑上打开</p>
       <h2 className="m-pboard-title">{name ?? '全部收藏'}<span className="m-pboard-count">{shown.length} 张</span></h2>
       {shown.length ? (
         <div className="m-pboard-grid">

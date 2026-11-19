@@ -105,8 +105,10 @@ def _merge_annotation_hits(result: dict, query: str, *, manual_only: bool = Fals
                 ranked.update((item["image_id"], item) for item in hydrate_hits(conn, missing))
     except Exception:
         return result
-    merged = [{**ranked[image_id], "score": score} for image_id, score in ordered.items()
-              if image_id in ranked]
+    # "_literal" keeps the annotation channel's literal match visible to the relevance
+    # gate (search_terms.apply_relevance), which strips it before the response leaves.
+    merged = [{**ranked[image_id], "score": score, **({"_literal": True} if image_id in manual else {})}
+              for image_id, score in ordered.items() if image_id in ranked]
     if not merged:
         return result
     if result.get("status") == "index_empty":
@@ -527,6 +529,9 @@ def create_app(worker: analysis.Worker | None = None,
                     result = {**result, "items": [], "degraded": True}
             except Exception:
                 pass
+            # Last step for every channel (paid fusion, local retrieval, annotations):
+            # evidence-based relevance gate + strong/weak marks.
+            result = search_terms.apply_relevance(result, request.query)
         return result
 
     @app.post("/api/recommendations")

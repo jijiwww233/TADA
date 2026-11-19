@@ -52,6 +52,21 @@
   outline-offset: -2px;
 }
 
+/* 电脑 / iPad 详情：大图下面「同帖还有 N 张」+ 一排能点的小图（不吸顶，跟着大图走） */
+.m-ld-post { margin-top: var(--space-4, 16px); }
+.m-ld-post-cap {
+  margin: 0 0 var(--space-2, 8px);
+  font-size: var(--font-size-body, 14px); line-height: 1.4; color: var(--color-text-secondary, var(--m-ink-2));
+}
+.m-ld-post .m-ld-strip {
+  --ld-strip-image: 72px;
+  --ld-strip-gap: 8px;
+  position: static;
+  margin-inline: 0;
+  padding: 0;
+  background: transparent;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .m-ld-strip-item img { transition: none; }
 }

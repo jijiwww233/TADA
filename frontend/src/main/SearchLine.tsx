@@ -7,6 +7,7 @@ import { OVERLAY } from './motion'
 import { onSmoothScroll } from './smooth'
 import { REFINE } from './refine'
 import { demoReferenceQuery } from './wiringData'
+import { useNarrowPhoneLayout } from './useMobileLayout'
 
 export type Mode = 'find' | 'ref'
 /** 8d：两个模式各一句话说清区别，直接写在切换按钮下面 */
@@ -25,8 +26,12 @@ const CN_HINT: Record<Mode, string> = {
  * 聚焦后在「找图 · 要参考」左边淡入一行同字号衬线小字：一句话说清这个模式要你写什么 + 几个能直接点的例子。
  */
 const EXAMPLES: Record<Mode, { lead: string; items: string[] }> = {
-  find: { lead: '试试：', items: ['海', '颜色很多', '雨天街道上有霓虹灯倒影'] },
+  find: { lead: '试试：', items: ['暖黄色的灯里面好像有星星', '黑色背景上的发光球', '很复古的花，深色背景'] },
   ref: { lead: '试试：', items: [demoReferenceQuery, '极简作品集封面', '夏日音乐节海报'] },
+}
+const PHONE_EXAMPLES: Record<Mode, string[]> = {
+  find: ['暖黄色的灯里面好像有星星', '黑色背景上的发光球', '很复古的花，深色背景'],
+  ref: [demoReferenceQuery],
 }
 
 export function SearchLine({ mode, onMode, text, onText, onSearch, onEscape, field, active, reduce, searching }: {
@@ -41,6 +46,7 @@ export function SearchLine({ mode, onMode, text, onText, onSearch, onEscape, fie
   reduce: boolean
   searching: boolean
 }) {
+  const phone = useNarrowPhoneLayout()
   const root = useRef<HTMLElement | null>(null)
   /** 「试试」那一行：手机上放不下会横滑，右边还有没露出来的词时才挂 data-more（淡出只在这时出现） */
   const tries = useRef<HTMLDivElement | null>(null)
@@ -64,7 +70,7 @@ export function SearchLine({ mode, onMode, text, onText, onSearch, onEscape, fie
     ro?.observe(node)
     for (const child of Array.from(node.children)) ro?.observe(child)
     return () => { node.removeEventListener('scroll', check); window.removeEventListener('resize', check); ro?.disconnect() }
-  }, [mode, docked])
+  }, [mode, docked, phone])
   const [focused, setFocused] = useState(false)
   /** 搜索区在原位时的高度：吸到顶上以后原位留出同样高的空，下面的瀑布流不跳 */
   const [restHeight, setRestHeight] = useState<number | null>(null)
@@ -108,10 +114,10 @@ export function SearchLine({ mode, onMode, text, onText, onSearch, onEscape, fie
         className={`m-searchline m-sl-v2${docked ? ' is-floating' : ''}`}>
       <div className="m-sl-in">
         <div className="m-sl-row"
-          onFocus={() => setFocused(true)}
+          onFocus={() => { if (!phone) setFocused(true) }}
           onBlur={event => {
             // 焦点只是在搜索行里挪（输入框 ↔ 找图 / 要参考）时不算离开，示例不闪
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false)
+            if (!phone && !event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false)
           }}>
           {/* 8c：放大镜常驻，一眼看出这是搜索框；点放大镜也能聚焦 */}
           <button type="button" className="m-sl-icon" aria-label="聚焦搜索框" tabIndex={-1}
@@ -131,7 +137,9 @@ export function SearchLine({ mode, onMode, text, onText, onSearch, onEscape, fie
             aria-label="搜索"
             autoComplete="off"
             spellCheck={false}
-            placeholder={docked ? (REFINE && mode === 'ref' ? '写你要做什么' : '搜索收藏') : PLACEHOLDER}
+            placeholder={docked ? (!phone && REFINE && mode === 'ref' ? '写你要做什么' : '搜索收藏') : PLACEHOLDER}
+            onFocus={() => { if (phone) setFocused(true) }}
+            onBlur={() => { if (phone) setFocused(false) }}
             onChange={event => onText(event.target.value)}
             onKeyDown={event => {
               if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
@@ -156,8 +164,8 @@ export function SearchLine({ mode, onMode, text, onText, onSearch, onEscape, fie
                   <button type="button" className={`m-sl-mode${mode === option.k ? ' is-on' : ''}`} title={option.hint}
                     aria-pressed={mode === option.k} aria-describedby={mode === option.k && !docked ? 'm-sl-modehint' : undefined} onClick={() => {
                     onMode(option.k)
-                    // 引导版：切完模式直接回到输入框，示例随模式换，切换不再是“点了没反应”
-                    if (REFINE) field.current?.focus({ preventScroll: true })
+                    if (phone) field.current?.blur()
+                    else if (REFINE) field.current?.focus({ preventScroll: true })
                   }}><RollingLabel text={option.label} /></button>
                 </Fragment>
               ))}
@@ -169,9 +177,20 @@ export function SearchLine({ mode, onMode, text, onText, onSearch, onEscape, fie
         </div>
         {!docked && <div className="m-sl-rule" />}
         {/* 英文大字下面补一行中文小字，说清这里要写什么 */}
-        {!docked && <p className="m-sl-cnhint">{CN_HINT[mode]}</p>}
+        {!docked && phone && (
+          <p className="m-sl-phone-hint" id="m-sl-modehint">
+            {mode === 'find' ? '描述你记得的画面，比如：' : '写下你要做的东西，比如：'}
+            {PHONE_EXAMPLES[mode].map((example, index) => (
+              <Fragment key={example}>
+                {index > 0 && '、'}
+                <button type="button" onClick={() => { onText(example); onSearch(example, docked) }}>{example}</button>
+              </Fragment>
+            ))}
+          </p>
+        )}
+        {!docked && !phone && <p className="m-sl-cnhint">{CN_HINT[mode]}</p>}
         {/* 8c / 8d：输入线下面一行——左边是能直接点的示例，右边一句话说明当前模式 */}
-        {!docked && REFINE && (
+        {!docked && !phone && REFINE && (
           <div className="m-sl-sub">
             <div className="m-sl-tries" ref={tries}>
               <span className="m-sl-tries-lead">{EXAMPLES[mode].lead}</span>
