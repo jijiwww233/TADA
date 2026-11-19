@@ -4,6 +4,7 @@ import './styles/tokens.css'
 import './index.css'
 import App from './App.tsx'
 import ReferenceReview from './ReferenceReview'
+import { scheduleDeferredFonts } from './styles/deferredFonts'
 const Root=location.pathname==='/reference-review'?ReferenceReview:App
 
 // /lab: component sample page (ui-intro). Loaded on its own so other pages stay untouched.
@@ -31,6 +32,9 @@ const getRoute = () => {
 }
 
 const route = getRoute()
+
+// 主界面字体（Main Serif SC / Main Newsreader，约 3MB）延后到首屏图片之后加载，见 styles/deferredFonts.ts
+if (route.isMain || route.isMainV4 || route.isDesignSystem) scheduleDeferredFonts()
 
 createRoot(document.getElementById('root')!).render(
   // /lab stays outside StrictMode: its dev-only double mount runs every effect's cleanup, and the WebGL demos

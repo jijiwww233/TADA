@@ -3,8 +3,8 @@
     {
       "id": 1,
       "src": "/lab-assets/show/sample-01.jpg",
-      "w": 1200,
-      "h": 937,
+      "w": 652,
+      "h": 509,
       "source": "本地",
       "face": false,
       "palette": [
@@ -49,8 +49,8 @@
     {
       "id": 2,
       "src": "/lab-assets/show/sample-02.jpg",
-      "w": 1148,
-      "h": 1500,
+      "w": 499,
+      "h": 652,
       "source": "本地",
       "face": false,
       "palette": [
@@ -95,8 +95,8 @@
     {
       "id": 3,
       "src": "/lab-assets/show/sample-03.jpg",
-      "w": 1200,
-      "h": 908,
+      "w": 652,
+      "h": 493,
       "source": "本地",
       "face": false,
       "palette": [
@@ -141,8 +141,8 @@
     {
       "id": 4,
       "src": "/lab-assets/show/sample-04.jpg",
-      "w": 800,
-      "h": 1075,
+      "w": 446,
+      "h": 599,
       "source": "本地",
       "face": false,
       "palette": [
@@ -187,8 +187,8 @@
     {
       "id": 5,
       "src": "/lab-assets/show/sample-05.jpg",
-      "w": 758,
-      "h": 960,
+      "w": 515,
+      "h": 652,
       "source": "本地",
       "face": false,
       "palette": [
@@ -233,8 +233,8 @@
     {
       "id": 6,
       "src": "/lab-assets/show/sample-06.jpg",
-      "w": 1000,
-      "h": 723,
+      "w": 652,
+      "h": 471,
       "source": "本地",
       "face": false,
       "palette": [
@@ -279,8 +279,8 @@
     {
       "id": 7,
       "src": "/lab-assets/show/sample-07.jpg",
-      "w": 1800,
-      "h": 1350,
+      "w": 652,
+      "h": 489,
       "source": "本地",
       "face": false,
       "palette": [
@@ -325,8 +325,8 @@
     {
       "id": 8,
       "src": "/lab-assets/show/sample-08.jpg",
-      "w": 940,
-      "h": 1200,
+      "w": 396,
+      "h": 506,
       "source": "本地",
       "face": false,
       "palette": [
@@ -371,8 +371,8 @@
     {
       "id": 9,
       "src": "/lab-assets/show/sample-09.jpg",
-      "w": 1350,
-      "h": 1800,
+      "w": 489,
+      "h": 652,
       "source": "本地",
       "face": false,
       "palette": [
@@ -417,8 +417,8 @@
     {
       "id": 10,
       "src": "/lab-assets/show/sample-10.jpg",
-      "w": 612,
-      "h": 800,
+      "w": 499,
+      "h": 652,
       "source": "本地",
       "face": false,
       "palette": [
@@ -463,8 +463,8 @@
     {
       "id": 11,
       "src": "/lab-assets/show/sample-11.jpg",
-      "w": 1800,
-      "h": 1350,
+      "w": 599,
+      "h": 449,
       "source": "本地",
       "face": false,
       "palette": [

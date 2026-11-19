@@ -21,6 +21,8 @@ export type DetailFields = {
   post_title?: string | null
   /** 分析结果里的风格标签 */
   style_tags?: string[] | null
+  /** 后端给的生效短标题（列表和详情接口都带）；卡片标题优先用它 */
+  title?: string | null
 }
 /** items: every image (the scatter stage places the portrait itself); cards: everything except portraits, for all other demos. */
 export type Manifest = { total: number; visual_ref: number; items: LabImage[]; cards: LabImage[]; fallback: string[]; libraryProjects?: { name: string; imageIds: number[] }[] }

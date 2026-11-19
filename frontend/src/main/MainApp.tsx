@@ -27,6 +27,8 @@ import { useDemoMode } from '../api/mode'
 import { flushSync } from 'react-dom'
 import type { ImageItem } from '../api'
 import PipButton, { type PipHandle } from '../PipButton'
+import { PhoneBoard } from './PhoneBoard'
+import { usePhoneLayout } from './useMobileLayout'
 import { useWiringApi, useWiringImport, useWiringResource } from '../api/useWiring'
 import { errorText } from '../api/errors'
 import type { WiringApi } from '../api/wiring'
@@ -41,6 +43,8 @@ import '../pip/fable-pip.css'
 import './refine.css'
 // 设计系统组件层：放在所有页面样式之后，统一按钮、下拉、标签、提示（只用 styles/tokens.css 的令牌）
 import '../styles/design-system.css'
+// 评审后补的入口和提示：待确认提示条、当前筛选、搜索框中文小字、卡片标题两行
+import '../styles/entries.css'
 // 手机专用（触屏 + 窄屏），排在最后；电脑不会命中
 import '../styles/phone.css'
 import { REFINE } from './refine'
@@ -120,14 +124,32 @@ export default function MainApp() {
   const api = useWiringApi(demo, demo ? fixture : undefined)
   const library = useWiringResource(api, loadLibrary)
   const manifest = demo ? demoManifest === 'missing' ? emptyManifest : demoManifest : library.value.status === 'ready' ? library.value.data : emptyManifest
-  const projectData = useWiringResource(api, loadProjects)
-  const pendingData = useWiringResource(api, loadPending)
+  // 首屏先让图片走：项目、待确认、分析状态这几个接口在公网上各占 10～17 秒连接，
+  // 等素材库第一张图显示出来（或确定没有图 / 读失败 / 离开素材库）之后再请求
+  const [firstShown, setFirstShown] = useState(false)
+  const markFirstShown = useCallback(() => setFirstShown(true), [])
+  const extrasOn = demo || firstShown
+  const projectData = useWiringResource(api, loadProjects, extrasOn)
+  const pendingData = useWiringResource(api, loadPending, extrasOn)
   const importer = useWiringImport(api, { onImported: library.reload })
   /** 分析状态（只在真实模式下请求）：卡片和详情页的「分析中」提示用 */
-  const analysis = useAnalysisStatus(!demo)
+  const analysis = useAnalysisStatus(!demo && firstShown)
+  const libraryStatus = library.value.status
+  const libraryEmpty = library.value.status === 'ready' && library.value.data.cards.length === 0
+  useEffect(() => {
+    if (libraryStatus === 'error' || libraryEmpty) setFirstShown(true)
+  }, [libraryStatus, libraryEmpty])
+  // 保底：素材库读回来 20 秒后图还没显示出来，也不再压着这几个接口
+  useEffect(() => {
+    if (libraryStatus !== 'ready' || firstShown) return
+    const timer = window.setTimeout(() => setFirstShown(true), 20000)
+    return () => window.clearTimeout(timer)
+  }, [libraryStatus, firstShown])
   const analyzing = useMemo(() => analyzingIds(analysis), [analysis])
   const [results, setResults] = useState<LibraryResult | null>(null)
   const [pendingSearch, setPendingSearch] = useState<number | null>(null)
+  /** 正在进行的是找图还是要参考：加载中那句话不一样 */
+  const [searchKind, setSearchKind] = useState<'find' | 'ref'>('find')
   /** 引导页示例搜索框跳过来时带的 ?q=；只消费一次，然后从地址栏去掉。 */
   const [initialQuery] = useState(() => new URLSearchParams(location.search).get('q')?.trim() ?? '')
   // 只把 ?q= 从地址栏去掉；真正的搜索在 Library 挂载后触发（避免在 MainApp 提前 return 之前加 Hook）。
@@ -185,11 +207,23 @@ export default function MainApp() {
     toastTimer.current = window.setTimeout(() => setToast(null), 2400)
   }, [])
 
+  // 手机上的参考画板：不开画布小窗，在本页显示两列图片（PhoneBoard）；切到别的页面时清掉
+  const phone = usePhoneLayout()
+  const [phoneBoard, setPhoneBoard] = useState<{ projectId: number | null; name: string | null; items: LabImage[] } | null>(null)
+  const boardOn = phone && phoneBoard !== null
+  // 网页标题跟着页面走：只有手机参考画板这一页改标题，离开就换回来
+  useEffect(() => {
+    if (!boardOn) return
+    const previous = document.title
+    document.title = '参考画板 · TADA! 图然想起'
+    return () => { document.title = previous }
+  }, [boardOn])
+
   // 切页先回到顶，新页面再从下面长上来
   useEffect(() => {
     scrollToInstant(0)
-  }, [view])
-  useScrollReveal(view)
+  }, [view, boardOn])
+  useScrollReveal(boardOn ? 'board' : view)
 
   // 整站滚动交给 Lenis：下拉有惯性，停下是缓的
   useEffect(() => startSmoothScroll(), [])
@@ -220,6 +254,14 @@ export default function MainApp() {
   const pipImages = useMemo(() => pipTarget.items.map(toPipImage), [pipTarget])
   const pipLibrary = useMemo(() => manifest?.items.map(toPipImage), [manifest])
   const openPip = (target: PipTarget) => {
+    // 手机：画布用不了，也不另开标签页（另开的页面会残留图片、缩放条和工具栏），改在本页显示简单版
+    if (phone) {
+      setFilterOpen(false)
+      setColorOpen(false)
+      dismissDetail()
+      setPhoneBoard(target.projectId === null ? { ...target, items: target.items.slice(0, 6) } : target)
+      return
+    }
     flushSync(() => setPipTarget(target))
     const pipName = REFINE ? '参考画板' : '参考小窗'
     if (!pipRef.current?.supported) { say(`这个浏览器打不开${pipName}：请用电脑上的 Chrome 或 Edge`); return }
@@ -263,6 +305,9 @@ export default function MainApp() {
     setFilterOpen(false)
     setColorOpen(false)
     dismissDetail()
+    setPhoneBoard(null)
+    // 去别的页面（项目页要用项目数据）就不再等首屏图片
+    if (next !== 'library') setFirstShown(true)
     setView(next)
   }
   // 同帖的图：有 post_id 就按帖内顺序列出来，没有就只有这一张
@@ -274,6 +319,7 @@ export default function MainApp() {
     returnY.current = window.scrollY
     pushDetailEntry()
     detailOpenRef.current = true
+    setFirstShown(true)
     setDetail(index >= 0 && list[index] ? { list, index, project } : { list: [item], index: 0, project })
   }
   // 「← 返回」/ Esc：退掉详情历史条目（交给 popstate 收口）并回到打开前的滚动位置
@@ -329,6 +375,7 @@ export default function MainApp() {
     // 原来的行为：找图搜完按相似度排（顶栏排序菜单跟着显示「像不像」）
     if (!reference && text.trim()) setSort('similar')
     const version = ++requestVersion.current
+    setSearchKind(reference ? 'ref' : 'find')
     setPendingSearch(version)
     try {
       if (reference) {
@@ -463,13 +510,14 @@ export default function MainApp() {
       },
     })),
     { key: 'color', label: '按颜色', on: hue !== null, act: () => { setFilterOpen(false); setColorOpen(true) } },
-    { key: 'pending', label: '待确认', on: false, count: pendingItems.length, act: () => { setFilterOpen(false); setKeep(new Set()); setPendingOpen(true) } },
+    // 「待确认」不再藏在筛选里：搜索框下方的提示条和顶栏切换菜单各有一个入口（openPending）
   ]
+  const openPending = () => { setFilterOpen(false); setColorOpen(false); setKeep(new Set()); setPendingOpen(true) }
   const sortRows = SORTS.map(option => ({
     key: `sort-${option.k}`, label: option.label, on: sort === option.k,
     act: () => { setSort(option.k); setFilterOpen(false) },
   }))
-  const headerTools = detail ? undefined : view === 'library' ? (
+  const headerTools = detail || boardOn ? undefined : view === 'library' ? (
     <>
       {(REFINE || !demo) && (
         <>
@@ -528,7 +576,9 @@ export default function MainApp() {
   ) : undefined
 
   /** 正中胶囊里写当前页的名字：详情页写「素材库」或所在项目名 */
-  const headerTitle = detail ? (detail.project ? detail.project.name : '素材库')
+  // 手机参考画板里点开的详情：胶囊仍写「参考画板」，和网页标题一致
+  const headerTitle = detail ? (boardOn ? '参考画板' : detail.project ? detail.project.name : '素材库')
+    : boardOn ? '参考画板'
     : view === 'projects' ? '项目' : view === 'activity' ? '日历' : view === 'settings' ? '设置' : '素材库'
   const headerPage: AppPage = detail ? (detail.project ? 'projects' : 'library') : view
 
@@ -560,19 +610,22 @@ export default function MainApp() {
           else openPip({ projectId: null, name: null, items: manifest.items })
         }}
 
+        pendingCount={pendingItems.length} onPending={() => { dismissDetail(); openPending() }}
         tools={headerTools} />
 
-      <motion.div key={view} className="m-view" hidden={!!detail}
+      <motion.div key={boardOn ? 'board' : view} className="m-view" hidden={!!detail}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: PAGE.duration, ease: PAGE.ease }}>
-          {view === 'library' ? (
+          {boardOn && phoneBoard ? (
+            <PhoneBoard projectId={phoneBoard.projectId} name={phoneBoard.name} items={phoneBoard.items}
+              library={manifest.items} onOpen={openDetail} />
+          ) : view === 'library' ? (
             <>
-              {!demo && library.value.status === 'error' && (
-                <p className="ds-alert" role="alert">读不到素材库：后台服务没响应。确认服务已启动、网络正常后，点「重试」。
-                  <button type="button" className="ds-btn ds-btn--secondary ds-btn--sm" onClick={library.reload}>重试</button></p>
-              )}
-              <Library manifest={manifest} initialQuery={initialQuery} onOpen={openDetail} onPending={() => { setKeep(new Set()); setPendingOpen(true) }}
+              {/* 读素材库中 / 读失败：都在瀑布流的位置说（Library 的 loadState），不再先摆出空库和「去导入」 */}
+              <Library manifest={manifest}
+                loadState={demo ? 'ready' : libraryStatus} onRetry={library.reload}
+                searchKind={searchKind} onFirstImage={markFirstShown} initialQuery={initialQuery} onOpen={openDetail} onPending={openPending}
                 platforms={platforms} onPlatforms={setPlatforms} hue={hue} onHue={setHue} wallRequest={wallRequest}
                 onSaveProject={saveProject} results={results} searching={pendingSearch !== null} onSearch={search} onClear={clearResults}
                 pendingCount={pendingItems.length} reduce={reduce || !!reducedMotion}
@@ -591,7 +644,7 @@ export default function MainApp() {
           )}
       </motion.div>
 
-      {view === 'library' && !detail && <GradualBlur position="bottom" height={96} strength={0.5} layers={10} zIndex={40} />}
+      {view === 'library' && !detail && !boardOn && <GradualBlur position="bottom" height={96} strength={0.5} layers={10} zIndex={40} />}
 
 
       {detail && (
@@ -619,7 +672,7 @@ export default function MainApp() {
           </div>
           {/* 引导版：「待确认」三个字第一次看不知道在确认什么，补一句 */}
           {REFINE && <p className="m-empty-line" style={{ padding: '0 0 14px' }}>
-            {pendingItems.length ? '这些图分不太清是不是设计参考。点选几张，告诉它「保留」或「不是参考」，以后分得更准。' : '现在没有需要确认的图。'}
+            {pendingItems.length ? '这些图可能不是设计参考，点选后选择保留或移除。你的选择会让以后的分类更准。' : '现在没有需要确认的图。'}
           </p>}
           <div className="m-pending-grid">
             {pendingItems.map(it => {
@@ -640,7 +693,7 @@ export default function MainApp() {
           </div>
           <div className="m-modal-foot">
             <span className="m-spacer" />
-            <button type="button" className="ds-btn ds-btn--secondary" disabled={!keep.size} onClick={() => void decide(false)}>不是参考</button>
+            <button type="button" className="ds-btn ds-btn--secondary" disabled={!keep.size} onClick={() => void decide(false)}>不是参考 {keep.size} 张</button>
             <button type="button" className="ds-btn ds-btn--primary" disabled={!keep.size} onClick={() => void decide(true)}>
               保留 {keep.size} 张
             </button>

@@ -15,6 +15,11 @@ const MODES: { k: Mode; label: string; hint: string }[] = [
   { k: 'ref', label: '要参考', hint: '按排版、配色、风格找参考' },
 ]
 const PLACEHOLDER = 'Tada! I remember it…'
+/** 大字下面那行中文小字 */
+const CN_HINT: Record<Mode, string> = {
+  find: '描述你记得的画面，比如：雨天街道上的霓虹',
+  ref: '写下你要做的东西，比如：夏日音乐节海报',
+}
 /**
  * 引导版：大字保持英文品牌句不动（中文字形和 Newsreader 细斜体放在一起会割裂）；
  * 聚焦后在「找图 · 要参考」左边淡入一行同字号衬线小字：一句话说清这个模式要你写什么 + 几个能直接点的例子。
@@ -37,8 +42,29 @@ export function SearchLine({ mode, onMode, text, onText, onSearch, onEscape, fie
   searching: boolean
 }) {
   const root = useRef<HTMLElement | null>(null)
+  /** 「试试」那一行：手机上放不下会横滑，右边还有没露出来的词时才挂 data-more（淡出只在这时出现） */
+  const tries = useRef<HTMLDivElement | null>(null)
   const line = useRef<HTMLDivElement | null>(null)
   const [docked, setDocked] = useState(false)
+  useEffect(() => {
+    const node = tries.current
+    if (!node) return
+    const check = () => {
+      const more = node.scrollLeft + node.clientWidth < node.scrollWidth - 2
+      if (more) node.dataset.more = ''
+      else delete node.dataset.more
+    }
+    const recheck = () => requestAnimationFrame(check)
+    check()
+    recheck()
+    node.addEventListener('scroll', check, { passive: true })
+    window.addEventListener('resize', check)
+    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) document.fonts.ready.then(recheck).catch(() => {})
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(check)
+    ro?.observe(node)
+    for (const child of Array.from(node.children)) ro?.observe(child)
+    return () => { node.removeEventListener('scroll', check); window.removeEventListener('resize', check); ro?.disconnect() }
+  }, [mode, docked])
   const [focused, setFocused] = useState(false)
   /** 搜索区在原位时的高度：吸到顶上以后原位留出同样高的空，下面的瀑布流不跳 */
   const [restHeight, setRestHeight] = useState<number | null>(null)
@@ -142,10 +168,12 @@ export function SearchLine({ mode, onMode, text, onText, onSearch, onEscape, fie
             onClick={() => onSearch(text.trim(), docked)}><Icon icon={ArrowUp} size={17} aria-hidden="true" /></button>}
         </div>
         {!docked && <div className="m-sl-rule" />}
+        {/* 英文大字下面补一行中文小字，说清这里要写什么 */}
+        {!docked && <p className="m-sl-cnhint">{CN_HINT[mode]}</p>}
         {/* 8c / 8d：输入线下面一行——左边是能直接点的示例，右边一句话说明当前模式 */}
         {!docked && REFINE && (
           <div className="m-sl-sub">
-            <div className="m-sl-tries">
+            <div className="m-sl-tries" ref={tries}>
               <span className="m-sl-tries-lead">{EXAMPLES[mode].lead}</span>
               {/* 一行纯文字：试试：甲 · 乙 · 丙；没有框、没有下划线，悬停 / 键盘选中变陶土橙 */}
               {EXAMPLES[mode].items.map((example, index) => (

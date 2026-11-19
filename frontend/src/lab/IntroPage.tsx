@@ -22,7 +22,7 @@ export default function IntroPage() {
     const page = new URLSearchParams(location.search).get('page')
     return page === 'key' || page === 'platforms' || page === 'ready' ? page : undefined
   }, [])
-  useEffect(() => { document.title = '我明明收藏过' }, [])
+  useEffect(() => { document.title = 'TADA! 图然想起' }, [])
 
   if (manifest === null) return <div className="lab" />
   if (manifest === 'missing') {

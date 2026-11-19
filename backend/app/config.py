@@ -56,6 +56,8 @@ def ai_settings() -> dict:
         "vision_max_side": int(os.environ.get("VISION_MAX_SIDE", "1280")),
         # thinking only adds billed output tokens for this task (A/B in docs/progress.md)
         "enable_thinking": os.environ.get("VISION_ENABLE_THINKING", "false").lower() in ("1", "true"),
+        # 短标题用文字模型（scripts/backfill_titles.py、新的分析结果兜底）
+        "title_model": os.environ.get("TITLE_MODEL", "").strip() or "qwen3.7-flash",
         # one combined_d_v1 vector per image (docs/embedding_core.md)
         "embedding_model": os.environ.get("EMBEDDING_MODEL", "").strip() or "qwen3.7-text-embedding-flash",
         "embedding_dimensions": os.environ.get("EMBEDDING_DIMENSIONS", "1024").strip(),

@@ -1,8 +1,8 @@
 import ContributionSkyline from './skyline'
 import type { ContributionDay } from './skyline'
 
-/** 只画热力格子，统计数字交给页面自己排。 */
-export function Heatmap({ days, grain = 'day' }: { days: ContributionDay[]; grain?: 'day' | 'week' | 'total' }) {
+/** 只画热力格子，统计数字交给页面自己排。spanDays 不传就是一整年；手机上传 3 个月。 */
+export function Heatmap({ days, grain = 'day', spanDays }: { days: ContributionDay[]; grain?: 'day' | 'week' | 'total'; spanDays?: number }) {
   return (
     <ContributionSkyline
       data={days}
@@ -19,6 +19,7 @@ export function Heatmap({ days, grain = 'day' }: { days: ContributionDay[]; grai
       footer={null}
       locale="zh-CN"
       grain={grain}
+      spanDays={spanDays}
     />
   )
 }

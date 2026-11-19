@@ -5,6 +5,7 @@ from datetime import datetime
 import hmac
 from io import BytesIO
 import logging
+from mimetypes import guess_type
 import os
 from pathlib import Path
 import re
@@ -14,8 +15,9 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
-from starlette.datastructures import UploadFile
+from starlette.datastructures import MutableHeaders, UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
+from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
 
 ROOT = Path(__file__).resolve().parents[2]
 STORAGE = ROOT / ".run" / "public-demo"
@@ -26,6 +28,74 @@ FILE_LIMIT = 20 * 1024 * 1024
 BODY_LIMIT = 8 * FILE_LIMIT + 1024 * 1024
 DAILY_LIMIT = 200
 UNAVAILABLE = "演示版不提供此功能"
+
+# 演示版静态缓存：Vite 产物文件名带内容哈希，可以放心长缓存；入口 HTML 必须回源校验，
+# 否则发布新版后浏览器还在跑旧壳。品牌图和介绍样例没有哈希，只给中等缓存。
+ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable"
+BRAND_CACHE_CONTROL = "public, max-age=86400"
+SHELL_CACHE_CONTROL = "no-cache"
+
+# GZip 默认排除图片 / 音视频 / woff 字体 / zip / gRPC / SSE；本演示的 woff2 由
+# mimetypes 推断成 application/octet-stream，本身已压缩，再压一次没有收益。
+GZIP_EXCLUDE_CONTENT_TYPES = DEFAULT_EXCLUDED_CONTENT_TYPES + ("application/octet-stream",)
+
+
+def negotiates_content_encoding(content_type: str) -> bool:
+    """该 Content-Type 是否会随 Accept-Encoding 变化（与 GZip 的可压缩类型对齐）。"""
+    media_type = content_type.partition(";")[0].strip().lower()
+    if media_type in {"text/event-stream", "application/octet-stream"}:
+        return False
+    return media_type.startswith("text/") or media_type in {
+        "application/json",
+        "application/javascript",
+        "application/xml",
+        "application/xhtml+xml",
+        "application/manifest+json",
+        "image/svg+xml",
+    }
+
+
+class VaryAcceptEncodingMiddleware:
+    """GZip 只给真正压缩过的响应加 Vary；这次用明文传的可压缩响应在这里补上。"""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_vary(message):
+            if message["type"] == "http.response.start" and message["status"] in (200, 206):
+                headers = MutableHeaders(scope=message)
+                vary = ", ".join(headers.getlist("vary")).lower()
+                if ("content-encoding" not in headers
+                        and "accept-encoding" not in vary
+                        and negotiates_content_encoding(headers.get("content-type", ""))):
+                    headers.add_vary_header("Accept-Encoding")
+            await send(message)
+
+        await self.app(scope, receive, send_with_vary)
+
+
+class CachedStaticFiles(StaticFiles):
+    """给静态文件响应加 Cache-Control；404 之类的错误响应不加，免得缺文件被缓存一年。"""
+
+    def __init__(self, *, directory, cache_control):
+        super().__init__(directory=directory)
+        self.cache_control = cache_control
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code in (200, 206, 304):
+            response.headers.setdefault("cache-control", self.cache_control)
+        if response.status_code == 304:
+            # 304 没有 Content-Type（NotModifiedResponse 只保留少数头），按扩展名推断。
+            if negotiates_content_encoding(guess_type(path)[0] or ""):
+                response.headers.setdefault("vary", "Accept-Encoding")
+        return response
+
 
 READ_API = re.compile(
     r"/api/(?:health|wechat|demo/(?:import-options|wechat-qr)|images(?:/\d+(?:/similar)?)?|stats/(?:library|platforms|daily)"
@@ -244,6 +314,15 @@ def create_public_app():
             return wechat.text_reply(message, "嗨，我是图然想起！发张图片给我，我帮你收进素材库。")
         return wechat.text_reply(message, "直接发图片给我，就会收进『图然想起』")
 
+    # minimum_size=500：更小的响应压完反而更大；compresslevel=6：体积与 CPU 的平衡点。
+    # 排除项见 GZIP_EXCLUDE_CONTENT_TYPES（图片 / 音视频 / 字体 / zip / SSE / octet-stream）。
+    app.add_middleware(
+        GZipMiddleware,
+        minimum_size=500,
+        compresslevel=6,
+        exclude_content_types=GZIP_EXCLUDE_CONTENT_TYPES,
+    )
+
     @app.middleware("http")
     async def public_boundary(request: Request, call_next):
         path, method = request.url.path, request.method
@@ -265,9 +344,20 @@ def create_public_app():
             return JSONResponse({"detail": UNAVAILABLE}, status_code=403)
         return await call_next(request)
 
-    app.mount("/assets", StaticFiles(directory=SITE / "assets"), name="public-built-assets")
-    app.mount("/brand", StaticFiles(directory=ROOT / "frontend" / "public" / "brand"), name="public-brand")
-    app.mount("/lab-assets/show", StaticFiles(directory=SAMPLES / "show"), name="public-intro-samples")
+    app.mount("/assets", CachedStaticFiles(directory=SITE / "assets", cache_control=ASSET_CACHE_CONTROL),
+              name="public-built-assets")
+    app.mount("/brand", CachedStaticFiles(directory=ROOT / "frontend" / "public" / "brand",
+                                          cache_control=BRAND_CACHE_CONTROL), name="public-brand")
+    app.mount("/lab-assets/show", CachedStaticFiles(directory=SAMPLES / "show",
+                                                    cache_control=BRAND_CACHE_CONTROL),
+              name="public-intro-samples")
+
+    # 中间件顺序（Starlette 中后加的在更外层）：Vary → public_boundary → GZip → 路由。
+    # GZip 必须在 public_boundary 内层：BaseHTTPMiddleware 会把响应体重新拆成分块，
+    # GZip 若在它外层就永远走流式分支，Content-Length 只能删掉；放在内层则
+    # 单块响应（JSON / HTML / 小 CSS）压缩后仍能给出准确的 Content-Length。
+    # 谁能访问仍由 public_boundary 决定，安全边界不经过压缩层。
+    app.add_middleware(VaryAcceptEncodingMiddleware)
 
     private_headers = {"Cache-Control": "private, no-store"}
 
@@ -305,6 +395,6 @@ def create_public_app():
 
     @app.get("/{path:path}")
     def spa(path: str):
-        return FileResponse(SITE / "index.html")
+        return FileResponse(SITE / "index.html", headers={"Cache-Control": SHELL_CACHE_CONTROL})
 
     return app

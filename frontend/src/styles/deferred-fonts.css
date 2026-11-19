@@ -1,0 +1,10 @@
+/* 主界面字体：延后加载的 @font-face 入口。
+   由 src/styles/deferredFonts.ts 在页面 load、首屏图片落定之后动态 import。
+
+   这里只做搬运，不重复声明：
+   - Main Serif SC（两个 woff2，共约 2.8MB）的声明留在 src/main/main-serif-sc.css ——
+     /intro（引导页）仍然直接 import 它，保持首屏立刻用衬线字。
+   - Main Newsreader（两张 woff2，约 0.25MB）原来写在 main.css 末尾，现在挪到 newsreader-fonts.css。
+*/
+@import '../main/main-serif-sc.css';
+@import './newsreader-fonts.css';

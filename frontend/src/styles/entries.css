@@ -1,0 +1,101 @@
+/* =====================================================================
+   评审后补的入口和提示（电脑、手机都生效）：
+   1. 搜索框下方「有 N 张图待确认 →」
+   2. 列表上方「当前筛选：本地 ×」
+   4. 英文大字下面的中文小字
+   5. 卡片标题最多两行，超出显示「…」
+   排在 design-system.css 之后、phone.css 之前，只用 styles/tokens.css 的令牌。
+   ===================================================================== */
+
+/* 1. 待确认提示：一行不打扰的小字，和搜索区左边对齐 */
+.m-app .m-pending-cue {
+  padding-inline: var(--m-page-gutter);
+  margin: 0 0 var(--space-4);
+}
+.m-app .m-pending-cue-btn {
+  display: inline-flex; align-items: center; min-height: var(--size-button);
+  padding: 0; border: 0; background: transparent; cursor: pointer;
+  font-family: var(--font-family-serif); font-size: var(--font-size-body); line-height: var(--line-height-snug);
+  color: var(--color-text-accent);
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-app .m-pending-cue-btn:hover { color: var(--color-action-primary-hover); }
+.m-app .m-pending-cue-btn:active { color: var(--color-action-primary-active); }
+.m-app .m-pending-cue-btn:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; border-radius: 2px; }
+
+/* 2. 当前筛选：列表上方一行，每个条件一颗带 × 的小标签 */
+.m-app .m-filter-line {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-family-serif); font-size: var(--font-size-body); color: var(--color-text-secondary);
+}
+.m-app .m-filter-line-lead { flex: none; }
+.m-app .m-filter-chip {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  min-height: 32px; padding: 0 var(--space-2) 0 var(--space-3);
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-pill);
+  background: var(--color-bg-surface); color: var(--color-text-primary); cursor: pointer;
+  font: inherit; line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color var(--motion-duration-fast) var(--motion-ease-standard), color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-app .m-filter-chip:hover { border-color: var(--color-action-primary); color: var(--color-text-accent); }
+.m-app .m-filter-chip:active { background: var(--brand-tan); }
+.m-app .m-filter-chip:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.m-app .m-filter-chip-x { font-size: var(--font-size-body-lg); line-height: 1; color: var(--color-text-secondary); }
+.m-app .m-filter-chip-dot { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+
+/* 4. 搜索框：英文大字下面一行中文小字 */
+.m-app .m-sl-cnhint {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-family-serif); font-size: var(--font-size-body); line-height: var(--line-height-snug);
+  color: var(--color-text-secondary);
+}
+
+/* 5. 卡片标题：最多两行，超出显示「…」；英文按空格断行，不在单词中间断 */
+.m-app .m-tile-title {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  white-space: normal; overflow: hidden; text-overflow: ellipsis;
+  overflow-wrap: normal; word-break: normal; line-break: strict;
+}
+
+/* 6. 加载中（打开素材库 / 搜索进行中）：一句话 + 几块灰色占位，没有按钮 */
+.m-app .m-wall-loading { padding: var(--space-4) 0 var(--space-10); }
+.m-app .m-wall-loading-text {
+  margin: 0 0 var(--space-5);
+  font-family: var(--font-family-serif); font-size: var(--font-size-body-lg); line-height: var(--line-height-snug);
+  color: var(--color-text-secondary);
+}
+.m-app .m-wall-loading-grid { columns: 4; column-gap: var(--space-6); }
+.m-app .m-wall-loading-grid > span {
+  display: block; width: 100%; margin-bottom: var(--space-6); break-inside: avoid;
+  border-radius: var(--radius-card); background: var(--color-bg-subtle);
+  animation: ds-breathe 1.6s ease-in-out infinite;
+}
+@media (max-width: 768px) {
+  .m-app .m-wall-loading-grid { columns: 2; column-gap: 10px; }
+  .m-app .m-wall-loading-grid > span { margin-bottom: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .m-app .m-wall-loading-grid > span { animation: none; } }
+/* 读失败：只留一个「没连上，点这里重试」 */
+.m-app .m-wall-failed { padding-top: var(--space-6); }
+
+/* 7. 要参考：结果顶部「点图看详情，点右上角圆圈挑选」 */
+.m-app .m-result-line .m-pick-howto { color: var(--color-text-secondary); font-style: normal; }
+
+/* 8. 勾了图以后：屏幕底部居中一颗「已选 N 张 · 存为新项目」，压在底部渐隐之上 */
+.m-app .m-pick-bar {
+  position: fixed; left: 0; right: 0; z-index: 45;
+  bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  display: flex; justify-content: center;
+  pointer-events: none;
+}
+.m-app .m-pick-bar .m-pick-save {
+  pointer-events: auto;
+  min-height: 44px; padding-inline: var(--space-6);
+  font-size: var(--font-size-body);
+}
+/* 底部给按钮让出位置，最后一排图不被它挡住 */
+.m-app .m-sl-wrap:has(.m-pick-bar) .m-wall-wrap { padding-bottom: 96px; }

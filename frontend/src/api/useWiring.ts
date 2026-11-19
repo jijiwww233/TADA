@@ -10,18 +10,22 @@ export function useWiringApi(demo: boolean, fixture?: DemoData) {
 
 type Resource<T> = { status: 'loading' } | { status: 'ready'; data: T } | { status: 'error'; error: unknown }
 
-/** Use a stable loader (module function or useCallback). Writes stay in event handlers. */
-export function useWiringResource<T>(api: WiringApi, load: (api: WiringApi) => Promise<T>) {
+/**
+ * Use a stable loader (module function or useCallback). Writes stay in event handlers.
+ * enabled = false：先不发请求，状态一直是 loading（首屏图片出来之前，把不急的接口往后放）。
+ */
+export function useWiringResource<T>(api: WiringApi, load: (api: WiringApi) => Promise<T>, enabled = true) {
   const [revision, setRevision] = useState(0)
   const [result, setResult] = useState<{ api: WiringApi; load: typeof load; revision: number; value: Resource<T> }>()
   useEffect(() => {
+    if (!enabled) return
     let live = true
     load(api).then(
       data => { if (live) setResult({ api, load, revision, value: { status: 'ready', data } }) },
       error => { if (live) setResult({ api, load, revision, value: { status: 'error', error } }) },
     )
     return () => { live = false }
-  }, [api, load, revision])
+  }, [api, load, revision, enabled])
   const value: Resource<T> = result?.api === api && result.load === load && result.revision === revision
     ? result.value : { status: 'loading' }
   return { value, reload: () => setRevision(current => current + 1) }

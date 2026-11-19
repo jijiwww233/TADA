@@ -111,7 +111,7 @@ export const generateContributions = (endMs: number, seed = 7, days = 371): Cont
  * Levels 1–4 split the non-zero days by their share of a busy day — the 95th
  * percentile, so one freak day can't wash every other day out to level 1.
  */
-export const buildGrid = (data: ContributionDay[], endMs: number, weekStart = 0) => {
+export const buildGrid = (data: ContributionDay[], endMs: number, weekStart = 0, spanDays = 364) => {
   const counts = new Map<string, number>()
   for (const d of data) {
     if (!d || typeof d.date !== "string") continue
@@ -121,7 +121,7 @@ export const buildGrid = (data: ContributionDay[], endMs: number, weekStart = 0)
     const k = toKey(ms)
     counts.set(k, (counts.get(k) ?? 0) + c)
   }
-  let start = endMs - 364 * DAY_MS
+  let start = endMs - spanDays * DAY_MS
   start -= ((new Date(start).getUTCDay() - weekStart + 7) % 7) * DAY_MS
   const cells: Cell[] = []
   for (let ms = start, i = 0; ms <= endMs; ms += DAY_MS, i++) {
@@ -293,6 +293,8 @@ export interface ContributionSkylineProps {
   seed?: number
   onCellClick?: (day: ContributionDay) => void
   className?: string
+  /** 画多少天（往前数）；不传就是一整年（364）。手机上只画最近 3 个月，格子才够大 */
+  spanDays?: number
 }
 
 const FG_FALLBACK: RGB = [23, 23, 23]
@@ -460,15 +462,16 @@ export default function ContributionSkyline({
   seed = 7,
   onCellClick,
   className = "",
+  spanDays = 364,
 }: ContributionSkylineProps) {
   const endKey = endDate == null ? null : dayMs(endDate)
   const model = React.useMemo(() => {
     const dates = (data ?? []).map((d) => dayMs(d.date)).filter(Number.isFinite)
     const end = endKey ?? (dates.length ? Math.max(...dates) : dayMs(new Date()))
     const days = data ?? generateContributions(end, seed)
-    const grid = buildGrid(days, end, weekStart)
+    const grid = buildGrid(days, end, weekStart, spanDays)
     return { ...grid, stats: computeStats(grid.cells), months: monthLabels(grid.cells, grid.weeks, locale) }
-  }, [data, endKey, seed, weekStart, locale])
+  }, [data, endKey, seed, weekStart, locale, spanDays])
 
   const [innerView, setInnerView] = React.useState<View>(defaultView)
   const view = viewProp ?? innerView

@@ -270,14 +270,25 @@ def list_images(*, include_palette: bool = False) -> list[dict]:
         has_slots = conn.execute(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='post_images'"
         ).fetchone() is not None
+        # A v0 library has neither the short-title table nor necessarily analyses:
+        # list it (migration tests read before init_db) without the title columns.
+        has_titles = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='image_titles_manual'"
+        ).fetchone() is not None
+        title_sql = "COALESCE(t.title, a.title) AS title" if has_titles else "NULL AS title"
+        title_joins = ("""LEFT JOIN analyses a ON a.image_id = i.id
+                LEFT JOIN image_titles_manual t ON t.image_id = i.id"""
+                       if has_titles else "")
         count_sql = ("(SELECT COUNT(*) FROM post_images pi WHERE pi.post_id=i.post_id)"
                      if has_slots else
                      "(SELECT COUNT(*) FROM images i2 WHERE i2.post_id=i.post_id)")
         rows = conn.execute(
             f"""SELECT i.id, i.post_id, i.position, i.file_path, i.width, i.height,
                        i.original_name, i.created_at, p.platform, p.is_video,
-                       {count_sql} AS image_count
+                       {count_sql} AS image_count,
+                       {title_sql}
                 FROM images i JOIN posts p ON p.id = i.post_id
+                {title_joins}
                 ORDER BY i.post_id DESC, i.position ASC"""
         ).fetchall()
         palettes = {}
@@ -303,6 +314,8 @@ def list_images(*, include_palette: bool = False) -> list[dict]:
             "platform": r["platform"],
             "is_video": bool(r["is_video"]),
             "image_count": r["image_count"],
+            # 生效短标题（人工优先，其次分析生成）；还没有标题时是 None
+            "title": r["title"],
             **({"colors": palettes.get(r["id"], [])} if include_palette else {}),
         }
         for r in rows

@@ -1,6 +1,8 @@
 import { act, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ImageItem } from '../api'
+import * as imagesApi from '../api'
+import * as localImportApi from '../localImport/api'
 import type { ImageEntity } from '../search/contract'
 import { PipSceneConflict, type PipSceneApi } from './persistence'
 import { itemAABB } from './geometry'
@@ -10,6 +12,7 @@ import PipBoard from './PipBoard'
 vi.mock('../PipCanvas', () => ({
   default: (props: {
     scene: PipScene
+    imagesById: Record<number, ImageItem | undefined>
     onSelect: (value: { kind: 'image'; image_id: number } | { kind: 'note'; id: string } | { kind: 'images'; image_ids: number[] }) => void
     onContextMenu: (event: MouseEvent, imageId: number | null) => void
     onCrop: (imageId: number, rect: { x: number; y: number; width: number; height: number }) => void
@@ -20,6 +23,7 @@ vi.mock('../PipCanvas', () => ({
   }) => (
     <div data-testid="canvas" className="pip-canvas-host" onContextMenu={event => props.onContextMenu(event.nativeEvent, null)}>
       <span data-testid="canvas-scene">{JSON.stringify(props.scene)}</span>
+      <span data-testid="canvas-images">{JSON.stringify(props.imagesById)}</span>
       <button type="button" onClick={() => props.onSelect({ kind: 'image', image_id: 1 })}>canvas-select-1</button>
       <button type="button" onClick={() => props.onSelect({ kind: 'note', id: 'note-1' })}>canvas-select-note</button>
       <button type="button" onClick={() => props.onSelect({ kind: 'images', image_ids: [2, 3] })}>canvas-select-multi</button>
@@ -87,18 +91,21 @@ async function renderBoard(props: {
   images?: ImageEntity[]
   imagesById?: Record<number, ImageItem | undefined>
   openUrl?: (url: string, kind: 'image' | 'post') => void
+  onParentDrop?: () => void
 }) {
   const api = props.api ?? fakeApi()
   const openUrl = props.openUrl ?? vi.fn()
   const view = render(
-    <PipBoard
-      images={props.images ?? [image(1), image(2)]}
-      imagesById={props.imagesById}
-      projectId={props.projectId === undefined ? 7 : props.projectId}
-      win={window}
-      sceneApi={api}
-      openUrl={openUrl}
-    />,
+    <div onDrop={props.onParentDrop}>
+      <PipBoard
+        images={props.images ?? [image(1), image(2)]}
+        imagesById={props.imagesById}
+        projectId={props.projectId === undefined ? 7 : props.projectId}
+        win={window}
+        sceneApi={api}
+        openUrl={openUrl}
+      />
+    </div>,
   )
   // The board defers loading by one macrotask so the effect does not setState synchronously.
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)) })
@@ -273,6 +280,82 @@ describe('drag and drop from the library', () => {
     Object.defineProperty(drop, 'dataTransfer', { value: { types: ['text/uri-list'], getData: () => 'https://xhscdn.example/a.jpg', dropEffect: 'none' } })
     fireEvent(board, drop)
     expect(sceneData().items).toHaveLength(0)
+  })
+})
+
+describe('drag and drop from the computer', () => {
+  const png = new File(['png'], 'sample.PNG')
+  const jpg = new File(['jpg'], 'sample.jpg', { type: 'image/jpeg' })
+  const text = new File(['text'], 'notes.txt', { type: 'text/plain' })
+  const detail = (id: number) => ({ ...image(id), posts: [], analysis: null, colors: [] })
+  const transfer = (files: File[]) => ({ types: ['Files'], files, dropEffect: 'none' })
+
+  function dropFiles(transferData: ReturnType<typeof transfer>, x = 100, y = 50) {
+    const drop = createEvent.drop(screen.getByTestId('canvas'))
+    Object.defineProperties(drop, {
+      dataTransfer: { value: transferData },
+      clientX: { value: x },
+      clientY: { value: y },
+    })
+    fireEvent(screen.getByTestId('canvas'), drop)
+  }
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.restoreAllMocks()
+  })
+
+  it('shows the drop target and imports matching files with one undo step', async () => {
+    vi.stubEnv('VITE_DEFAULT_DATA_MODE', 'real')
+    const onParentDrop = vi.fn()
+    const request = vi.spyOn(localImportApi, 'importImageBatch').mockResolvedValue({
+      post_id: 5,
+      added: [{ id: 9, original_name: png.name, url: '/images/9.png', sha256: 'hash' }],
+      duplicates: [{ existing_image_id: 10, original_name: jpg.name, sha256: 'other' }],
+      failed: [],
+    })
+    vi.spyOn(imagesApi, 'getImage').mockImplementation(async id => detail(id))
+    await renderBoard({ images: [], onParentDrop })
+    const canvas = screen.getByTestId('canvas')
+    const dataTransfer = transfer([png, text, jpg])
+    fireEvent.dragEnter(canvas, { dataTransfer })
+    expect(screen.getByText('松手放进画布')).toBeInTheDocument()
+    fireEvent.dragLeave(canvas, { dataTransfer })
+    expect(screen.queryByText('松手放进画布')).not.toBeInTheDocument()
+    fireEvent.dragEnter(canvas, { dataTransfer })
+    dropFiles(dataTransfer)
+    expect(screen.queryByText('松手放进画布')).not.toBeInTheDocument()
+    expect(screen.getByText('正在导入图片…')).toBeInTheDocument()
+    expect(onParentDrop).not.toHaveBeenCalled()
+    expect(request).toHaveBeenCalledExactlyOnceWith([png, jpg])
+    await waitFor(() => expect(sceneData().items).toHaveLength(2))
+    expect(itemById(9)).toMatchObject({ x: 100, y: 50 })
+    expect(itemById(10)).toMatchObject({ x: 124, y: 74 })
+    expect(screen.getByTestId('canvas-images')).toHaveTextContent('/images/9.png')
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true })
+    expect(sceneData().items).toHaveLength(0)
+  })
+
+  it('resolves images missing from the library when reopening a saved project', async () => {
+    vi.stubEnv('VITE_DEFAULT_DATA_MODE', 'real')
+    const request = vi.spyOn(imagesApi, 'getImage').mockImplementation(async id => detail(id))
+    const saved = { ...emptyScene(), items: [{
+      image_id: 42, x: 5, y: 10, width: 100, height: 50, rotation: 0,
+      flip_x: false, grayscale: false, opacity: 1, crop: null,
+    }] }
+    await renderBoard({ images: [], api: fakeApi({ revision: 2, scene: saved }) })
+    await waitFor(() => expect(screen.getByTestId('canvas-images')).toHaveTextContent('/images/42.png'))
+    expect(request).toHaveBeenCalledExactlyOnceWith(42)
+    expect(itemById(42)).toMatchObject({ x: 5, y: 10 })
+  })
+
+  it('does not upload files from the sample library', async () => {
+    vi.stubEnv('VITE_DEFAULT_DATA_MODE', 'demo')
+    const request = vi.spyOn(localImportApi, 'importImageBatch')
+    await renderBoard({ images: [] })
+    dropFiles(transfer([png]))
+    expect(screen.getByText('切换到真实素材库后即可拖图')).toBeInTheDocument()
+    expect(request).not.toHaveBeenCalled()
   })
 })
 

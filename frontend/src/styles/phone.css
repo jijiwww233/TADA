@@ -24,11 +24,21 @@
 
   /* 顶栏：只留 TADA、中间的切换按钮、「导入 +」 */
   .m-app .m-appbar { padding-inline: var(--m-page-gutter); }
+  /* fable.css 在 mobile.css 之后加载，把 TADA 压回了 top 22 / 高 26，比胶囊低一截：这里拉回和胶囊同一条中线 */
   .m-app .m-brand-float {
+    top: 8px; height: 44px;
     left: var(--m-page-gutter); min-width: 44px; min-height: 44px; padding: 0;
     -webkit-tap-highlight-color: transparent;
   }
-  .m-app .m-appbar[data-page='library'] .m-appbar-tools > :is(.m-hb-dot, .m-gm-word, .m-appbar-wheel-host) { display: none; }
+  /* 评审后：「筛选」放回顶栏（待确认已经从筛选里分出去，筛选只剩来源 / 颜色 / 排序），只藏掉中间的小圆点 */
+  .m-app .m-appbar[data-page='library'] .m-appbar-tools > .m-hb-dot { display: none; }
+  .m-app .m-appbar-tools { gap: var(--space-1); }
+  .m-app .m-appbar-tools .m-gm-word-head {
+    min-width: 44px; min-height: 44px; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* 中间「素材库」切换胶囊：点击区至少 44px 高 */
+  .m-app .m-appbar-center .m-gm-head { min-height: 44px; }
   .m-app .m-appbar-tools .m-hb {
     min-width: 44px; min-height: 44px; justify-content: center;
     -webkit-tap-highlight-color: transparent;
@@ -42,32 +52,394 @@
   .m-app .m-sl-v2:not(.is-floating) .m-sl-input { font-size: clamp(26px, 7.6vw, 32px); }
   .m-app .m-sl-v2:not(.is-floating) .m-sl-icon { margin-left: -10px; }
   .m-app .m-sl-v2:not(.is-floating) .m-sl-mode { min-width: 44px; justify-content: center; }
-  .m-app .m-sl-sub { gap: var(--space-1); padding-top: var(--space-2); }
+  /* 电脑上这一行是 flex-wrap: wrap；竖排时“换行”会让「试试」那一行按内容撑到 427px，
+     超出屏幕又被裁掉，既滑不动也看不到淡出。手机上关掉换行，「试试」就只有屏幕那么宽，自己横滑 */
+  .m-app .m-sl-sub { flex-wrap: nowrap; min-width: 0; gap: var(--space-1); padding-top: var(--space-2); }
 
   /* 「试试」：放不下就横着滑；右边缘淡出，看得出后面还有。
      没有悬停，所以字比电脑上深一档（次要色），按下时变陶土橙并垫一层浅棕 */
   .m-app .m-sl-tries {
     align-self: stretch;
+    width: auto; min-width: 0;
+    overflow-x: auto; overflow-y: hidden; overscroll-behavior-inline: contain;
     margin-inline: calc(var(--m-page-gutter) * -1);
     font-size: var(--font-size-body);
     padding: 0 var(--m-page-gutter);
     max-width: none;
     align-items: center;
     scroll-padding-inline: var(--m-page-gutter);
+  }
+  /* 淡出只在右边还有没露出来的词时出现（data-more 由 SearchLine 按滚动位置挂上 / 摘掉）；
+     滑到底、或者本来就放得下时不淡出，最后一个字不会被吃掉一半 */
+  .m-app .m-sl-tries[data-more] {
     -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
     mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
   }
   .m-app .m-sl-tries-lead { flex: none; color: var(--color-text-secondary); }
   .m-app .m-sl-try-sep { flex: none; color: var(--color-text-tertiary); }
   .m-app .m-sl-try {
-    flex: none; min-width: 44px; min-height: 44px; padding: 0 var(--space-2);
+    flex: none; min-width: 44px; min-height: 44px; padding: 0 6px;
     color: var(--color-text-secondary);
     -webkit-tap-highlight-color: transparent;
   }
-  .m-app .m-sl-try:last-child { margin-right: 28px; }
   .m-app .m-sl-try:active { color: var(--color-text-accent); background: var(--brand-tan); }
   .m-app .m-sl-modehint { color: var(--color-text-secondary); }
 
   /* 吸顶后的小搜索框：左右也只留窄边距 */
   .m-app .m-sl-anchor > .m-searchline.is-floating { width: calc(100% - 2 * var(--m-page-gutter)); }
+
+  /* ---------- b. 搜索结果 ---------- */
+
+  /* 结果标题行：搜的词稍大一号放最前；说明另起一行；「返回全部收藏」靠右 */
+  .m-app .m-result-line { flex-wrap: wrap; align-items: center; gap: 0 var(--space-3); padding: 0; }
+  /* 进场动画只留淡入：带 transform 的父级会让下面那颗 position: fixed 的按钮跟着它走，钉不到屏幕底 */
+  .m-app .m-result-line[data-reveal] { transform: none; will-change: auto; }
+  .m-app .m-result-line > span:first-child {
+    flex: 1 1 0; min-width: 0; font-size: var(--font-size-body-lg); color: var(--color-text-primary);
+    overflow-wrap: anywhere;
+  }
+  .m-app .m-result-line .m-pick-hint { order: 3; flex-basis: 100%; font-size: var(--font-size-caption); line-height: var(--line-height-snug); }
+  .m-app .m-result-line .ds-btn--ghost { order: 2; min-height: 44px; padding-inline: var(--space-2); margin-right: calc(var(--space-2) * -1); }
+  /* 勾了图以后的「已选 N 张 · 存为新项目」（第三批起不在标题行里，是墙外面单独一条 .m-pick-bar）：
+     手机上撑满整行宽，贴屏幕底 */
+  .m-app .m-pick-bar {
+    left: var(--m-page-gutter); right: var(--m-page-gutter);
+    bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  }
+  .m-app .m-pick-bar .m-pick-save { flex: 1 1 auto; min-height: 48px; }
+  .m-app .m-sl-wrap:has(.m-pick-bar) .m-wall-wrap { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+
+  /* 「要参考」：排版 / 配色 / 风格 三栏改成上下排；每栏里两列图，和首页同宽同间距 */
+  .m-app .m-ref-cols { grid-template-columns: minmax(0, 1fr); gap: var(--space-8); padding-top: var(--space-3); }
+  .m-app .m-ref-col h3 { margin-bottom: var(--space-3); }
+  .m-app .m-ref-grid,
+  .m-app.m-refine .m-ref-examples { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) 10px; }
+  .m-app.m-refine .m-ref-col .m-ref-reason { margin-top: 6px; overflow-wrap: anywhere; }
+  .m-app .m-ref-cell .m-card { -webkit-tap-highlight-color: transparent; }
+  .m-app .m-ref-cell .m-card:active img { filter: brightness(0.92); }
+
+  /* 勾选圈：点击区 44×44 贴在图片右上角，看得见的圈只有 24px，不挡图 */
+  .m-app .m-pick {
+    top: 0; right: 0; width: 44px; height: 44px;
+    border: 0; border-radius: 0; background: transparent;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    opacity: 1; -webkit-tap-highlight-color: transparent;
+  }
+  .m-app .m-pick::before {
+    content: ''; position: absolute; inset: 10px; border-radius: 50%;
+    border: 1.5px solid #fff; background: rgb(0 0 0 / 0.28);
+  }
+  .m-app .m-pick svg { position: relative; width: 12px; height: 12px; }
+  .m-app .m-ref-cell.is-picked .m-pick { background: transparent; color: var(--color-text-on-primary); }
+  .m-app .m-ref-cell.is-picked .m-pick::before { background: var(--color-action-primary); border-color: var(--color-action-primary); }
+  .m-app .m-pick:active::before { transform: scale(0.9); }
+
+  /* ---------- c. 图片详情 ---------- */
+
+  /* 一列：返回 → 缩略图条 → 图片 → 标题、标签 → 来源 / 收藏 / 主色 → 描述 → 保存 / 原帖。
+     左右两栏拆开（display: contents），每一块按 order 排进同一列 */
+  .m-app .m-ld {
+    display: flex; flex-direction: column; row-gap: 0;
+    padding: 0 var(--m-page-gutter) calc(68px + var(--space-6) + env(safe-area-inset-bottom, 0px));
+  }
+  .m-app .m-ld :is(.m-ld-left, .m-ld-right, .m-ld-left > .m-ld-top, .m-ld-left > .m-ld-bottom, .m-ld-right > .m-ld-top, .m-ld-right > .m-ld-bottom) { display: contents; }
+  .m-app .m-ld .m-ld-back { order: 1; }
+  .m-app .m-ld > .m-ld-strip { order: 2; }
+  .m-app .m-ld .m-ld-center { order: 3; }
+  .m-app .m-ld .ds-analysis-note { order: 4; }
+  .m-app .m-ld .m-ld-title { order: 5; }
+  .m-app .m-ld .m-ld-tags { order: 6; }
+  .m-app .m-ld .m-ld-spec { order: 7; }
+  .m-app .m-ld .m-ld-intro { order: 8; }
+  .m-app .m-ld .m-ld-theme { order: 9; }
+  .m-app .m-ld .m-ld-foot { order: 10; }
+  .m-app .m-ld .m-ld-right > .m-ld-top > .m-ld-more { order: 11; }
+  /* 手机上不要的：编号「01 001–012」、到头提示、同帖小图（上面已经有缩略图条）、
+     原来右栏里的「找相似 / 按颜色找」和「加入项目 · 打开参考画板」（换成了底部操作条） */
+  .m-app .m-ld :is(.m-ld-index, .m-ld-hint, .m-ld-cap, .m-ld-thumbs, .m-ld-finds),
+  .m-app .m-ld .m-ld-right > .m-ld-bottom > :is(.m-ld-more, .m-ld-similar) { display: none; }
+
+  .m-app .m-ld .m-ld-back { align-self: flex-start; min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; }
+  .m-app .m-ld > .m-ld-strip { margin-inline: calc(var(--m-page-gutter) * -1); padding-inline: var(--m-page-gutter); padding-bottom: var(--space-2); }
+
+  /* 图片：占满整列宽，太高的图最多占屏幕七成高，不裁切 */
+  .m-app .m-ld .m-ld-center { padding: 0; gap: 0; }
+  .m-app .m-ld .m-ld-plate img { width: 100%; height: auto; max-height: 72dvh; object-fit: contain; margin-inline: auto; }
+
+  .m-app .m-ld .m-ld-title {
+    margin: var(--space-5) 0 var(--space-2);
+    font-size: var(--font-size-title-sm); line-height: 1.2; overflow-wrap: anywhere;
+  }
+  .m-app .m-ld .m-ld-tags { margin: 0; font-size: var(--font-size-body); line-height: 1.6; color: var(--color-text-secondary); }
+  .m-app .m-ld .m-ld-addtag { min-height: 44px; min-width: 44px; padding-inline: var(--space-1); }
+  .m-app .m-ld .ds-analysis-note { margin: var(--space-4) 0 0; }
+
+  .m-app .m-ld .m-ld-spec { margin-top: var(--space-4); }
+  .m-app .m-ld .m-ld-spec > div { min-height: 44px; padding: var(--space-1) 0; }
+  .m-app .m-ld .m-ld-spec :is(dt, dd) { font-size: var(--font-size-body); line-height: 1.3; }
+  .m-app .m-ld .m-ld-unrecorded small { white-space: normal; font-size: var(--font-size-caption); }
+  /* 主色小方块看得见的还是 12px 左右，点击区 44×44（用和底色一样的边框垫出来） */
+  .m-app .m-ld .m-ld-colors { gap: 0; margin-right: -14px; }
+  .m-app .m-ld .m-ld-colors button { width: 44px; height: 44px; border: 14px solid var(--color-bg-page); border-radius: 0; background-clip: padding-box; }
+
+  /* 描述：整段放开，不再是电脑上窄窄一条 */
+  .m-app .m-ld :is(.m-ld-intro, .m-ld-theme) {
+    max-width: none; margin: var(--space-5) 0 0;
+    font-size: var(--font-size-body); line-height: 1.7; white-space: normal; overflow-wrap: anywhere;
+  }
+  .m-app .m-ld .m-ld-theme { margin-top: var(--space-2); color: var(--color-text-secondary); }
+  .m-app .m-ld .m-ld-foot { margin: var(--space-4) 0 0; }
+  .m-app .m-ld .m-ld-links { gap: var(--space-6); font-size: var(--font-size-body); }
+  .m-app .m-ld .m-ld-links a { min-height: 44px; display: inline-flex; align-items: center; }
+  .m-app .m-ld .m-ld-right > .m-ld-top > .m-ld-more { margin-top: var(--space-2); text-align: left; font-size: var(--font-size-body); }
+
+  /* 底部操作条：找相似（主要）· 按颜色找 · 加入项目，三颗等宽；底下垫出 iPhone 的安全区 */
+  .m-app .m-ld-bar {
+    position: fixed; z-index: 60; left: 0; right: 0; bottom: 0;
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2);
+    padding: 10px var(--m-page-gutter) calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--color-bg-page); border-top: 1px solid var(--color-border-default);
+  }
+  .m-app .m-ld-bar .ds-btn {
+    min-height: 48px; padding-inline: var(--space-2); gap: 6px;
+    font-size: var(--font-size-body); white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .m-app .m-ld-bar .m-ld-samecolor-dot { flex: none; }
+  .m-app .m-ld-bar-pick { position: relative; overflow: hidden; }
+  .m-app .m-ld-bar-pick select {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; font-size: 16px; cursor: pointer;
+  }
+
+  /* ---------- d. 导入面板：从底部升起的整屏面板 ---------- */
+
+  .m-app .m-import-dialog,
+  .m-app .m-import-dialog:has(.m-import-options--public) {
+    inset: 0; width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh;
+    margin: 0; border: 0; border-radius: 0;
+    overscroll-behavior: contain;
+  }
+  .m-app .m-import-dialog[open] { animation: m-sheet-up 320ms var(--motion-ease-emphasized, cubic-bezier(0.2, 0, 0, 1)) both; }
+  /* 标题行吸在面板顶上，「关闭」一直点得到；顶上让出刘海 / 状态栏 */
+  .m-app .m-import-head {
+    position: sticky; top: 0; z-index: 1;
+    padding: calc(var(--space-2) + env(safe-area-inset-top, 0px)) var(--m-page-gutter) var(--space-2) var(--space-4);
+    background: var(--color-bg-surface);
+  }
+  .m-app .m-import-head .ds-btn { min-height: 44px; min-width: 44px; }
+  .m-app .m-import-notice { margin-inline: var(--space-4); }
+  .m-app .m-import-options {
+    gap: var(--space-5);
+    padding: var(--space-3) var(--space-4) calc(var(--space-8) + env(safe-area-inset-bottom, 0px));
+  }
+  .m-app .m-import-options section + section { padding-top: var(--space-5); }
+  .m-app .m-import-options h3 { font-size: var(--font-size-body-lg); }
+  .m-app .m-import-options p { font-size: var(--font-size-body); }
+  /* 「选图片」在最上面，整行宽的大按钮；「添加快捷指令」也整行宽 */
+  .m-app .m-import-options :is(.ds-file-btn, a.ds-btn, .ds-btn) { display: flex; width: 100%; min-height: 48px; font-size: var(--font-size-body); }
+  /* 微信：二维码在左，右边一句怎么用 */
+  .m-app .m-import-wechat { display: flex; align-items: center; gap: var(--space-4); margin-top: var(--space-2); }
+  .m-app .m-import-wechat .m-import-qr[src] { flex: none; width: 152px; margin: 0; }
+  .m-app .m-import-options .m-import-wechat-tip { margin: 0; font-size: var(--font-size-body); line-height: var(--line-height-body); color: var(--color-text-primary); }
+}
+
+/* ---------- g. iPad 详情页：左边大图，右边一栏信息（横竖屏都是） ----------
+   只在 Detail.tsx 判定「触屏、比手机宽、宽于 768」时才加 .m-ld--pane，电脑和手机都不会有这个类。
+   左栏的 DOM 被收进右栏里（返回、描述、保存 / 原帖），右栏整栏吸顶，内容多时自己滚 */
+.m-app .m-ld.m-ld--pane {
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 34vw, 400px);
+  column-gap: var(--space-8);
+}
+.m-app .m-ld--pane > .m-ld-center { grid-column: 1; grid-row: 1; }
+.m-app .m-ld.m-ld--pane > .m-ld-right {
+  grid-column: 2; grid-row: 1;
+  height: auto; max-height: calc(100dvh - var(--m-topbar-height));
+  /* 主色那一行有 margin-right: -14px 的出血；不夹住的话整栏能被横向拖 14px */
+  overflow: hidden auto; overscroll-behavior: contain; scrollbar-width: none;
+  padding: var(--space-4) 0 calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+}
+.m-app .m-ld--pane :is(.m-ld-left, .m-ld-left > .m-ld-top, .m-ld-left > .m-ld-bottom, .m-ld-right > .m-ld-top, .m-ld-right > .m-ld-bottom) { display: contents; }
+
+/* 顺序：返回 → 编号 → 标题 → 标签 → 来源 / 收藏 / 主色 → 找相似 · 按颜色找 → 加入项目 · 参考画板 → 描述 → 同帖几张 → 保存 / 原帖 */
+.m-app .m-ld--pane .m-ld-back { order: 1; }
+.m-app .m-ld--pane .m-ld-index { order: 2; }
+.m-app .m-ld--pane .ds-analysis-note { order: 3; }
+.m-app .m-ld--pane .m-ld-title { order: 4; }
+.m-app .m-ld--pane .m-ld-tags { order: 5; }
+.m-app .m-ld--pane .m-ld-spec { order: 6; }
+.m-app .m-ld--pane :is(.m-ld-finds, .m-ld-right > .m-ld-bottom > .m-ld-similar) { order: 7; }
+.m-app .m-ld--pane .m-ld-right > .m-ld-bottom > .m-ld-more { order: 8; }
+.m-app .m-ld--pane .m-ld-intro { order: 9; }
+.m-app .m-ld--pane .m-ld-theme { order: 10; }
+.m-app .m-ld--pane .m-ld-right > .m-ld-top > .m-ld-more { order: 11; }
+.m-app .m-ld--pane .m-ld-cap { order: 12; }
+.m-app .m-ld--pane .m-ld-foot { order: 13; }
+/* 到头提示、同帖小图（110px 一张，窄栏里放不下）不要 */
+.m-app .m-ld--pane :is(.m-ld-hint, .m-ld-thumbs) { display: none; }
+
+.m-app .m-ld--pane .m-ld-back { align-self: flex-start; min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; }
+.m-app .m-ld--pane .m-ld-index { margin-top: var(--space-3); }
+.m-app .m-ld--pane .ds-analysis-note { margin: var(--space-4) 0 0; }
+/* 标题：窄栏里一行至少 11 个字（280px / 24px），不再断成三四行 */
+.m-app .m-ld.m-ld--pane .m-ld-title {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: clamp(24px, 2.6vw, 32px); line-height: 1.2; overflow-wrap: anywhere;
+}
+.m-app .m-ld--pane .m-ld-tags { margin: 0; font-size: var(--font-size-body); line-height: 1.6; color: var(--color-text-secondary); }
+.m-app .m-ld--pane .m-ld-addtag { min-height: 44px; min-width: 44px; padding-inline: var(--space-1); }
+.m-app .m-ld--pane .m-ld-taginput { min-height: 44px; font-size: 16px; }
+
+.m-app .m-ld--pane .m-ld-spec { margin-top: var(--space-4); }
+.m-app .m-ld--pane .m-ld-spec > div { min-height: 44px; padding: var(--space-1) 0; }
+.m-app .m-ld--pane .m-ld-spec :is(dt, dd) { font-size: var(--font-size-body); line-height: 1.3; }
+.m-app .m-ld--pane .m-ld-unrecorded small { white-space: normal; font-size: var(--font-size-caption); }
+.m-app .m-ld--pane .m-ld-colors { gap: 0; margin-right: -14px; }
+.m-app .m-ld--pane .m-ld-colors button { width: 44px; height: 44px; border: 14px solid var(--color-bg-page); border-radius: 0; background-clip: padding-box; }
+
+/* 找相似 · 按颜色找：两颗并排，48px 高，字不折行 */
+.m-app .m-ld.m-ld--pane :is(.m-ld-finds, .m-ld-right > .m-ld-bottom > .m-ld-similar) { margin-top: var(--space-5); }
+.m-app .m-ld.m-ld--pane .m-ld-finds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.m-app .m-ld.m-ld--pane .m-ld-similar { min-height: 48px; padding-inline: var(--space-2); gap: 6px; white-space: nowrap; }
+.m-app .m-ld--pane .m-ld-samecolor-dot { flex: none; }
+.m-app .m-ld--pane .m-ld-more { margin-top: var(--space-2); text-align: left; font-size: var(--font-size-body); white-space: nowrap; }
+.m-app .m-ld--pane .m-ld-more button { min-height: 44px; }
+.m-app .m-ld--pane .m-ld-more select { min-height: 44px; font-size: 16px; }
+
+.m-app .m-ld--pane :is(.m-ld-intro, .m-ld-theme) {
+  max-width: none; margin: var(--space-6) 0 0;
+  font-size: var(--font-size-body); line-height: 1.7; white-space: normal; overflow-wrap: anywhere;
+}
+.m-app .m-ld--pane .m-ld-theme { margin-top: var(--space-2); color: var(--color-text-secondary); }
+.m-app .m-ld--pane .m-ld-right > .m-ld-top > .m-ld-more { margin-top: var(--space-4); }
+.m-app .m-ld--pane .m-ld-cap { margin: var(--space-5) 0 0; font-size: var(--font-size-body); line-height: 1.3; }
+.m-app .m-ld--pane .m-ld-foot { margin: var(--space-1) 0 0; }
+.m-app .m-ld--pane .m-ld-links { gap: var(--space-6); font-size: var(--font-size-body); }
+.m-app .m-ld--pane .m-ld-links a { min-height: 44px; display: inline-flex; align-items: center; }
+
+/* ---------- 评审后补充（手机） ---------- */
+@media (hover: none) and (pointer: coarse) and (max-width: 600px) {
+  /* 灰色小字整体加深一档：次要色 0.40 → 0.34，三级色 0.50 → 0.40（和原来的次要色一样深） */
+  .m-app {
+    --color-text-secondary: oklch(0.34 0.016 62);
+    --color-text-tertiary: oklch(0.40 0.016 62);
+  }
+  /* 正文最小 12px：主界面里字号都走令牌（最小的 caption 就是 12px），
+     只有「未记录收藏夹」下面那行小字写死了 11px，这里抬到 12px（下拉三角的 10px 字形下面换成了 SVG） */
+  .m-app .m-ld-unrecorded small,
+  .m-app .m-ld .m-ld-unrecorded small { font-size: 12px; }
+
+  /* 下拉三角：iPhone 的字体里没有「▾」，会显示成方框。换成 SVG（用遮罩画，颜色跟着文字走） */
+  .m-app .m-gm-chevron,
+  .m-app .m-gm-word .m-gm-word-head::after {
+    content: ''; display: inline-block; width: 10px; height: 10px; font-size: 0;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+  .m-app .m-gm-chevron { margin-top: -5px; }
+
+  /* 「有 N 张图待确认 →」和「当前筛选」：手机上也是 44px 高的点击区 */
+  .m-app .m-pending-cue-btn { min-height: 44px; }
+  .m-app .m-filter-chip { min-height: 44px; }
+}
+
+/* ---------- 第二批 1. 手机参考画板（简单版，PhoneBoard.tsx；只有手机会渲染它） ---------- */
+@media (hover: none) and (pointer: coarse) and (max-width: 600px) {
+  .m-app .m-pboard { padding: var(--space-4) var(--m-page-gutter) calc(var(--space-12, 48px) + env(safe-area-inset-bottom, 0px)); }
+  .m-app .m-pboard-hint { margin: 0 0 var(--space-3); font-size: var(--font-size-caption); line-height: 1.5; color: var(--color-text-secondary); }
+  .m-app .m-pboard-title {
+    display: flex; align-items: baseline; gap: var(--space-2); margin: 0 0 var(--space-4);
+    font-size: var(--font-size-body-lg); font-weight: 500; line-height: 1.3; color: var(--color-text-primary); overflow-wrap: anywhere;
+  }
+  .m-app .m-pboard-count { flex: none; font-size: var(--font-size-caption); font-weight: 400; color: var(--color-text-secondary); }
+  /* 两列，按图片原比例往下排 */
+  .m-app .m-pboard-grid { columns: 2; column-gap: 10px; }
+  .m-app .m-pboard-tile {
+    display: block; width: 100%; min-height: 44px; margin: 0 0 10px; padding: 0; border: 0;
+    background: var(--color-bg-subtle, transparent); break-inside: avoid; cursor: pointer;
+  }
+  .m-app .m-pboard-tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .m-app .m-pboard-empty { margin: var(--space-6) 0; font-size: var(--font-size-body); color: var(--color-text-secondary); }
+}
+
+/* ---------- 第二批 2. 日历页（手机） ---------- */
+@media (hover: none) and (pointer: coarse) and (max-width: 600px) {
+  .m-app .m-cal { padding-inline: var(--m-page-gutter); }
+
+  /* 每日灵感：大图占满整行宽，按原比例，太高的从中间裁 */
+  .m-app .m-cal-inspiration-lead { display: block; width: 100%; max-width: none; }
+  .m-app .m-cal-inspiration-lead img {
+    display: block; width: 100%; height: auto; max-height: 64dvh; object-fit: cover; object-position: center;
+  }
+
+  /* 收藏活动：说明只有一句；图例里那句「悬停…」不要，免得说两遍；点开的小提示框不要阴影 */
+  .m-app .m-cal-note { font-size: var(--font-size-body); }
+  .m-app .m-heat-legend-hint { display: none; }
+  .m-app .m-cal-chart [role="tooltip"] { box-shadow: none !important; }
+  /* 只画 3 个月，宽度够了，不需要横向滚 */
+  .m-app .m-cal-chart { overflow-x: visible; }
+
+  /* 常用导入软件：紧凑的一行「图标 + 名字」，靠左，放不下就换行 */
+  .m-app .m-cal-sources {
+    display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: center;
+    gap: var(--space-2) var(--space-5); margin-top: var(--space-3);
+  }
+  .m-app .m-cal-sources li { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; }
+  .m-app .m-cal-brand { width: 28px; height: 28px; filter: none; opacity: 1; }
+  .m-app .m-cal-sources li:hover .m-cal-brand { transform: none; }
+  .m-app .m-cal-name {
+    position: static; transform: none; opacity: 1;
+    font-size: var(--font-size-body); color: var(--color-text-primary); white-space: nowrap;
+  }
+
+  /* 洞察：两列，数字缩小，放不下就换行，不出界 */
+  .m-app .m-cal-insights { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5) var(--space-4); }
+  .m-app .m-cal-insights > div { min-width: 0; }
+  .m-app .m-cal-insights dt { font-size: var(--font-size-caption); }
+  .m-app .m-cal-insights dd { font-size: 22px; line-height: 1.25; white-space: normal; overflow-wrap: anywhere; }
+}
+
+/* ---------- 第二批 3. 其他小修 ---------- */
+
+/* 不让 iPhone 自己把某几段字放大（横屏时也会放大，所以不加手机条件；电脑浏览器不认这条，看起来不变） */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+@media (hover: none) and (pointer: coarse) and (max-width: 600px) {
+  /* 详情页返回：左上角 44px 圆形按钮，只留箭头（读屏仍念「返回」）；回去后停在原来滚到的位置（MainApp 里原有逻辑） */
+  .m-app .m-ld .m-ld-back {
+    position: relative; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-top: var(--space-2);
+    border: 1px solid var(--color-border-default); border-radius: 50%;
+    background: var(--color-bg-surface); color: var(--color-text-primary);
+    font-size: 20px; line-height: 1; text-decoration: none;
+  }
+  .m-app .m-ld .m-ld-back:hover { color: var(--color-text-primary); }
+  .m-app .m-ld .m-ld-back:active { background: var(--color-bg-subtle); }
+  .m-app .m-ld .m-ld-back-word {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+
+  /* 「收藏：未记录收藏夹」这一行没有信息可看，手机上整行不显示 */
+  .m-app .m-ld .m-ld-spec > div.m-ld-spec-saved { display: none; }
+
+  /* 导入面板顶上那句提醒：小圆点原来压在页边线上，改成浅底小块，圆点收进内边距里，和第一行字居中对齐 */
+  .m-app .m-import-notice {
+    align-items: flex-start;
+    margin: var(--space-2) var(--space-4) 0;
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-card);
+    background: var(--color-bg-subtle);
+    color: var(--color-text-primary);
+  }
+  .m-app .m-import-notice::before { margin-top: calc((1lh - 6px) / 2); }
+
+  /* 卡片下面的「本地」两个字手机上不显示（小红书、站酷等来源照常显示） */
+  .m-app .m-tile-cap [data-local] { display: none; }
+}
+
+@keyframes m-sheet-up { from { transform: translateY(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .m-app .m-import-dialog[open] { animation: none !important; }
 }

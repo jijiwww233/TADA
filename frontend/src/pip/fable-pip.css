@@ -1,7 +1,7 @@
 /* Fable：参考板小窗的外观。排在 index.css 之后，只覆盖样式，不动画板逻辑。 */
 
 /* 字体跟主界面走同一套衬线 */
-.pip-board { font-family: 'Main Newsreader', 'Main Serif SC', 'Source Han Serif SC', 'Songti SC', SimSun, serif; font-size: 13px; }
+.pip-board { font-family: 'Main Newsreader', 'Main Serif SC', 'Songti SC', 'STSong', 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', serif; font-size: 13px; }
 
 /* 底：方格线像表格，改成稀疏的点 */
 .pip-canvas-host {

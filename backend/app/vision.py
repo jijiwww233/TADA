@@ -33,6 +33,8 @@ from typing import Callable
 import httpx
 from PIL import Image, ImageOps
 
+from . import titles
+
 MAX_REQUESTS = 3       # hard cap on real model requests per image, across every retry kind
 RETRY_DELAYS = (2, 8)  # only for errors where the request surely did not run
 RETRY_STATUS = {429, 502, 503, 504}
@@ -71,11 +73,14 @@ PROMPT = f"""你是设计参考图的分析助手。观察这张图，只输出�
     "style_note": 字符串，一句中文说明风格特点。
   }},
   "description": 字符串，一句中文整体描述这张图。
+  "title": 字符串，这张图的短标题：12 个汉字以内，是一个能独立成立的完整说法（不要半句话，
+    不要以「的/与/和/及/在/了/是」结尾，不要用「这是/图中/画面」开头，不要书名号和句号）。
 }}
 
 规则：
 - layout 各项只能使用上面列出的英文取值；判断不了就写 ["unknown"]。
 - 你不负责颜色分析，颜色由程序另行提取。subject / layout / style / description 中都不要提到主色、配色或具体颜色名称，也不要根据颜色判断风格。visible_text 只照抄图中文字，文字本身含颜色词时照抄，不要额外描述颜色。
+- title 宁可短一点也不要断句；实在写不出完整短语时，用 subject 里最具体的那个词加一个名词（例如「极简展览海报」）。
 - 只输出 JSON。"""
 
 
@@ -221,6 +226,9 @@ def validate(data) -> dict:
             "style_note": _str(style["style_note"], "style.style_note"),
         },
         "description": _str(data["description"], "description", allow_empty=False),
+        # 短标题可选：模型没给或不合规就留空，analysis 不因此失败，后面可用
+        # scripts/backfill_titles.py 用文字模型补。
+        "title": titles.normalize(data.get("title")),
     }
 
 

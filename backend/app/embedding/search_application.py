@@ -6,6 +6,7 @@ analysis or embedding writes here. Connections close before the paid query call.
 from __future__ import annotations
 
 from contextlib import contextmanager
+import os
 from pathlib import Path
 import sqlite3
 from typing import Callable
@@ -19,9 +20,11 @@ from .service import EmbeddingSpec
 
 # Text search can also be answered by the local Chinese-CLIP text tower against the
 # clip_image_v1 image vectors. The two routes are min-max normalised and fused at the
-# score level; 0.2 is the combined-vector weight chosen on the dev find queries only
-# (docs/eval_log.md). Missing local weights simply fall back to the text route.
-CLIP_FUSION_ALPHA = 0.2
+# score level. The 2026-11 search review swept 0.2 / 0.4 / 0.5 / 0.6 on the demo copy;
+# 0.4 won: the seed query now ranks the real daisy first, grungy/green queries improve,
+# and weak text matches no longer bury stronger visual neighbours. The value can be
+# overridden for an offline sweep via SEARCH_TEXT_WEIGHT.
+CLIP_FUSION_ALPHA = float(os.environ.get("SEARCH_TEXT_WEIGHT", "0.4"))
 FUSION_TOP = 20
 
 
@@ -35,16 +38,23 @@ def _minmax(scores: dict) -> dict:
 
 
 def fuse_hits(combined, clip_scores: dict, *, alpha: float = CLIP_FUSION_ALPHA,
-              top_n: int = FUSION_TOP) -> list:
-    """Rank by alpha*normalised(text cosine) + (1-alpha)*normalised(CLIP cosine)."""
+              top_n: int = FUSION_TOP, boosts: dict | None = None) -> list:
+    """Rank by alpha*normalised(text cosine) + (1-alpha)*normalised(CLIP cosine).
+
+    A caller may pass optional per-image boosts on the same 0..1 scale, so local
+    keyword/palette evidence is added without dropping either semantic route. The
+    result is clamped so the API keeps returning 0..1 scores.
+    """
     normalised_text = _minmax({hit.image_id: hit.score for hit in combined})
     normalised_clip = _minmax(clip_scores)
+    boosts = boosts or {}
     scores = {}
-    for image_id in set(normalised_text) | set(normalised_clip):
+    for image_id in set(normalised_text) | set(normalised_clip) | set(boosts):
         scores[image_id] = (alpha * normalised_text.get(image_id, 0.0)
-                            + (1.0 - alpha) * normalised_clip.get(image_id, 0.0))
+                            + (1.0 - alpha) * normalised_clip.get(image_id, 0.0)
+                            + float(boosts.get(image_id, 0.0)))
     fused = sorted(scores.items(), key=lambda pair: (-pair[1], pair[0]))[:top_n]
-    return [SearchHit(image_id, score) for image_id, score in fused]
+    return [SearchHit(image_id, min(1.0, max(0.0, score))) for image_id, score in fused]
 
 
 class SearchUnavailable(RuntimeError):
@@ -97,20 +107,27 @@ class SearchApplication:
     def __init__(self, settings_provider: Callable[[], EmbeddingSettings] = EmbeddingSettings.from_env,
                  client_factory: Callable = EmbeddingClient,
                  database: Callable[[], Path] = config.db_path,
-                 clip_search=None):
+                 clip_search=None, text_weight: float | None = None):
         self.settings_provider = settings_provider
         self.client_factory = client_factory
         self.database = database
         # Local Chinese-CLIP text route (ImageSimilarity); None or a failure = text route only.
         self.clip_search = clip_search
+        # Paid text-route weight in the semantic fusion; tests may pin it.
+        self.text_weight = CLIP_FUSION_ALPHA if text_weight is None else float(text_weight)
 
-    def search(self, query: str, *, visual_scores: dict[int, float] | None = None) -> dict:
+    def search(self, query: str, *, visual_scores: dict[int, float] | None = None,
+               restrict_to: set[int] | None = None, boosts: dict[int, float] | None = None) -> dict:
         """Exactly one raw query embedding for a nonempty valid index, Top20.
 
         Recheck after the network call: changed/deleted/stale rows are omitted,
         without another query embedding or hidden backfill. Thus a concurrent
         change can yield fewer than 20 hits. No read lock is held across HTTP.
-        Supplied visual scores restrict the candidates to those already matched locally.
+
+        visual_scores supplies the local CLIP channel (optionally synonym-expanded).
+        restrict_to is only used by the learned-find route, which intentionally
+        searches inside its reviewed/trained candidate set. boosts adds local
+        keyword/palette evidence on the same 0..1 scale as the fused score.
         """
         if not isinstance(query, str) or not query.strip():
             raise ValueError("query must not be blank")
@@ -128,15 +145,18 @@ class SearchApplication:
             with self.client_factory(settings) as client:
                 service = SearchService(client, spec)
                 combined = service.search(query, rows, top_n=None)
+            if restrict_to is not None:
+                combined = [hit for hit in combined if hit.image_id in restrict_to]
             clip_scores = visual_scores
-            if clip_scores is not None:
-                combined = [hit for hit in combined if hit.image_id in clip_scores]
-            elif self.clip_search is not None and not getattr(self.clip_search, "warming", False):
+            if clip_scores is None and self.clip_search is not None and not getattr(self.clip_search, "warming", False):
                 try:
                     clip_scores = dict(self.clip_search.search_text(query, top_n=None))
                 except Exception:
                     clip_scores = {}  # no local weights/vectors: stay on the text route
-            hits = fuse_hits(combined, clip_scores) if clip_scores else combined[:FUSION_TOP]
+            if clip_scores or boosts:
+                hits = fuse_hits(combined, clip_scores or {}, alpha=self.text_weight, boosts=boosts)
+            else:
+                hits = combined[:FUSION_TOP]
             original = {r.image_id: r for r in rows}
             with readonly_connection(self.database()) as conn:
                 current = {r.image_id: r for r in load_search_rows(conn, spec) if validator.is_current(r)}

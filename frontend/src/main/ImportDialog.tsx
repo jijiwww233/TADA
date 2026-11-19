@@ -1,4 +1,5 @@
 ﻿import { useRef, useState } from 'react'
+import { usePhoneLayout } from './useMobileLayout'
 
 type ImportOptions = {
   shortcut: { url: string; qr: string } | null
@@ -12,6 +13,7 @@ type ImportOptions = {
  */
 export function ImportDialog({ demo, busy = false, onFiles }: { demo: boolean; busy?: boolean; onFiles: (files: File[]) => void }) {
   const publicDemo = import.meta.env.VITE_PUBLIC_DEMO === '1'
+  const phone = usePhoneLayout()
   const dialog = useRef<HTMLDialogElement>(null)
   const [pairing, setPairing] = useState('')
   const [pending, setPending] = useState(false)
@@ -78,14 +80,19 @@ export function ImportDialog({ demo, busy = false, onFiles }: { demo: boolean; b
             <p className="ds-help">截图或选图后，点分享 →「收进 TADA」。</p>
             {options?.shortcut ? <>
               <a className="ds-btn ds-btn--secondary" href={options.shortcut.url} target="_blank" rel="noreferrer">添加快捷指令</a>
-              <img className="m-import-qr" src={options.shortcut.qr} alt="添加快捷指令二维码" />
+              {/* 手机上就是要装快捷指令的那台设备，扫自己屏幕上的码没意义：只留按钮 */}
+              {!phone && <img className="m-import-qr" src={options.shortcut.qr} alt="添加快捷指令二维码" />}
             </> : <p className="m-import-unavailable">请向演示负责人索取</p>}
           </section>
           <section>
             <h3><i aria-hidden="true">(03)</i> 微信</h3>
             <p className="ds-help">扫码关注测试号，把图发给它。</p>
-            {options?.wechat ? <img className="m-import-qr" src="/api/demo/wechat-qr" alt="微信测试号二维码" />
-              : <p className="m-import-unavailable">请向演示负责人索取</p>}
+            {options?.wechat ? (
+              <div className="m-import-wechat">
+                <img className="m-import-qr" src="/api/demo/wechat-qr" alt="微信测试号二维码" />
+                {phone && <p className="m-import-wechat-tip">长按保存二维码，再用微信扫一扫</p>}
+              </div>
+            ) : <p className="m-import-unavailable">请向演示负责人索取</p>}
           </section>
         </>}
         {!demo && !publicDemo && <section>

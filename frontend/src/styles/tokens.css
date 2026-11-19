@@ -75,7 +75,10 @@
   --color-data-4: #aa5c3d;                               /* 100% = 陶土橙 */
 
   /* ---------- 字体 ---------- */
-  --font-family-serif: 'Main Newsreader', 'Main Serif SC', 'Source Han Serif SC', SimSun, serif;
+  /* 衬线字体的替补顺序：字体还没换上时，iPhone / Mac 落到系统「宋体」（Songti SC / STSong），
+     不要落到黑体。Windows 没有 Songti SC / STSong / Noto Serif SC，就落到 SimSun。 */
+  --font-family-serif: 'Main Newsreader', 'Main Serif SC', 'Songti SC', 'STSong', 'Noto Serif SC',
+    'Source Han Serif SC', 'SimSun', serif;
   --font-family-ui: var(--font-family-serif);
   --font-weight-light: 300;
   --font-weight-regular: 400;

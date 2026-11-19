@@ -9,13 +9,19 @@ import './calendar-inspiration.css'
 import { Heatmap } from './ActivityGraph'
 import type { ContributionDay } from './skyline'
 import { sourceLabel } from './meta'
+import { usePhoneLayout } from './useMobileLayout'
 
 type Row = { date: string; count: number }
 type Source = { platform: string; count: number }
 type Grain = 'day' | 'week' | 'total'
 const INSPIRATION_DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' })
+/** 手机上日期写中文：「11月19日」 */
+const INSPIRATION_DAY_ZH = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric' })
+/** 手机上热力图只画最近 3 个月（约 13 周），格子才够大、月份字才放得下 */
+const PHONE_SPAN_DAYS = 91
 const SAVED_DAY = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
-const imageTitle = (item: LabImage) => shortTitle(item.description, item.tags) || shortTitle(item.post_title, [])
+// 优先用列表接口带的短标题；有了它，前三张就不用再去取详情
+const imageTitle = (item: LabImage) => item.title?.trim() || shortTitle(item.description, item.tags) || shortTitle(item.post_title, [])
 function savedDate(value: string | null | undefined) {
   if (!value) return ''
   const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? value + 'T00:00:00' : value)
@@ -54,6 +60,7 @@ export function ActivityPage({ api, demo, manifest, onOpen, grain }: {
   /** 「每天 / 每周 / 累计」挪到顶栏右侧，这里只读当前值 */
   grain: Grain
 }) {
+  const phone = usePhoneLayout()
   const [days, setDays] = useState<ContributionDay[] | null>(null)
   const [sources, setSources] = useState<Source[] | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'empty' | 'failed'>('loading')
@@ -147,7 +154,7 @@ export function ActivityPage({ api, demo, manifest, onOpen, grain }: {
           </button>
           <div className="m-cal-inspiration-right">
             <div className="m-cal-inspiration-info">
-              <time>{INSPIRATION_DAY.format(new Date())}</time>
+              <time>{(phone ? INSPIRATION_DAY_ZH : INSPIRATION_DAY).format(new Date())}</time>
               {leadTitle && <h3>{leadTitle}</h3>}
               <span>{sourceLabel(leadInfo)}</span>
               {leadSaved && <span className="m-cal-inspiration-saved">收藏于 {leadSaved}</span>}
@@ -163,7 +170,7 @@ export function ActivityPage({ api, demo, manifest, onOpen, grain }: {
                       <img src={thumbnailSrc(item.src)} alt="" width={item.w} height={item.h} loading="lazy" />
                       <span className="m-tile-cap">
                         {title && <span className="m-tile-title">{title}</span>}
-                        <span className="m-tile-src">{source}</span>
+                        <span className="m-tile-src" data-local={source === '本地' || undefined}>{source}</span>
                       </span>
                     </button>
                   )
@@ -178,10 +185,12 @@ export function ActivityPage({ api, demo, manifest, onOpen, grain }: {
         <h2 className="m-cal-h">收藏活动</h2>
         <span className="m-spacer" />
       </div>
-      <p className="ds-help m-cal-note">每个方格是一{grain === 'week' ? '周' : '天'}，颜色越深收藏越多；把鼠标停在方格上（手机上点一下）能看到日期和张数。</p>
+      <p className="ds-help m-cal-note">{phone
+        ? '点一下方格，看那天收了几张'
+        : <>每个方格是一{grain === 'week' ? '周' : '天'}，颜色越深收藏越多；把鼠标停在方格上（手机上点一下）能看到日期和张数。</>}</p>
       <div className="m-cal-chart" data-reveal>
-        {/* 没数据时照样画出整年的空格子，不放解释文字 */}
-        <Heatmap days={state === 'ready' && shown ? shown : NO_DAYS} grain={grain} />
+        {/* 没数据时照样画出整年的空格子，不放解释文字；手机只画最近 3 个月 */}
+        <Heatmap days={state === 'ready' && shown ? shown : NO_DAYS} grain={grain} spanDays={phone ? PHONE_SPAN_DAYS : undefined} />
       </div>
 
       <h2 className="m-cal-h" data-reveal>常用导入软件</h2>

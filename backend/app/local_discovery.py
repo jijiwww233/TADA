@@ -54,8 +54,26 @@ def color_affinity(rgb, target):
 
 
 
+# Compound palette words the general parser does not know. Kept here rather than
+# in the recommendation vocabulary so search-only colours do not leak into briefs.
+COMPOUND_COLOR_TARGETS = {
+    "蓝绿": "#2e8b8b",
+    "蓝白": "#4a90d9",
+    "黄棕": "#b8860b",
+    "棕": "#8b5a2b",
+}
+
+
 def color_targets(query):
-    return palette.targets(normalize_colors(query) if isinstance(query, str) else query)
+    targets = list(palette.targets(normalize_colors(query) if isinstance(query, str) else query))
+    if isinstance(query, str):
+        for word, hex_value in COMPOUND_COLOR_TARGETS.items():
+            if word in query:
+                targets.append(palette.Target(hex_value, "为主" in query))
+    merged = {}
+    for target in targets:
+        merged[target.hex] = palette.Target(target.hex, target.main or merged.get(target.hex, target).main)
+    return tuple(merged.values())
 
 
 
@@ -96,9 +114,9 @@ COLOR_RICH = re.compile(
     r"(?:(?:颜色|色彩)(?:很|挺|比较|特别)?(?:多|丰富)|很多颜色|多色|五颜六色|彩色(?:的图)?|多彩|花花绿绿|缤纷)"
 )
 SHORT_TOPICS = (
-    ("海", "大海", "海边", "海浪", "海洋"),
+    ("海", "大海", "海边", "海浪", "海洋", "波浪", "浪花"),
     ("山", "高山", "山峰", "山脉"),
-    ("花", "花朵", "鲜花", "花卉"),
+    ("花", "花朵", "鲜花", "花卉", "雏菊"),
     ("猫", "小猫", "猫咪", "家猫"),
     ("狗", "小狗", "狗狗", "犬类"),
     ("人", "人物", "人像", "行人"),

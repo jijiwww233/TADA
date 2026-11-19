@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { MasonryPhotoAlbum, type Photo } from 'react-photo-album'
 import 'react-photo-album/masonry.css'
 import type { LabImage, Manifest } from '../lab/data'
@@ -9,11 +9,10 @@ import { scrollToInstant, scrollToY } from './smooth'
 import { sourceLabel } from './meta'
 import { SaveToProject, type SaveJob } from './SaveToProject'
 import { enterDelayMs } from './motion'
-import { shortTitle } from './caption'
+import { cardTitle } from './caption'
 import type { SortKey } from './sorts'
 import type { WiringApi } from '../api/wiring'
 import { useMobileLayout } from './useMobileLayout'
-import { REFINE } from './refine'
 import './library-wall.css'
 
 type WallPhoto = Photo & { item: LabImage; index: number }
@@ -22,12 +21,35 @@ const hueGap = (a: number, b: number) => { const d = Math.abs(a - b) % 360; retu
 /** 瀑布流一列大约多宽：column 宽度按内容宽 / 295 取整算列数（1440 下 5 列） */
 const COL_UNIT = 288
 const colCount = (width: number) => Math.min(5, Math.max(2, Math.round(width / COL_UNIT)))
+/** 首屏优先加载的图片张数：这几张 eager + 高优先级，其余懒加载 */
+const FIRST_IMAGES = 4
+/** 加载中的灰色占位块：高矮不一，看起来像瀑布流 */
+const PLACEHOLDER_RATIOS = [0.78, 1.25, 1, 0.8, 1.3, 0.72, 1.1, 0.9]
+
+/** 加载中：一句话 + 几块灰色占位，不放任何按钮（免得数据回来时误点到换上来的图） */
+function WallLoading({ text }: { text: string }) {
+  return (
+    <div className="m-wall-loading" role="status" aria-live="polite">
+      <p className="m-wall-loading-text">{text}</p>
+      <div className="m-wall-loading-grid" aria-hidden="true">
+        {PLACEHOLDER_RATIOS.map((ratio, i) => <span key={i} style={{ aspectRatio: ratio }} />)}
+      </div>
+    </div>
+  )
+}
 
 /**
  * 素材库：第一行就是搜索（大标题本身是输入框），细线下面直接是瀑布流；找图替换墙，要参考换成三列。
  * 瀑布流用 现有 masonry 相册（图 + 图注一块儿放进一列，不会互相压）；筛选/排序挪到顶栏，这里只吃 sort 入参。
  */
-export function Library({ manifest, initialQuery = '', onOpen, platforms, hue, onHue: setHue, wallRequest, onSaveProject, results, searching, onSearch, onClear, searchActive, reduce = false, sort = 'time', api, analyzing, onImportFiles }: {
+export function Library({ manifest, initialQuery = '', onOpen, onPending, platforms, onPlatforms, hue, onHue: setHue, wallRequest, onSaveProject, results, searching, onSearch, onClear, pendingCount = 0, searchActive, reduce = false, sort = 'time', analyzing, onImportFiles, loadState = 'ready', onRetry, searchKind = 'find', onFirstImage }: {
+  /** 素材库读到哪一步：loading 时不摆空库和「去导入」（公网慢时会被误点），error 时给一个重试 */
+  loadState?: 'loading' | 'ready' | 'error'
+  onRetry?: () => void
+  /** 正在进行的搜索是找图还是要参考：加载中那句话不一样 */
+  searchKind?: 'find' | 'ref'
+  /** 首屏第一张图显示出来（或加载失败）时通知一次：不急的接口等它之后再请求 */
+  onFirstImage?: () => void
   /** 从引导页示例搜索框带过来的初始关键词 */
   initialQuery?: string
   /** 此刻正在分析的图片 id：卡片上标「分析中」 */
@@ -37,7 +59,7 @@ export function Library({ manifest, initialQuery = '', onOpen, platforms, hue, o
   manifest: Manifest
   /** list：当前筛选结果，详情页按它显示“第几张 / 共几张” */
   onOpen: (item: LabImage, list: LabImage[], index: number) => void
-  /** 顶栏的「待确认」已经接走，这个入参保留不动 MainApp 的传参 */
+  /** 打开「待确认」：搜索框下方的提示条用 */
   onPending?: () => void
   platforms: Set<string>
   onPlatforms?: (next: Set<string>) => void
@@ -51,14 +73,14 @@ export function Library({ manifest, initialQuery = '', onOpen, platforms, hue, o
   searching: boolean
   onSearch: (text: string, reference: boolean, docked: boolean) => void
   onClear: () => void
-  /** 顶栏的「待确认」已经接走，这个入参保留不动 MainApp 的传参 */
+  /** 待确认的图有几张：大于 0 时搜索框下方出现「有 N 张图待确认 →」 */
   pendingCount?: number
   searchActive: boolean
   /** 「减少动效」开关（主页目前没有时序动画，保留这个入参不动 MainApp 的传参） */
   reduce?: boolean
   /** 顶栏排序菜单传给瀑布流的排序档，默认按时间 */
   sort?: SortKey
-  /** 图注要的短标题在详情接口里（列表接口不带 description/tags），滚到眼前时按需取 */
+  /** 已不再使用：卡片标题改用列表接口带的 title，不再逐张取详情。保留入参不动 MainApp 的传参 */
   api?: WiringApi
 }) {
   const [mode, setMode] = useState<Mode>('find')
@@ -77,16 +99,6 @@ export function Library({ manifest, initialQuery = '', onOpen, platforms, hue, o
   const [saving, setSaving] = useState<SaveJob | null>(null)
   const wallTop = useRef<HTMLDivElement | null>(null)
   const wallEl = useRef<HTMLDivElement | null>(null)
-  /** 图注短标题的缓存：列表数据没有描述时，滚到眼前的那几张按 id 取一次详情，取到就补上标题 */
-  const [captions, setCaptions] = useState<Record<number, string>>({})
-  const captionAsked = useRef(new Set<number>())
-  const captionQueue = useRef<number[]>([])
-  const captionFlying = useRef(0)
-  const captionLive = useRef(true)
-  useEffect(() => {
-    captionLive.current = true
-    return () => { captionLive.current = false }
-  }, [])
 
   /** 只用真实图库数据，一张只出现一次。 */
   const cards = manifest.cards
@@ -141,42 +153,15 @@ export function Library({ manifest, initialQuery = '', onOpen, platforms, hue, o
 
   const mobile = useMobileLayout()
   const gap = mobile ? 10 : 24
+  // 首屏图片第一次显示出来（或失败）只通知一次
+  const firstImageSent = useRef(false)
+  const firstImageDone = () => {
+    if (firstImageSent.current) return
+    firstImageSent.current = true
+    onFirstImage?.()
+  }
 
-  // 按需补图注标题：一次最多 4 个请求，只取滚到眼前（含上下 400px）的那些
-  const collectCaption = useCallback((id: number) => {
-    if (!api || captionAsked.current.has(id)) return
-    captionAsked.current.add(id)
-    captionQueue.current.push(id)
-    const pump = () => {
-      while (captionLive.current && captionFlying.current < 4 && captionQueue.current.length) {
-        const next = captionQueue.current.shift() as number
-        captionFlying.current += 1
-        api.getDetail(next).then(detail => {
-          if (!captionLive.current || !detail) return
-          const title = shortTitle(detail.description, detail.tags)
-          if (title) setCaptions(previous => ({ ...previous, [next]: title }))
-        }).catch(() => {}).finally(() => { captionFlying.current -= 1; pump() })
-      }
-    }
-    pump()
-  }, [api])
-  useEffect(() => {
-    const node = wallEl.current
-    if (!node || !api || typeof IntersectionObserver === 'undefined') return
-    const observer = new IntersectionObserver(entries => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue
-        const id = Number((entry.target as HTMLElement).dataset.id)
-        if (id) collectCaption(id)
-      }
-    }, { rootMargin: '400px 0px' })
-    const observeTiles = () => node.querySelectorAll<HTMLElement>('.m-tile[data-enrich]').forEach(tile => observer.observe(tile))
-    observeTiles()
-    // The album may first mount its columns after measuring the container.
-    const columns = new MutationObserver(observeTiles)
-    columns.observe(node, { childList: true, subtree: true })
-    return () => { columns.disconnect(); observer.disconnect() }
-  }, [api, collectCaption, filtered, sort, hue])
+  // 卡片标题直接用列表接口带的 title（没有就用列表里已有的描述 / 标签），不再逐张请求 /api/images/{id}
 
   // 从详情点主色回来：等切页回顶之后，再滚回搜索行所在的页面顶部
   useEffect(() => {
@@ -225,24 +210,56 @@ export function Library({ manifest, initialQuery = '', onOpen, platforms, hue, o
         onEscape={clear}
         field={field} active={searchActive} reduce={reduce} searching={searching} />
 
+      {/* 「待确认」入口：有待确认的图才出现，一行不打扰的小字，点了直接打开待确认 */}
+      {pendingCount > 0 && onPending && !submitted && (
+        <div className="m-pending-cue">
+          <button type="button" className="m-pending-cue-btn" onClick={onPending}>有 {pendingCount} 张图待确认 →</button>
+        </div>
+      )}
+
       <section className="m-wall-wrap" ref={wallTop}>
-        {submitted && (
+        {/* 筛选只管下面的列表：列表上方写出当前生效的条件，点 × 单独去掉一条 */}
+        {(platforms.size > 0 || hue !== null) && (
+          <div className="m-filter-line" role="group" aria-label="当前筛选">
+            <span className="m-filter-line-lead">当前筛选：</span>
+            {[...platforms].map(platform => (
+              <button type="button" key={platform} className="m-filter-chip" aria-label={`去掉筛选：${platform}`}
+                onClick={() => { const next = new Set(platforms); next.delete(platform); onPlatforms?.(next) }}>
+                {platform}<span className="m-filter-chip-x" aria-hidden="true">×</span>
+              </button>
+            ))}
+            {hue !== null && (
+              <button type="button" className="m-filter-chip" aria-label="去掉筛选：按颜色" onClick={() => setHue(null)}>
+                <span className="m-filter-chip-dot" style={{ background: `oklch(0.72 0.15 ${hue})` }} aria-hidden="true" />按颜色
+                <span className="m-filter-chip-x" aria-hidden="true">×</span>
+              </button>
+            )}
+          </div>
+        )}
+        {/* 搜索进行中：上一次的结果标题行一起收起来，免得看起来像搜错了 */}
+        {submitted && !searching && (
           <div className="m-result-line" data-reveal>
             <span>{query || (mode === 'find' ? '全部' : '参考')}</span>
             {results?.reasons && <span className="m-pick-hint">示例解读</span>}
             {results?.referenceSource && <span className="m-pick-hint">{results.referenceSource}</span>}
-            {results?.groups && picked.length > 0 && (
-              <button type="button" className="ds-btn ds-btn--primary ds-btn--sm" onClick={saveAsProject}>{results?.projectId ? '加入项目' : '存为新项目'} · {picked.length} 张</button>
-            )}
-            {/* 引导版：还没勾的时候先说一句能勾，不然「存为新项目」永远等不到人发现 */}
-            {REFINE && results?.groups && picked.length === 0 && (
-              <span className="m-pick-hint">点图片右上角的圈勾选，可以{results?.projectId ? '加入项目' : '存为新项目'}</span>
+            {/* 要参考：先说清楚两种点法，勾选圈才看得懂 */}
+            {results?.groups && filtered.length > 0 && (
+              <span className="m-pick-hint m-pick-howto">点图看详情，点右上角圆圈挑选</span>
             )}
             <button type="button" className="ds-btn ds-btn--ghost ds-btn--sm" onClick={clear}>返回全部收藏</button>
           </div>
         )}
 
-        {filtered.length === 0 ? (
+        {searching ? (
+          // 搜索进行中：旧结果先换成加载状态，结果回来再换上
+          <WallLoading text={searchKind === 'ref' ? '正在从素材库找排版、配色和风格参考…' : '正在找你描述的图…'} />
+        ) : !submitted && cards.length === 0 && loadState === 'loading' ? (
+          <WallLoading text="正在打开素材库…" />
+        ) : !submitted && cards.length === 0 && loadState === 'error' ? (
+          <div className="ds-empty m-wall-failed" role="alert">
+            <button type="button" className="ds-btn ds-btn--primary" onClick={onRetry}>没连上，点这里重试</button>
+          </div>
+        ) : filtered.length === 0 ? (
           submitted ? (
             // 搜不到时不要再给一排“下一步”，只留一个明确的出口。
             <div className="ds-empty" role="status">
@@ -254,7 +271,7 @@ export function Library({ manifest, initialQuery = '', onOpen, platforms, hue, o
               <p className="ds-empty-title">{cards.length === 0 ? '还没有收藏' : '这个筛选下没有图'}</p>
               <p className="ds-empty-text">
                 {cards.length === 0 ? '先放几张参考图进来：从相册选，或者直接把图片拖进窗口。'
-                  : '打开右上角「筛选」，点「全部」就能看到所有图。'}
+                  : '点上面「当前筛选」里的 × 去掉条件，就能看到所有图。'}
               </p>
               <div className="ds-empty-actions">
                 {onImportFiles && cards.length === 0 && (
@@ -299,23 +316,26 @@ export function Library({ manifest, initialQuery = '', onOpen, platforms, hue, o
           <div className="m-tiles" ref={wallEl} key={`${sort}-${hue ?? 'all'}`}>
             <MasonryPhotoAlbum<WallPhoto> photos={photos} spacing={gap} columns={mobile ? 2 : colCount} padding={0}
               render={{ photo: (_, { photo: { item: it, index: i, src } }) => {
-              const title = shortTitle(it.description, it.tags) || captions[it.id] || ''
+              const title = cardTitle(it.title, it.description, it.tags)
               const source = sourceLabel(it)
               const busy = analyzing?.has(it.id) ?? false
-              const firstRow = i < (mobile ? 2 : colCount(wallEl.current?.clientWidth ?? window.innerWidth))
+              // 首屏前 4 张先下载（公网慢时不让它们排在别的请求后面），其余照旧懒加载
+              const firstRow = i < FIRST_IMAGES
               // 没有云端分析的图不写「还没有标题 / 本地」；只在有标题或正在分析时显示图注。
               const showCaption = !!title || busy
               return (
                 <button type="button" key={it.id} className="m-tile" onClick={() => onOpen(it, filtered, i)}
-                  data-id={it.id} data-enrich={!title && api ? '' : undefined}
+                  data-id={it.id}
                   aria-label={`${title ? `${title} · ` : ''}${source}${busy ? ' · 分析中' : ''}`} data-reveal
                   style={{ '--rv-d': enterDelayMs(i) } as React.CSSProperties}>
                   <img src={src} alt="" loading={firstRow ? 'eager' : 'lazy'}
-                    fetchPriority={firstRow ? 'high' : undefined} width={it.w} height={it.h} />
+                    fetchPriority={firstRow ? 'high' : undefined} width={it.w} height={it.h}
+                    onLoad={firstRow ? firstImageDone : undefined} onError={firstRow ? firstImageDone : undefined} />
                   {showCaption && <span className="m-tile-cap">
                     {title && <span className="m-tile-title">{title}</span>}
                     <span className="m-tile-src">
-                      {title && <span>{source}</span>}
+                      {/* data-local：手机上不显示「本地」两个字 */}
+                      {title && <span data-local={source === '本地' || undefined}>{source}</span>}
                       {busy && <span className="ds-analyzing" title="正在分析这张图，标题和标签稍后出现">分析中</span>}
                     </span>
                   </span>}
@@ -326,6 +346,15 @@ export function Library({ manifest, initialQuery = '', onOpen, platforms, hue, o
         )}
 
       </section>
+
+      {/* 要参考里勾了图：底部一条「已选 N 张 · 存为新项目」，往下翻着勾也随时点得到 */}
+      {results?.groups && picked.length > 0 && !searching && (
+        <div className="m-pick-bar">
+          <button type="button" className="ds-btn ds-btn--primary m-pick-save" onClick={saveAsProject}>
+            已选 {picked.length} 张 · {results.projectId ? '加入项目' : '存为新项目'}
+          </button>
+        </div>
+      )}
 
       {saving && (
         <SaveToProject job={saving} target={navTarget()}

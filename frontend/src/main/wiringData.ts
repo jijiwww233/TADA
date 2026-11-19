@@ -47,6 +47,7 @@ export function fromLibrary(item: LibraryImage): LabImage {
     id: item.id, src: item.url, w: item.width || 1, h: item.height || 1, source: item.original_name ?? '',
     face: false, palette, hues: palette.filter(color => color.C > 0.03).map(color => color.h),
     platform: item.platform, post_id: item.post_id, position: item.position, createdAt: item.created_at,
+    title: item.title ?? null,
   }
 }
 
@@ -56,6 +57,7 @@ export function mergeDetail(item: LabImage, detail: NonNullable<Awaited<ReturnTy
     ...item, src: detail.download.url, source: detail.download.filename ?? item.source,
     description: detail.description, subject: detail.subject, style_tags: detail.styleTags, tags: detail.tags,
     saved_at: detail.savedAt, post_title: post?.title ?? item.post_title, palette: detail.colors.map(swatch),
+    title: detail.title ?? item.title ?? null,
   }
 }
 

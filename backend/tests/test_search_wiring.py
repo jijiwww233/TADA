@@ -233,7 +233,7 @@ def test_clip_route_fusion_is_alpha_weighted_and_uses_one_text_embedding(seeded)
     result = app.search('多栏展板')
     ids = [item['image_id'] for item in result['items']]
     assert len(ids) == 20 and fake.queries == ['多栏展板'] and clip.queries == ['多栏展板']
-    # CLIP top hits get 0.8, the text-route winner only 0.2: both stay in the Top20.
+    # With the searched text weight 0.4 / CLIP 0.6, both routes stay in the Top20.
     assert ids[0] == 5 and 25 in ids and ids.index(5) < ids.index(25)
     assert all(0 <= item['score'] <= 1 for item in result['items'])
 

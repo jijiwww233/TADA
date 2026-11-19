@@ -150,6 +150,17 @@ def test_valid_answer_is_stored_with_tokens(lib):
     assert model.requests[0].url == "https://model.invalid/v1/chat/completions"
 
 
+def test_valid_answer_stores_the_short_title(lib):
+    """v14：视觉分析同一次回答里的 title 要落库；缺这个字段（旧提示词）也照常成功。"""
+    image_id = add_image()
+    model = FakeModel({**GOOD, "title": "极简展览海报"})
+    assert run(image_id, model)["status"] == "done"
+    assert row(image_id)["title"] == "极简展览海报"
+    other = add_image("blue")
+    assert run(other, FakeModel(GOOD))["status"] == "done"
+    assert row(other)["title"] is None
+
+
 def test_invalid_then_valid_retries_once(lib):
     image_id = add_image()
     model = FakeModel("不是 JSON", GOOD)

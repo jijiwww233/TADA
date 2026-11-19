@@ -1,0 +1,16 @@
+/* Main Newsreader：latin 正文/标题的衬线字体（normal + 真斜体），文件复用 /lab 的那两份。
+   原来写在 src/main/main.css 末尾，为了首屏不跟图片抢带宽，改成延后加载（见 deferred-fonts.css）。 */
+@font-face {
+  font-family: 'Main Newsreader';
+  src: url('../lab/fonts/newsreader-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 300 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Main Newsreader';
+  src: url('../lab/fonts/newsreader-italic-latin.woff2') format('woff2');
+  font-style: italic;
+  font-weight: 300 600;
+  font-display: swap;
+}

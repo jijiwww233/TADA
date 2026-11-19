@@ -5,7 +5,8 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel, ConfigDict, StrictStr, StrictInt, StrictBool, field_validator
 
-from . import analysis, annotations, config, db, importer, learned_find, local_discovery
+from . import analysis, annotations, config, db, importer, learned_find, local_discovery, titles
+from . import search_terms
 from . import thumbnails
 from .embedding import dimensions
 from .embedding.adapter import EmbeddingAdapter
@@ -53,6 +54,12 @@ class SearchRequest(BaseModel):
         if not value.strip():
             raise ValueError("query must not be blank")
         return value  # preserve whitespace and punctuation in the embedding input
+
+
+class TitleEdit(BaseModel):
+    """人工标题：'title' 缺省不合法；null 表示清掉人工标题、回到自动标题。"""
+    model_config = ConfigDict(extra="forbid")
+    title: StrictStr | None = None
 
 
 class AnnotationEdit(BaseModel):
@@ -105,6 +112,31 @@ def _merge_annotation_hits(result: dict, query: str, *, manual_only: bool = Fals
     if result.get("status") == "index_empty":
         return {**result, "status": "ok", "items": merged, "degraded": True}
     return {**result, "items": merged}
+
+
+def _search_boosts(query: str) -> dict[int, float]:
+    """Local evidence added to the semantic fusion: literal text matches + palette."""
+    boosts: dict[int, float] = {}
+    try:
+        boosts.update(search_terms.keyword_boosts(query))
+    except Exception:
+        pass
+    try:
+        targets = local_discovery.color_targets(query)
+        if targets:
+            with readonly_connection(config.db_path()) as conn:
+                matches = local_discovery.palette_matches(conn, targets)
+            if matches:
+                low, high = min(matches.values()), max(matches.values())
+                span = high - low
+                if span > 1e-9:
+                    for image_id, score in matches.items():
+                        weight = 0.35 * (score - low) / span
+                        if weight:
+                            boosts[image_id] = min(0.60, boosts.get(image_id, 0.0) + weight)
+    except Exception:
+        pass
+    return boosts
 
 
 class ColorNeed(BaseModel):
@@ -431,45 +463,70 @@ def create_app(worker: analysis.Worker | None = None,
             trained, reviewed = learned_find.learned_hits(conn, query, similar)
             all_reviewed = len(reviewed) == conn.execute("SELECT COUNT(*) FROM images").fetchone()[0]
         scoped = None
-        if trained or subject in local_discovery.SHORT_EXPANSIONS:
+        expanded_clip = None
+        boosts = _search_boosts(query)
+        if subject in local_discovery.SHORT_EXPANSIONS and not boosts:
+            # No description/tag in the library mentions this short topic (for
+            # example 海, whose only literal hits are the compound 海报). Keep the
+            # previous visual-channel answer instead of letting a weak text match
+            # invent a result.
+            return fallback()
+        if trained:
             visual, _ = local_discovery.visual_scores(query, similar)
-            if trained:
-                scoped = {hit["image_id"]: hit["score"] + .15 * visual.get(hit["image_id"], 0)
-                          for hit in trained}
-                if not all_reviewed:
-                    scoped.update((image_id, score) for image_id, score in visual.items() if image_id not in reviewed)
-            elif visual:
-                scoped = visual
+            scoped = {hit["image_id"]: hit["score"] + .15 * visual.get(hit["image_id"], 0)
+                      for hit in trained}
+            if not all_reviewed:
+                scoped.update((image_id, score) for image_id, score in visual.items() if image_id not in reviewed)
+        elif subject in local_discovery.SHORT_EXPANSIONS:
+            # Short topic words expand to synonyms for the local CLIP channel, but
+            # they no longer hard-filter the paid text candidates: a weak visual
+            # neighbour must not evict an image whose description actually matches.
+            try:
+                expanded_clip = local_discovery.short_scores(subject, similar) or None
+            except Exception:
+                expanded_clip = None
         try:
-            result = searcher.search(query, visual_scores=scoped)
+            if trained:
+                result = searcher.search(query, visual_scores=scoped,
+                                         restrict_to=set(scoped or ()), boosts=boosts)
+            else:
+                result = searcher.search(query, visual_scores=expanded_clip, boosts=boosts)
         except SearchUnavailable:
             return fallback()
         if result.get("search_mode") != "图文融合":
             return fallback()
-        result = _merge_annotation_hits(result, query, manual_only=True, blend_posts=scoped is None)
+        result = _merge_annotation_hits(result, query, manual_only=True, blend_posts=not scoped)
         return {**result, "items": local_discovery.representative_hits(result["items"])}
 
     @app.post("/api/search")
     def search_images(request: SearchRequest):
         if config.local_library_enabled():
-            return desktop_search(request.query)
-        # Search degrades instead of failing: when the paid text route is unreachable
-        # (no Key, offline, quota, timeout) the local annotation + CLIP channels answer.
-        if demo_cache.offline():
-            result = searcher.search_local(request.query)
+            result = desktop_search(request.query)
         else:
-            try:
-                result = searcher.search(request.query)
-            except SearchUnavailable:
+            # Search degrades instead of failing: when the paid text route is unreachable
+            # (no Key, offline, quota, timeout) the local annotation + CLIP channels answer.
+            if demo_cache.offline():
                 result = searcher.search_local(request.query)
             else:
-                if result.get("status") == "index_empty":
-                    local = searcher.search_local(request.query)
-                    if local.get("items"):
-                        result = local
-        result = _merge_annotation_hits(result, request.query)
+                try:
+                    result = searcher.search(request.query)
+                except SearchUnavailable:
+                    result = searcher.search_local(request.query)
+                else:
+                    if result.get("status") == "index_empty":
+                        local = searcher.search_local(request.query)
+                        if local.get("items"):
+                            result = local
+            result = _merge_annotation_hits(result, request.query)
         if result.get("status") == "ok":
             result.setdefault("search_mode", "本地检索")
+            try:
+                if search_terms.missing_main_object(request.query):
+                    # Long sentence whose head object is absent from the library:
+                    # prefer an empty result over unrelated neighbours.
+                    result = {**result, "items": [], "degraded": True}
+            except Exception:
+                pass
         return result
 
     @app.post("/api/recommendations")
@@ -771,7 +828,9 @@ def create_app(worker: analysis.Worker | None = None,
             runner=runners.get(post['platform'])
             if runner:post.update(connection.describe(post['platform'],runner.state()))
         return {**image, **analysis.get_analysis(image_id),
-                "annotation": annotations.get(image_id)}
+                "annotation": annotations.get(image_id),
+                # 生效标题：人工优先，其次分析生成（前端直接读这个字段）
+                "title": titles.effective_title(image_id)}
 
     @app.put("/api/images/{image_id}/annotation")
     def update_annotation(image_id: int, request: AnnotationEdit):
@@ -793,6 +852,21 @@ def create_app(worker: analysis.Worker | None = None,
         except ValueError:
             raise HTTPException(422, detail={"code": "invalid_annotation"}) from None
         return {"annotation": annotation}
+
+    @app.put("/api/images/{image_id}/title")
+    def update_title(image_id: int, request: TitleEdit):
+        """人工标题覆盖；null 清掉人工标题、回到自动标题。
+
+        自动生成（视觉分析 / scripts/backfill_titles.py）只写 analyses.title，
+        永远不碰 image_titles_manual，所以人工标题不会被覆盖。
+        """
+        try:
+            stored = titles.set_manual(image_id, request.title)
+        except KeyError:
+            raise HTTPException(404, detail={"code": "image_not_found"}) from None
+        except ValueError as exc:
+            raise HTTPException(422, detail={"code": "invalid_title", "message": str(exc)}) from None
+        return {"manual_title": stored, "title": titles.effective_title(image_id)}
 
     @app.get("/api/analysis/status")
     def analysis_status():

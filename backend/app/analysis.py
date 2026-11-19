@@ -135,7 +135,7 @@ def _record(conn, image_id: int, token: str, status: str, calls: vision.Calls, m
     cur = conn.execute(
         """UPDATE analyses SET
                status = ?, model = ?, error = ?, raw_json = ?,
-               visible_text = ?, subject = ?, layout_json = ?, style_json = ?, description = ?,
+               visible_text = ?, subject = ?, layout_json = ?, style_json = ?, description = ?, title = ?,
                prompt_tokens = CASE WHEN ? IS NULL THEN prompt_tokens
                                     ELSE COALESCE(prompt_tokens, 0) + ? END,
                completion_tokens = CASE WHEN ? IS NULL THEN completion_tokens
@@ -150,6 +150,7 @@ def _record(conn, image_id: int, token: str, status: str, calls: vision.Calls, m
          json.dumps(r["layout"], ensure_ascii=False) if r else None,
          json.dumps(r["style"], ensure_ascii=False) if r else None,
          r.get("description"),
+         r.get("title"),
          calls.prompt_tokens, calls.prompt_tokens,
          calls.completion_tokens, calls.completion_tokens,
          calls.count, image_id, token),
@@ -258,6 +259,7 @@ def get_analysis(image_id: int) -> dict:
             "layout": json.loads(a["layout_json"]) if a["layout_json"] else None,
             "style": json.loads(a["style_json"]) if a["style_json"] else None,
             "description": a["description"],
+            "title": a["title"],
             "prompt_tokens": a["prompt_tokens"],
             "completion_tokens": a["completion_tokens"],
             "attempts": a["attempts"],

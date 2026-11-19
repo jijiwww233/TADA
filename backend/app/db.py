@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS analyses (
     layout_json       TEXT,
     style_json        TEXT,
     description       TEXT,
+    title             TEXT,           -- 短标题（v14）：≤12 字、完整短语，见 app/titles.py
     raw_json          TEXT,           -- full model output
     prompt_tokens     INTEGER,
     completion_tokens INTEGER,
@@ -212,7 +213,7 @@ MIGRATIONS: list[list[str]] = [
         "ALTER TABLE embeddings ADD COLUMN text_hash TEXT",      # sha256(scheme + "\n" + text)
     ],
 ]
-SCHEMA_VERSION = 13  # v12 watched import folders, v13 project rediscovery and feedback
+SCHEMA_VERSION = 14  # v12 watched import folders, v13 project rediscovery, v14 short titles
 
 
 def connect() -> sqlite3.Connection:
@@ -270,6 +271,7 @@ def migrate(conn: sqlite3.Connection) -> None:
     _ensure_annotation_field_schema(conn)
     _ensure_watch_folder_schema(conn)
     _ensure_vibe_schema(conn)
+    _ensure_title_schema(conn)
 
 
 def _ensure_classification_schema(conn: sqlite3.Connection) -> None:
@@ -525,6 +527,32 @@ def _ensure_vibe_schema(conn):
             PRIMARY KEY (project_id,day,position),
             UNIQUE (project_id,day,image_id))""")
         conn.execute("PRAGMA user_version = 13")
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+
+
+def _ensure_title_schema(conn):
+    """v14 additive: a short title per image, plus the user's own title on top.
+
+    analyses.title holds the generated title (vision answer or the text-model backfill);
+    image_titles_manual holds a title the user typed, which no automatic writer ever
+    touches — same rule as post_classification_manual. Reads resolve manual first.
+    """
+    if conn.execute("PRAGMA user_version").fetchone()[0] >= 14:
+        return
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
+        if "title" not in columns:
+            conn.execute("ALTER TABLE analyses ADD COLUMN title TEXT")
+        conn.execute("""CREATE TABLE IF NOT EXISTS image_titles_manual (
+            image_id   INTEGER PRIMARY KEY REFERENCES images(id),
+            title      TEXT NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )""")
+        conn.execute("PRAGMA user_version = 14")
         conn.execute("COMMIT")
     except Exception:
         conn.execute("ROLLBACK")

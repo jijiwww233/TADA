@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { DragEvent } from 'react'
 import type { ImageItem } from '../api'
+import { useDemoMode } from '../api/mode'
 import type { ImageEntity } from '../search/contract'
 import PipCanvas, { type PipSelection } from '../PipCanvas'
-import { hasImageDragType, readDraggedImageId } from './dragData'
+import { hasFileDragType, hasImageDragType, readDraggedImageId } from './dragData'
 import { flushSceneOnExit } from './exitFlush'
+import fileDropStyles from './fileDrop.css?inline'
+import { importBoardFiles, isDroppedImage, loadBoardImage } from './fileImport'
 import { emptyHistory, recordHistory, redoHistory, undoHistory, type History } from './history'
 import { PipSceneConflict, PipSceneError, createPipSceneApi, type PipSceneApi } from './persistence'
 import {
-  addImageAt, addImages, addNote, compactScene, cropItem, emptyScene, fitSceneView, nextNoteId, normalizeNotePlaceholders,
+  addImageAt, addImages, addNote, compactScene, cropItem, emptyScene, fitSceneView, MAX_ITEMS, nextNoteId, normalizeNotePlaceholders,
   raiseItems, resetItem, noteAABB,
   removeItem, removeNote, resetCrop, setAllOpacity, setView, toggleFlag, updateItem, updateNote,
   type PipItem, type PipNote, type PipScene,
@@ -59,14 +62,22 @@ export default function PipBoard({
   images, imagesById, projectId, projectName, projects = NO_PROJECTS, libraryImages = images, projectImages = images,
   loadProject, onProjectChange, win, sceneApi, openUrl,
 }: PipBoardProps) {
+  const [demo] = useDemoMode()
+  const [extraImages, setExtraImages] = useState<Record<number, ImageItem>>({})
+  const requestedImages = useRef(new Set<number>())
   const lookup = useMemo<Readonly<Record<number, ImageItem | undefined>>>(
     () => ({
+      ...(demo ? {} : extraImages),
       ...Object.fromEntries(libraryImages.map(image => [image.id, image])),
       ...Object.fromEntries(projectImages.map(image => [image.id, image])),
       ...imagesById,
     }),
-    [projectImages, imagesById, libraryImages],
+    [demo, extraImages, projectImages, imagesById, libraryImages],
   )
+  const pickerImages = useMemo(() => demo ? libraryImages : [
+    ...libraryImages,
+    ...Object.values(extraImages).filter(image => !libraryImages.some(item => item.id === image.id)),
+  ], [demo, extraImages, libraryImages])
   const seedInputs = useMemo(() => images.map(seedOf), [images])
   const seedRef = useRef(seedInputs)
   useEffect(() => { seedRef.current = seedInputs }, [seedInputs])
@@ -84,6 +95,10 @@ export default function PipBoard({
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error' | 'conflict'>('idle')
   const [conflict, setConflict] = useState<{ revision: number; scene: PipScene | null } | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [fileDrag, setFileDrag] = useState(false)
+  const fileDragDepth = useRef(0)
+  const [importingFiles, setImportingFiles] = useState(false)
+  const fileImport = useRef<symbol | null>(null)
   const [selection, setSelection] = useState<PipSelection | null>(null)
   const [cropMode, setCropMode] = useState(false)
   const [tool, setTool] = useState<PipTool>('select')
@@ -210,6 +225,9 @@ export default function PipBoard({
 
   const loadScene = useCallback(async (id: number | null) => {
     generationRef.current += 1
+    fileImport.current = null
+    setImportingFiles(false)
+    requestedImages.current.clear()
     const ticket = ++loadTicket.current
     projectIdRef.current = id
     statusRef.current = 'loading'
@@ -281,6 +299,20 @@ export default function PipBoard({
       && !sceneRef.current.items.some(item => item.image_id === input.image_id))
     if (fresh.length > 0) mutate(previous => addImages(previous, fresh), { history: false })
   }, [seedInputs, mutate, status, projectId])
+
+  // A saved project scene can refer to images outside the current library or project list.
+  useEffect(() => {
+    if (demo || status !== 'ready') return
+    for (const { image_id } of scene.items) {
+      if (lookup[image_id] || requestedImages.current.has(image_id)) continue
+      requestedImages.current.add(image_id)
+      void loadBoardImage(image_id).then(image => {
+        setExtraImages(previous => ({ ...previous, [image.id]: image }))
+      }, () => { /* Missing images keep their place in the saved layout. */ })
+    }
+  }, [demo, lookup, scene.items, status])
+
+  useEffect(() => () => { fileImport.current = null }, [])
 
   const saveNow = useCallback(() => {
     const generation = generationRef.current
@@ -434,19 +466,98 @@ export default function PipBoard({
     setSelection({ kind: 'image', image_id: image.id })
   }, [mutate, raiseImages])
 
-  const handleDrop = useCallback((event: DragEvent<HTMLDivElement>) => {
+  const dropFiles = async (incoming: File[], point: PipMenuPoint) => {
+    if (demo) { setMessage('切换到真实素材库后即可拖图'); return }
+    if (statusRef.current !== 'ready' || projectSwitchRef.current) { setMessage('画布还在加载，请稍后再拖'); return }
+    if (fileImport.current) return
+    const files = incoming.filter(isDroppedImage)
+    if (files.length === 0) { setMessage('请拖入图片文件'); return }
+    const available = MAX_ITEMS - sceneRef.current.items.length
+    if (available === 0) { setMessage('画布已满，请先移除几张图'); return }
+
+    const { x, y, scale } = sceneRef.current.view
+    const worldPoint = { x: (point.x - x) / scale, y: (point.y - y) / scale }
+    const token = Symbol()
+    fileImport.current = token
+    const active = () => fileImport.current === token && !win.closed
+    setMessage(null)
+    setImportingFiles(true)
+    try {
+      const { ids, error } = await importBoardFiles(files.slice(0, available), active)
+      if (!active()) return
+      const images = (await Promise.all(ids.map(id => lookup[id]
+        ?? loadBoardImage(id).catch(() => null)))).filter(image => image !== null)
+      if (!active()) return
+
+      setExtraImages(previous => ({ ...previous, ...Object.fromEntries(images.map(image => [image.id, image])) }))
+      const placed: number[] = []
+      mutate(previous => {
+        let next = previous
+        for (const image of images) {
+          const offset = placed.length * 24 / scale
+          next = addImageAt(next, seedOf(image), worldPoint.x + offset, worldPoint.y + offset)
+          if (next.items.some(item => item.image_id === image.id)) {
+            placed.push(image.id)
+            removedRef.current.delete(image.id)
+          }
+        }
+        return next
+      })
+      if (placed.length > 0) {
+        setCropMode(false)
+        setSelection(placed.length === 1
+          ? { kind: 'image', image_id: placed[0] }
+          : { kind: 'images', image_ids: placed })
+      }
+      const full = placed.length < images.length || files.length > available
+      setMessage(error ?? (full ? '画布已满，部分图片未放入'
+        : images.length < ids.length ? '有图片暂时无法显示，请重新拖入' : null))
+    } finally {
+      if (fileImport.current === token) {
+        fileImport.current = null
+        setImportingFiles(false)
+      }
+    }
+  }
+
+  const acceptDrag = (event: DragEvent<HTMLDivElement>, entering = false) => {
+    const files = hasFileDragType(event.dataTransfer)
+    if (!files && !hasImageDragType(event.dataTransfer)) return
+    event.stopPropagation()
     event.preventDefault()
-    if (!hasImageDragType(event.dataTransfer)) return
+    event.dataTransfer.dropEffect = 'copy'
+    if (!files) return
+    if (entering) fileDragDepth.current += 1
+    setFileDrag(true)
+  }
+
+  const leaveDrag = (event: DragEvent<HTMLDivElement>) => {
+    if (!hasFileDragType(event.dataTransfer) && !fileDragDepth.current) return
+    event.stopPropagation()
+    fileDragDepth.current = Math.max(0, fileDragDepth.current - 1)
+    if (fileDragDepth.current === 0) setFileDrag(false)
+  }
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    const files = hasFileDragType(event.dataTransfer)
+    if (!files && !hasImageDragType(event.dataTransfer)) return
+    // React portal events would otherwise reach the main window's library drop target.
+    event.stopPropagation()
+    fileDragDepth.current = 0
+    setFileDrag(false)
+    const rect = event.currentTarget.querySelector('.pip-canvas-host')?.getBoundingClientRect()
+    const point = {
+      x: (Number.isFinite(event.clientX) ? event.clientX : 0) - (rect?.left ?? 0),
+      y: (Number.isFinite(event.clientY) ? event.clientY : 0) - (rect?.top ?? 0),
+    }
+    if (files) { void dropFiles(Array.from(event.dataTransfer.files), point); return }
     const imageId = readDraggedImageId(event.dataTransfer)
     if (imageId === null) return
     const image = lookup[imageId]
     if (!image) { setMessage('只能拖入图库里的图片'); return }
-    const rect = event.currentTarget.querySelector('.pip-canvas-host')?.getBoundingClientRect()
-    addImage(image, {
-      x: (Number.isFinite(event.clientX) ? event.clientX : 0) - (rect?.left ?? 0),
-      y: (Number.isFinite(event.clientY) ? event.clientY : 0) - (rect?.top ?? 0),
-    })
-  }, [lookup, addImage])
+    addImage(image, point)
+  }
 
   const selectedItem = selection?.kind === 'image'
     ? scene.items.find(item => item.image_id === selection.image_id) : undefined
@@ -591,7 +702,7 @@ export default function PipBoard({
 
   const chooseProject = async (id: number) => {
     if (!loadProject || !onProjectChange || projectSwitchRef.current || statusRef.current !== 'ready') return
-    if (conflict) return
+    if (conflict || fileImport.current) return
     projectSwitchRef.current = true
     const generation = generationRef.current
     try {
@@ -698,11 +809,11 @@ export default function PipBoard({
   return (
     <div className="pip-board"
       style={{ '--pip-alpha': boardOpacity } as CSSProperties}
-      onDragOver={event => {
-        if (!hasImageDragType(event.dataTransfer)) return
-        event.preventDefault()
-        event.dataTransfer.dropEffect = 'copy'
-      }} onDrop={handleDrop}>
+      onDragEnter={event => acceptDrag(event, true)}
+      onDragOver={event => acceptDrag(event)}
+      onDragLeave={leaveDrag}
+      onDrop={handleDrop}>
+      <style>{fileDropStyles}</style>
       <PipCanvas
         scene={scene}
         imagesById={lookup}
@@ -731,7 +842,7 @@ export default function PipBoard({
       />
       <PipToolbar
         saveState={saveState} projectId={projectId} projectName={projectName} dirty={dirty}
-        projects={projects} projectImages={projectImages} libraryImages={libraryImages}
+        projects={projects} projectImages={projectImages} libraryImages={pickerImages}
         resetArmed={resetArmed} boardOpacity={boardOpacity} scale={scene.view.scale}
         tool={tool} panel={panel}
         onPanel={next => { setContextMenu(null); setPanel(next); if (next !== 'project') setResetArmed(false) }}
@@ -819,6 +930,13 @@ export default function PipBoard({
           <button type="button" className="pip-text-btn" onClick={() => runMenuAction(addNoteAtCenter)}>加便签</button>
         </PipContextMenu>
       )}
+      {fileDrag && <div className="pip-file-drop" role="status">
+        <div>
+          {importingFiles ? '正在导入图片…' : demo ? '切换到真实素材库后即可拖图' : '松手放进画布'}
+          {!demo && !importingFiles && <small>图片也会存进{import.meta.env.VITE_PUBLIC_DEMO === '1' ? '共用' : ''}素材库</small>}
+        </div>
+      </div>}
+      {importingFiles && !fileDrag && <div className="pip-toast m-frost" role="status">正在导入图片…</div>}
       {message && <div className="pip-toast m-frost" role="status">{message}
         <button type="button" className="pip-text-btn" onClick={() => setMessage(null)}>关闭</button></div>}
       {conflict && <div className="pip-toast pip-conflict m-frost" role="alert">

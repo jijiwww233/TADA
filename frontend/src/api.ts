@@ -13,6 +13,8 @@ export interface ImageItem {
   platform: 'local' | 'xhs' | 'pinterest' | 'zcool' | 'huaban'
   image_count?: number
   is_video?: boolean
+  /** 生效短标题（人工优先，其次分析生成，12 字以内）；还没有时为 null，旧后端没有这个字段 */
+  title?: string | null
 }
 
 export interface ImportResult {
@@ -80,6 +82,8 @@ export interface ImageDetail {
   analysis: Analysis | null
   colors: ColorSwatch[]
   annotation?: Annotation | null
+  /** 生效短标题，同 ImageItem.title */
+  title?: string | null
 }
 
 export interface AnalysisStatus {

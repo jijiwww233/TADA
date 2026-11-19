@@ -3,7 +3,8 @@
 @import "tailwindcss/utilities.css" layer(utilities);
 
 /* 主界面 demo（/main）：沿用 /lab 的纸墨体系，类名统一 m- 前缀，只作用于 .m-app。 */
-@import "./main-serif-sc.css";
+/* 字体 @font-face（Main Serif SC / Main Newsreader）不在这里进来：首屏先用系统字，
+   load 之后由 src/styles/deferredFonts.ts 动态挂上 deferred-fonts.css。 */
 
 /* 旧变量全部接到 src/styles/tokens.css 的令牌上：老样式不改写法，取值统一从令牌来 */
 .m-app {
@@ -1462,20 +1463,7 @@
 
 
 
-@font-face {
-  font-family: 'Main Newsreader';
-  src: url('../lab/fonts/newsreader-latin.woff2') format('woff2');
-  font-style: normal;
-  font-weight: 300 600;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Main Newsreader';
-  src: url('../lab/fonts/newsreader-italic-latin.woff2') format('woff2');
-  font-style: italic;
-  font-weight: 300 600;
-  font-display: swap;
-}
+/* Main Newsreader 的 @font-face 挪到 src/styles/newsreader-fonts.css，随 deferred-fonts.css 延后加载。 */
 @media (min-width: 967px) {
   .m-app { --m-type-large: var(--m-type-display); }
 }

@@ -24,7 +24,10 @@ const RING_R = 76
  * 统一顶栏（照 Lusano 顶栏的左 / 中 / 右三块）：左边品牌字，正中一颗胶囊（当前页名字，悬停展开六项菜单），
  * 右边放这一页自己的工具（带下划线的衬线小字，由 MainApp 传进来）。高度和留白见 app-header.css。
  */
-export function AppHeader({ title, current, onHome, onGo, onPip, tools }: {
+export function AppHeader({ title, current, onHome, onGo, onPip, tools, pendingCount = 0, onPending }: {
+  /** 待确认的图有几张：菜单「页面」段最后一项「待确认」后面显示这个数 */
+  pendingCount?: number
+  onPending?: () => void
   /** 正中胶囊里显示的当前页名字 */
   title: string
   /** 菜单里算「当前页」的那一项 */
@@ -47,7 +50,7 @@ export function AppHeader({ title, current, onHome, onGo, onPip, tools }: {
     try { window.localStorage.setItem('m-nav-seen', '1') } catch { /* 隐私模式存不了就算了 */ }
   }
   const menu = useRef<HTMLDivElement>(null)
-  const rows: GlassMenuRow[] = PAGES.map(page => ({
+  const pageRows: GlassMenuRow[] = PAGES.map(page => ({
     key: page.k,
     label: page.label,
     on: page.k === current,
@@ -63,6 +66,14 @@ export function AppHeader({ title, current, onHome, onGo, onPip, tools }: {
       else onGo(page.k)
     },
   }))
+  // 「待确认」单独一个入口：排在「页面」段最后（日历后面），后面带数量
+  const pendingRow: GlassMenuRow | null = onPending
+    ? { key: 'pending', label: '待确认', count: pendingCount, on: false, act: () => { setOpen(false); onPending() } }
+    : null
+  const rows = pendingRow
+    ? [...pageRows.slice(0, PAGE_COUNT), pendingRow, ...pageRows.slice(PAGE_COUNT)]
+    : pageRows
+  const pageCount = PAGE_COUNT + (pendingRow ? 1 : 0)
   return (
     <>
     {/* 名字单独一层钉在左上：压到图片上时自动反色（mix-blend-mode），所以不能放在顶栏那一层里面 */}
@@ -72,7 +83,7 @@ export function AppHeader({ title, current, onHome, onGo, onPip, tools }: {
       <div className="m-appbar-center" data-nav="projects" data-help={help ? '' : undefined}>
         <GlassMenu ref={menu} label={help ? '关闭帮助' : `切换页面，当前是${title}`} title={help ? '帮助' : title}
           width={help ? 360 : 180} rows={help ? [] : rows} open={open} topInset={0}
-          splitAt={REFINE && !help ? PAGE_COUNT : undefined} sections={['页面', '工具']}
+          splitAt={REFINE && !help ? pageCount : undefined} sections={['页面', '工具']}
           body={help ? <Onboarding /> : undefined} footer={help ? '按 / 开始搜索' : undefined}
           onOpenChange={next => { setOpen(next); if (next) markSeen(); if (!next) setHelp(false) }} />
         {firstVisit && !open && (

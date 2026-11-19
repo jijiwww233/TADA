@@ -1,6 +1,6 @@
 import type { DragEvent } from 'react'
 
-/** Custom MIME only: the PiP board never accepts dropped URLs or files from outside. */
+/** Custom MIME identifies an existing library image without accepting a dropped URL. */
 export const IMAGE_DRAG_MIME = 'application/x-wominmin-image'
 
 export function startImageDrag(event: DragEvent<HTMLElement>, imageId: number): boolean {
@@ -28,4 +28,8 @@ export function readDraggedImageId(transfer: Pick<DataTransfer, 'getData'> | nul
 export function hasImageDragType(transfer: Pick<DataTransfer, 'types'> | null | undefined): boolean {
   if (!transfer) return false
   return Array.from(transfer.types).includes(IMAGE_DRAG_MIME)
+}
+
+export function hasFileDragType(transfer: Pick<DataTransfer, 'types'> | null | undefined): boolean {
+  return !!transfer && Array.from(transfer.types).includes('Files')
 }
