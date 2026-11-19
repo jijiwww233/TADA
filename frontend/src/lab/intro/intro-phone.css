@@ -504,7 +504,9 @@
      必须和 ScatterStage.tsx 里 target.y = H * (.2437 - .5) + 236 同步改。 */
   /* 第三版（P2-8）：「环 + 胶囊 + 说明」整组在屏幕上垂直居中、组内距离不变 → 胶囊中心 = 中线下 103.4px（和屏高无关）。
      844 高时：环顶 253.7、胶囊 495.4–555.4、说明顶 571.4；离环底仍是 90.2 / 102.2。
-     必须和 ScatterStage.tsx 的 PHONE_RESULT_CAP_Y = 103.4、环心 H × .0395 − 132.6 同步改。 */
+     必须和 ScatterStage.tsx 的 PHONE_RESULT_CAP_Y = 103.4 同步改。
+     （环心常数最终按反馈「以 −132.6 那版为基准，环底到胶囊的空白减半」改成 −88，中间试过的 −150 / −96 作废。
+      只动环，胶囊和说明不动。844 高时空白约 45.6（零星像素）/ 57.6（卡片主体）。） */
   .lab .intro-stage[data-phone]:is([data-phase='reveal'], [data-phase='gather']) {
     --phone-result-top: calc(50% + 103.4px);
   }
@@ -752,7 +754,9 @@
 
   /* 体验版 Key 页：一句说明 + 网页教程链接 + 下一步 */
   .lab .intro-stage[data-phone][data-phase='key'] .capsule-card:has(.intro-key-public) { min-height: 0; }
-  .lab .intro-stage[data-phone] .intro-key-public { gap: 14px; padding-block: 8px 4px; }
+  /* 卡片左上角的工具箱图标是 absolute 的（intro.css：top 26、left 20，约 20px 高，底边约在 46），
+     说明文字原来从卡片内 20px 处开始，第一行被它压住。顶上让出 40px → 文字从 60 开始，在图标下面留约 14px。 */
+  .lab .intro-stage[data-phone] .intro-key-public { gap: 14px; padding-block: 40px 4px; }
   .lab .intro-stage[data-phone] .intro-key-public-text {
     color: var(--wm-title);
     font-size: 15px;
@@ -776,17 +780,19 @@
   .lab .intro-stage[data-phone] .home-start-cta.is-starting { transition: none; }
 }
 
-/* ===== P1 速度：Main Serif SC（约 2.8MB）延后 =====
-   第一屏画出来之前，手机上所有用到它的地方都先跳过它、落到系统宋体；ScatterStage 下完字体后给舞台挂
-   data-serif-ready，这几条就不再生效，换回原来的字体栈。电脑版没有 data-phone，不受影响。 */
+/* ===== 字体：手机引导页不加载 Main Serif SC（约 2.8MB） =====
+   手机上所有字体栈里都去掉 Main Serif SC，中文衬线只用引导页自带的 14KB 子集 Intro Serif SC，
+   子集里没有的字落到系统宋体。Main Serif SC 的 @font-face 虽然还在（IntroPage 给电脑版引入的），
+   但字体栈里没人用它，浏览器就不会去下载。电脑版没有 data-phone，不受影响。 */
 @media (width < 600px) {
-  .lab .intro-stage[data-phone]:not([data-serif-ready]) {
-    --font-family-serif: 'Songti SC', 'STSong', 'Noto Serif SC', SimSun, serif;
+  .lab .intro-stage[data-phone] {
+    --font-family-serif: 'Intro Serif SC', 'Songti SC', 'STSong', 'Noto Serif SC', SimSun, serif;
   }
-  .lab .intro-stage[data-phone]:not([data-serif-ready]) :is(.home-stair-zh .home-stair-main, .home-stair-zh strong) {
-    font-family: 'Lab Serif SC', 'Noto Serif SC', 'Songti SC', SimSun, serif;
+  .lab .intro-stage[data-phone] :is(.home-stair-zh .home-stair-main, .home-stair-zh strong) {
+    font-family: 'Lab Serif SC', 'Intro Serif SC', 'Noto Serif SC', 'Songti SC', SimSun, serif;
   }
-  .lab .intro-stage[data-phone]:not([data-serif-ready]) .intro-phone-source {
+  .lab .intro-stage[data-phone] .intro-phone-source,
+  .lab .intro-stage[data-phone] .intro-phone-wheel .intro-phone-source {
     font-family: 'Lab Newsreader', 'Intro Serif SC', 'Songti SC', 'STSong', SimSun, serif;
   }
 }

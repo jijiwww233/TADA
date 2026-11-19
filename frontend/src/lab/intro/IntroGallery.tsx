@@ -5,10 +5,20 @@ import { cardThumbnailUrl } from './cardThumbnail'
 
 /** Same component and local images as the lab's “一圈图片” group. No remote font URL. */
 export function IntroGallery({ reduced, phone = false }: { reduced: boolean; phone?: boolean }) {
-  const [speed,setSpeed]=useState(reduced?0:-2.8)
+  const [speed,setSpeed]=useState(reduced||phone?0:-2.8)
   useEffect(()=>{
     if(reduced){setSpeed(0);return}
     const started=performance.now()
+    if(phone){
+      // 手机：环刚在画布上落成这一排，转盘先停 0.6 秒，再用 1.5 秒从 0 缓缓加到巡航速度 −0.35（电脑版不变）
+      setSpeed(0)
+      const timer=setInterval(()=>{
+        const t=Math.min(1,Math.max(0,(performance.now()-started-600)/1500))
+        setSpeed(-.35*t*t*(3-2*t))
+        if(t===1)clearInterval(timer)
+      },50)
+      return()=>clearInterval(timer)
+    }
     setSpeed(-2.8)
     const timer=setInterval(()=>{
       const t=Math.min(1,(performance.now()-started)/6500)
@@ -16,7 +26,7 @@ export function IntroGallery({ reduced, phone = false }: { reduced: boolean; pho
       if(t===1)clearInterval(timer)
     },50)
     return()=>clearInterval(timer)
-  },[reduced])
+  },[reduced,phone])
   const { cards } = useImages()
   // 一圈图片也用缩略图（长边 <=1024），避免全尺寸图进 WebGL 纹理。
   const [thumbs, setThumbs] = useState<string[]>(() => cards.map(card => card.src))

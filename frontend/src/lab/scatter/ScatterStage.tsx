@@ -94,24 +94,6 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
   const startTap = useRef(0)
   const [starting, setStarting] = useState(false)
   useEffect(() => { startTap.current = 0; setStarting(false) }, [flow.state.run])
-  /**
-   * 手机：中文衬线字体 Main Serif SC（约 2.8MB）不跟首屏一起下。intro-phone.css 在没有 data-serif-ready 时
-   * 把它从字体栈里拿掉（先用系统宋体），第一屏画出来后这里才去下载，下完再挂上属性换字体——和素材库同一个思路。
-   */
-  const [serifReady, setSerifReady] = useState(false)
-  const serifRequested = useRef(false)
-  const loadPhoneSerif = () => {
-    if (serifRequested.current) return
-    serifRequested.current = true
-    const done = () => setSerifReady(true)
-    Promise.all(['300 16px "Main Serif SC"', '600 16px "Main Serif SC"'].map(font => document.fonts.load(font, '图然想起原来你收藏了这么多'))).then(done, done)
-  }
-  // 兜底：WebGL 不可用、或者第一屏迟迟画不出来，6 秒后也去下字体
-  useEffect(() => {
-    if (!phone) return
-    const id = setTimeout(loadPhoneSerif, fallback ? 0 : 6000)
-    return () => clearTimeout(id)
-  }, [phone, fallback]) // eslint-disable-line react-hooks/exhaustive-deps
   const start = () => {
     if (!phone || still) { flow.enterKey(); return }
     if (startTap.current) return
@@ -361,11 +343,16 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
         // 卷轴 → 环（clearing）和 环 → 转盘（ready 开头那 0.4 秒）也用环上的卡宽，起点/终点的缩放都是按它算的
         const phoneRing = phone && ['clearing', 'reveal', 'gather', 'ready'].includes(state.phase)
         if (phoneRing) { r.cardW = ringCardW(); r.cardH = r.cardW * plan.cardH / plan.cardW }
-        // 环心：P2-8 整组垂直居中后 = .0395H − 132.6（原来 −.2168H），推导见上面 target.y 的注释
+        // 环心：P2-8 整组垂直居中后 = .0395H − 132.6（原来 −.2168H），推导见上面 target.y 的注释。
+        // 实测环低了约 15px，常数改成 −150（环上移 17.4px，844 高时环顶约 236.3）；胶囊和说明文字不动
+        // （所以环底到胶囊的距离从 90.2 / 102.2 变成约 107.6 / 119.6）
+        // 再改（以这一条为准，上面「−150」那条作废）：以 −132.6 那版为基准，环底到胶囊的空白减半 →
+        // 90.2 / 102.2 的一半约 45 / 51，环比那版下移 44.6，常数 −132.6 → −88；
+        // 844 高时环顶约 298.3，环底到胶囊约 45.6（零星像素）/ 57.6（卡片主体），胶囊和说明仍不动
         // 手机选平台页画布是藏着的：画空白，免得卷轴卸掉、画布刚露出来的那一帧闪一下旧的散卡
         if (phone && (state.phase === 'platforms' || state.phase === 'unlock')) r.draw([], [])
         else r.draw(scene.draw(state, W, H, now, dt, lay.layers, pose, still, lay.scat, plan, lay.collect,
-          wheelCurrent, starfieldRef.current, phone ? (phoneRing ? H * .0395 - 132.6 : -H * .075) : 0, phoneRing ? .412 : .2), [])
+          wheelCurrent, starfieldRef.current, phone ? (phoneRing ? H * .0395 - 88 : -H * .075) : 0, phoneRing ? .412 : .2), [])
         if (capsule.current) {
           capsule.current.style.width = `${Math.min(W * .96, pose.width).toFixed(2)}px`
           capsule.current.style.transform = `translate(calc(-50% + ${pose.x.toFixed(2)}px), calc(-50% + ${pose.y.toFixed(2)}px))`
@@ -525,9 +512,7 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
         if(disposed)return
         resourcesReady=true;kick()
         if(phone){
-          // 第一屏已经画出来了：现在才下载中文衬线字体（Main Serif SC，约 2.8MB），下完再换上（之前用系统宋体）；
-          // 再在后台补齐其余卡片图和后几页 <img> 用的原图
-          loadPhoneSerif()
+          // 第一屏已经画出来了：在后台补齐其余卡片图和后几页 <img> 用的原图
           void r.rest.then(()=>{
             const queue=items.map(item=>item.src)
             const next=():void=>{const src=queue.shift();if(src&&!disposed)void loadImage(src).catch(()=>{}).then(next)}
@@ -543,7 +528,7 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
   }, [plan, items, still, direction, phone])
 
   return (
-    <div ref={wrap} className={`relative home-stage intro-stage home-${direction} ${english ? 'home-english' : ''}`} data-home-stage data-clean={clean ? '' : undefined} data-phone={phone ? '' : undefined} data-serif-ready={phone && serifReady ? '' : undefined} data-focusing={!typed && !phone} data-phase={flow.state.phase} data-topbar={topbar} data-key-state={flow.state.keyStatus} data-reduced={still}>
+    <div ref={wrap} className={`relative home-stage intro-stage home-${direction} ${english ? 'home-english' : ''}`} data-home-stage data-clean={clean ? '' : undefined} data-phone={phone ? '' : undefined} data-focusing={!typed && !phone} data-phase={flow.state.phase} data-topbar={topbar} data-key-state={flow.state.keyStatus} data-reduced={still}>
       <div ref={focusVeil} className="home-screen sticky top-0 overflow-hidden" style={{ background: PAPER }}>
         {/* new canvas per plan: the old renderer gives its context back (loseContext) when the plan changes */}
         <canvas key={`${direction}-${still}`} ref={canvas} className="home-card-stage absolute inset-0 size-full" hidden={fallback} />
