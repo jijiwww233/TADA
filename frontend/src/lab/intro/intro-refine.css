@@ -1,0 +1,160 @@
+/* 引导版样式。由 ScatterStage 在 intro.css / fable.css 之后引入，所以能压过它们。
+   米白、陶土橙、浅棕和黑色系文字；文字按钮与卡片使用统一圆角。
+   颜色都用 src/styles/tokens.css 的令牌（括号里的值只是令牌没加载时的兜底）。 */
+
+/* 注册教程和高级设置放在同一行。 */
+.lab .intro-stage .intro-key-links {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--wm-muted);
+}
+.lab .intro-stage .intro-key-links a { display: inline; margin-top: 0; }
+.lab .intro-stage .intro-key-links button {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: var(--wm-body);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--wm-muted);
+  transition: color 150ms ease-out;
+}
+.lab .intro-stage .intro-key-links :is(a, button):hover { color: var(--color-text-accent, oklch(0.56 0.112 42)); }
+
+/* 引导胶囊和颜色下拉沿用 lab.css / intro.css 的毛玻璃表面。 */
+.lab .intro-stage .capsule-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.lab .intro-stage .intro-platform-hint { right: var(--platform-ruler-left); }
+.lab .intro-stage .intro-platform-note {
+  margin-top: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-body);
+}
+/* 胶囊里「找图 / 要参考」选中的那一边：浅棕底、黑字，不加阴影 */
+.lab .intro-stage .capsule-thumb { box-shadow: none; }
+.lab .intro-stage .intro-key-input button { border-radius: var(--radius-icon-button); box-shadow: none; }
+.lab .intro-stage .intro-key-input button:hover:not(:disabled) { background: var(--color-action-secondary-bg); }
+.lab .intro-stage .intro-key-input button:focus-visible {
+  outline: 2px solid var(--color-focus-ring); outline-offset: 2px; box-shadow: none;
+}
+.lab .intro-stage .intro-key-input input,
+.lab .intro-stage .intro-advanced input {
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-input);
+  color: var(--color-text-primary, oklch(0.25 0.02 55));
+}
+.lab .intro-stage .intro-key-input input:focus,
+.lab .intro-stage .intro-advanced input:focus { outline: none !important; box-shadow: none; border-color: var(--color-action-primary, oklch(0.56 0.112 42)); }
+
+/* 「验证」：主要按钮——陶土橙底、白字、字重 500、扁平 */
+.lab .intro-stage .intro-key-verify {
+  min-height: var(--size-button); padding: 0 var(--space-7); border: 0; border-radius: var(--radius-button); box-shadow: none;
+  background: var(--color-action-primary, oklch(0.56 0.112 42));
+  color: var(--color-text-on-primary);
+  font-size: 14px; font-weight: 500; letter-spacing: .04em;
+  transition: background-color 150ms cubic-bezier(0, 0, 0.58, 1);
+}
+.lab .intro-stage .intro-key-verify:hover { background: var(--color-action-primary-hover, oklch(0.51 0.108 42)); }
+.lab .intro-stage .intro-key-verify:active { transform: none; background: var(--color-action-primary-active, oklch(0.47 0.104 42)); }
+.lab .intro-stage .intro-key-verify:disabled { opacity: 1; background: var(--color-action-disabled-bg, #ece8e4); color: var(--color-action-disabled-text, oklch(0.5 0.012 70)); }
+/* 「先跳过」：幽灵按钮——只有字，悬停陶土橙 */
+.lab .intro-stage .intro-key-skip { min-height: var(--size-button); border: 0; border-radius: var(--radius-button); background: transparent; color: var(--color-text-primary); font-weight: var(--font-weight-medium); text-decoration: none; }
+.lab .intro-stage .intro-key-skip:hover { color: var(--color-text-accent, oklch(0.56 0.112 42)); }
+.lab .intro-stage .intro-key-error { color: var(--color-text-danger, oklch(0.56 0.112 42)); }
+/* 胶囊右边那颗圆形「继续 / 验证」图标按钮：陶土橙圆，不加阴影 */
+.lab .intro-stage .capsule-send { background: var(--color-action-primary, oklch(0.56 0.112 42)); color: var(--color-text-on-primary); box-shadow: none; }
+.lab .intro-stage .capsule-send:hover { background: var(--color-action-primary-hover, oklch(0.51 0.108 42)); }
+.lab .intro-stage .capsule-send:active { transform: none; }
+/* 顶部「第几步」：当前那一步陶土橙实心点，其余浅棕空心圈；悬停出现的说明是平的米白小卡 */
+.lab .intro-stage .intro-progress-dot { border-color: var(--color-text-tertiary, oklch(0.5 0.012 70)); }
+.lab .intro-stage .intro-progress-label { border-color: var(--color-border-default, #dfd8d3); border-radius: 8px; color: var(--color-text-primary, oklch(0.25 0.02 55)); }
+.lab .intro-stage button:focus-visible, .lab .intro-stage input:focus-visible, .lab .intro-stage select:focus-visible { outline-color: var(--color-focus-ring, oklch(0.56 0.112 42)); }
+
+/* ---------- 收藏来源选择：三种状态只用小圆点 + 文字区分，没有框 ----------
+   · 当前选中：陶土橙小圆点 + 正常黑字「当前 · 未连接」；名字黑色
+   · 已连接：浅棕小圆点 + 「已连接」；名字黑色
+   · 未连接：没有点，只有浅色的字「未连接」；名字也是浅一档的灰 */
+.lab .intro-stage .intro-platform-name { opacity: 1; color: var(--color-text-tertiary, oklch(0.5 0.012 70)); }
+.lab .intro-stage .intro-platform-row.is-current .intro-platform-name,
+.lab .intro-stage .intro-platform-row.connected .intro-platform-name { color: var(--color-text-primary, oklch(0.25 0.02 55)); }
+.lab .intro-stage .intro-current-arrow { color: var(--color-action-primary, oklch(0.56 0.112 42)); }
+.intro-platform-state {
+  display: inline-flex; align-items: center; gap: 6px; align-self: center;
+  padding: 0; border: 0; background: none;
+  font-family: 'Lab Inter', 'Lab Sans SC', sans-serif; font-size: 12px; font-weight: 400; line-height: 1; letter-spacing: 0;
+  white-space: nowrap; color: var(--color-text-tertiary, oklch(0.5 0.012 70));
+}
+.intro-platform-state .intro-platform-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--color-status-success, #dfd8d3); }
+.intro-platform-state.is-connected { color: var(--color-text-primary, oklch(0.25 0.02 55)); }
+.intro-platform-state.is-connecting { color: var(--color-text-secondary, oklch(0.4 0.016 62)); }
+.intro-platform-state.is-current { color: var(--color-text-primary, oklch(0.25 0.02 55)); }
+.intro-platform-state.is-current .intro-platform-dot { background: var(--color-action-primary, oklch(0.56 0.112 42)); }
+
+/* 各平台的「连接」统一使用浅棕底，禁用时只减弱文字。 */
+.lab .intro-stage .intro-connect {
+  min-height: var(--size-button); padding: 0 var(--space-6); border: 0; border-radius: var(--radius-button); box-shadow: none;
+  background: var(--color-action-secondary-bg); color: var(--color-text-primary);
+  font-size: var(--font-size-body); font-weight: var(--font-weight-medium); letter-spacing: .02em;
+  transition: background-color 150ms cubic-bezier(0, 0, 0.58, 1);
+}
+.lab .intro-stage .intro-connect:hover:not(:disabled) { background: var(--color-action-secondary-hover); }
+.lab .intro-stage .intro-connect:active:not(:disabled) { background: var(--color-action-secondary-active); }
+.lab .intro-stage .intro-connect:disabled { opacity: 1; color: var(--color-action-disabled-text); cursor: not-allowed; }
+.lab .intro-stage .intro-link {
+  min-height: var(--size-button); padding: 0 var(--space-2); border-radius: var(--radius-button); font-size: var(--font-size-body); color: var(--color-text-primary, oklch(0.25 0.02 55)); text-decoration: none;
+  transition: color 150ms cubic-bezier(0, 0, 0.58, 1);
+}
+.lab .intro-stage .intro-link:hover { color: var(--color-text-accent, oklch(0.56 0.112 42)); }
+.lab .intro-stage .intro-platform-actions { font-size: 12px; color: var(--color-text-secondary, oklch(0.4 0.016 62)); }
+/* 连上以后右边那行「已连接 · N 张」：浅棕小圆点 + 黑字，不用对勾、不用绿色 */
+.lab .intro-stage .intro-platform-success { gap: 6px; color: var(--color-text-primary, oklch(0.25 0.02 55)); }
+.lab .intro-stage .intro-platform-success .intro-key-check { display: none; }
+.lab .intro-stage .intro-platform-success::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--color-status-success, #dfd8d3); }
+.lab .intro-stage .intro-ruler i.is-current { background: var(--color-action-primary, oklch(0.56 0.112 42)); }
+
+/* ---------- 「进入素材库」：主要按钮，和全站陶土橙按钮同一种 ----------
+   字重 500（不再是粗体），没有阴影；比普通按钮略大一号、左右留白多一些 */
+.lab .intro-stage .intro-enter.ds-intro-primary {
+  min-height: var(--size-button-lg); padding: 0 var(--space-8); border: 0; border-radius: var(--radius-button);
+  background: var(--color-action-primary, oklch(0.56 0.112 42)); color: var(--color-text-on-primary);
+  font-size: 16px; font-weight: 500; letter-spacing: 0.04em;
+  box-shadow: none;
+  transition: background-color 150ms cubic-bezier(0, 0, 0.58, 1);
+}
+.lab .intro-stage .intro-enter.ds-intro-primary:hover { background: var(--color-action-primary-hover, oklch(0.51 0.108 42)); }
+.lab .intro-stage .intro-enter.ds-intro-primary:active { background: var(--color-action-primary-active, oklch(0.47 0.104 42)); scale: 1; }
+.lab .intro-stage .intro-enter.ds-intro-primary:focus-visible { outline: 2px solid var(--color-focus-ring, oklch(0.56 0.112 42)); outline-offset: 3px; }
+
+/* 顶部「自动播放 / 重放 / 跳过引导」：只有字，悬停陶土橙（名字和小字仍然压到图片上自动反色） */
+.lab .intro-stage[data-clean] .intro-clean-tools button { text-decoration: none; }
+
+@media (max-width: 700px) {
+  .intro-platform-state { font-size: 11px; }
+  .lab .intro-stage .intro-platform-actions { font-size: 12px; max-width: 140px; }
+  .lab .intro-stage .intro-connect { padding-inline: var(--space-4); }
+}
+
+/* 开场时整块画面可以点（点了会自动往下推进） */
+.lab .home-screen[data-click-advance] { cursor: pointer; }
+
+/* ---------- 开场大标题「TADA! 图然想起」 ----------
+   原来的中文标题字体只裁了旧标题那几个字；新标题退到主界面那套宋体（同样是细衬线） */
+.lab .home-stair-zh .home-stair-main, .lab .home-stair-zh strong {
+  font-family: 'Lab Serif SC', 'Main Serif SC', 'Noto Serif SC', 'Songti SC', SimSun, serif;
+}
+.lab .home-stair-zh .home-stair-note { font-family: 'Lab Newsreader', serif; }

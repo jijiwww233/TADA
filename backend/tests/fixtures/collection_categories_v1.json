@@ -1,0 +1,1498 @@
+{
+  "version": "collection-fixtures/1",
+  "provenance": "48 synthetic cases; hand-authored backend claims and expected policy labels; no model or real-collection quality claim",
+  "cases": [
+    {
+      "id": "d01",
+      "scenario": "建筑展板",
+      "expected": "design_reference",
+      "input": {
+        "post": {
+          "title": "建筑展板排版案例与信息层级",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "建筑展板排版案例与信息层级",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d02",
+      "scenario": "活动海报",
+      "expected": "design_reference",
+      "input": {
+        "post": {
+          "title": "音乐节海报设计参考",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "音乐节海报设计参考",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d03",
+      "scenario": "字体",
+      "expected": "design_reference",
+      "input": {
+        "post": {
+          "title": "字体字形设计作品集",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "字体字形设计作品集",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d04",
+      "scenario": "包装",
+      "expected": "design_reference",
+      "input": {
+        "post": {
+          "title": "咖啡包装结构与标签视觉设计",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "咖啡包装结构与标签视觉设计",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d05",
+      "scenario": "UI",
+      "expected": "design_reference",
+      "input": {
+        "post": {
+          "title": "移动端UI界面设计参考",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "移动端UI界面设计参考",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d06",
+      "scenario": "品牌",
+      "expected": "design_reference",
+      "input": {
+        "post": {
+          "title": "品牌标志与视觉识别手册",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "品牌标志与视觉识别手册",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d07",
+      "scenario": "建筑视觉",
+      "expected": "design_reference",
+      "input": {
+        "post": {
+          "title": "建筑信息图与建筑视觉传达参考",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "建筑信息图与建筑视觉传达参考",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d08",
+      "scenario": "书籍版式",
+      "expected": "design_reference",
+      "input": {
+        "post": {
+          "title": "书籍目录和内页网格排版",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "书籍目录和内页网格排版",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d09",
+      "scenario": "展览视觉视频",
+      "expected": "design_reference",
+      "input": {
+        "post": {
+          "title": "展览视觉系统与海报设计，视频只看封面",
+          "description": "",
+          "platform": "xhs",
+          "is_video": true
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "展览视觉系统与海报设计，视频只看封面",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d10",
+      "scenario": "网页设计",
+      "expected": "design_reference",
+      "input": {
+        "post": {
+          "title": "网页交互界面作品案例",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "网页交互界面作品案例",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d11",
+      "scenario": "模糊标题只有界面图",
+      "expected": "design_reference",
+      "input": {
+        "post": {
+          "title": "收藏一下",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": [
+          {
+            "subject": [
+              "UI"
+            ],
+            "description": "UI设计稿，按钮层级与导航布局",
+            "layout": {},
+            "style": {},
+            "visible_text": ""
+          }
+        ]
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "images[0].description",
+              "value": "UI设计稿，按钮层级与导航布局",
+              "kind": "content"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d12",
+      "scenario": "只有文字设计参考",
+      "expected": "design_reference",
+      "input": {
+        "post": {
+          "title": "",
+          "description": "包装设计的刀版、标签信息与品牌识别案例",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.description",
+              "value": "包装设计的刀版、标签信息与品牌识别案例",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a01",
+      "scenario": "人体姿势",
+      "expected": "art_reference",
+      "input": {
+        "post": {
+          "title": "速写用的人体姿势与重心参考",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "art_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "速写用的人体姿势与重心参考",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a02",
+      "scenario": "角色服装",
+      "expected": "art_reference",
+      "input": {
+        "post": {
+          "title": "角色设定的服装结构与褶皱参考，不是购买推荐",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "art_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "角色设定的服装结构与褶皱参考，不是购买推荐",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a03",
+      "scenario": "动物",
+      "expected": "art_reference",
+      "input": {
+        "post": {
+          "title": "动物绘画用的骨骼和毛发参考",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "art_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "动物绘画用的骨骼和毛发参考",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a04",
+      "scenario": "环境照片",
+      "expected": "art_reference",
+      "input": {
+        "post": {
+          "title": "绘画场景素材：雾中森林环境照片",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "art_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "绘画场景素材：雾中森林环境照片",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a05",
+      "scenario": "光影",
+      "expected": "art_reference",
+      "input": {
+        "post": {
+          "title": "人物绘画的侧光和逆光参考",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "art_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "人物绘画的侧光和逆光参考",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a06",
+      "scenario": "材质",
+      "expected": "art_reference",
+      "input": {
+        "post": {
+          "title": "绘画用金属与布料材质表现素材",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "art_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "绘画用金属与布料材质表现素材",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a07",
+      "scenario": "构图",
+      "expected": "art_reference",
+      "input": {
+        "post": {
+          "title": "分镜构图与镜头场景绘画参考",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "art_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "分镜构图与镜头场景绘画参考",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a08",
+      "scenario": "草图",
+      "expected": "art_reference",
+      "input": {
+        "post": {
+          "title": "绘画练习的手部结构草图",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "art_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "绘画练习的手部结构草图",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a09",
+      "scenario": "化妆与艺术交界",
+      "expected": "art_reference",
+      "input": {
+        "post": {
+          "title": "人物绘画的人脸色彩与妆面参考",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "art_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "人物绘画的人脸色彩与妆面参考",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a10",
+      "scenario": "建筑场景",
+      "expected": "art_reference",
+      "input": {
+        "post": {
+          "title": "画背景用的建筑街道透视素材",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "art_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "画背景用的建筑街道透视素材",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a11",
+      "scenario": "美食摄影素材视频",
+      "expected": "art_reference",
+      "input": {
+        "post": {
+          "title": "摄影和绘画用的食物质感布光，视频只看封面",
+          "description": "",
+          "platform": "xhs",
+          "is_video": true
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "art_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "摄影和绘画用的食物质感布光，视频只看封面",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a12",
+      "scenario": "只有姿势图片分析",
+      "expected": "art_reference",
+      "input": {
+        "post": {
+          "title": "",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": [
+          {
+            "subject": [
+              "人物"
+            ],
+            "description": "用于人体速写的站姿与关节结构照片",
+            "layout": {},
+            "style": {},
+            "visible_text": ""
+          }
+        ]
+      },
+      "backend_claims": [
+        {
+          "category": "art_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "images[0].description",
+              "value": "用于人体速写的站姿与关节结构照片",
+              "kind": "content"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l01",
+      "scenario": "餐厅",
+      "expected": "life",
+      "input": {
+        "post": {
+          "title": "周末餐厅探店与人均消费",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "周末餐厅探店与人均消费",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l02",
+      "scenario": "购物",
+      "expected": "life",
+      "input": {
+        "post": {
+          "title": "电饭煲购买清单和价格推荐",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "电饭煲购买清单和价格推荐",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l03",
+      "scenario": "旅游",
+      "expected": "life",
+      "input": {
+        "post": {
+          "title": "杭州三日旅游路线与订票攻略",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "杭州三日旅游路线与订票攻略",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l04",
+      "scenario": "生活教程",
+      "expected": "life",
+      "input": {
+        "post": {
+          "title": "衣服去污和日常清洁教程",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "衣服去污和日常清洁教程",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l05",
+      "scenario": "娱乐",
+      "expected": "life",
+      "input": {
+        "post": {
+          "title": "明星娱乐八卦合集",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "明星娱乐八卦合集",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l06",
+      "scenario": "穿搭购买",
+      "expected": "life",
+      "input": {
+        "post": {
+          "title": "普通通勤穿搭购买链接和尺码建议",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "普通通勤穿搭购买链接和尺码建议",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l07",
+      "scenario": "艺术展览攻略",
+      "expected": "life",
+      "input": {
+        "post": {
+          "title": "艺术展览预约门票与排队攻略",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "艺术展览预约门票与排队攻略",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l08",
+      "scenario": "建筑旅游",
+      "expected": "life",
+      "input": {
+        "post": {
+          "title": "古建筑旅游交通住宿攻略",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "古建筑旅游交通住宿攻略",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l09",
+      "scenario": "美食探店",
+      "expected": "life",
+      "input": {
+        "post": {
+          "title": "甜品探店与菜单价格，照片很好看",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "甜品探店与菜单价格，照片很好看",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l10",
+      "scenario": "化妆生活",
+      "expected": "life",
+      "input": {
+        "post": {
+          "title": "日常化妆教程与产品购买推荐",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "日常化妆教程与产品购买推荐",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l11",
+      "scenario": "生活视频封面",
+      "expected": "life",
+      "input": {
+        "post": {
+          "title": "视频：周末餐厅探店和价格",
+          "description": "",
+          "platform": "xhs",
+          "is_video": true
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "视频：周末餐厅探店和价格",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l12",
+      "scenario": "旅游视频封面",
+      "expected": "life",
+      "input": {
+        "post": {
+          "title": "视频：旅行订票与住宿攻略",
+          "description": "",
+          "platform": "xhs",
+          "is_video": true
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "视频：旅行订票与住宿攻略",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l13",
+      "scenario": "单张海报混入探店多图",
+      "expected": "life",
+      "input": {
+        "post": {
+          "title": "餐厅探店与点单攻略",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": [
+          {
+            "subject": [],
+            "description": "菜单和消费账单",
+            "layout": {},
+            "style": {},
+            "visible_text": ""
+          },
+          {
+            "subject": [],
+            "description": "墙上的平面设计海报",
+            "layout": {},
+            "style": {},
+            "visible_text": ""
+          }
+        ]
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "餐厅探店与点单攻略",
+              "kind": "intent"
+            }
+          ]
+        },
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "images[1].description",
+              "value": "墙上的平面设计海报",
+              "kind": "content"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l14",
+      "scenario": "生活穿搭单张异常设计图",
+      "expected": "life",
+      "input": {
+        "post": {
+          "title": "通勤穿搭购买推荐",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": [
+          {
+            "subject": [],
+            "description": "通勤服装",
+            "layout": {},
+            "style": {},
+            "visible_text": ""
+          },
+          {
+            "subject": [],
+            "description": "尺码表",
+            "layout": {},
+            "style": {},
+            "visible_text": ""
+          },
+          {
+            "subject": [],
+            "description": "购买链接截图",
+            "layout": {},
+            "style": {},
+            "visible_text": ""
+          },
+          {
+            "subject": [],
+            "description": "品牌海报设计稿",
+            "layout": {},
+            "style": {},
+            "visible_text": ""
+          }
+        ]
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "通勤穿搭购买推荐",
+              "kind": "intent"
+            }
+          ]
+        },
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "images[0].description",
+              "value": "通勤服装",
+              "kind": "content"
+            }
+          ]
+        },
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "images[3].description",
+              "value": "品牌海报设计稿",
+              "kind": "content"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "u01",
+      "scenario": "模糊标题没有图片",
+      "expected": "uncertain",
+      "input": {
+        "post": {
+          "title": "好喜欢，收藏一下",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": []
+    },
+    {
+      "id": "u02",
+      "scenario": "全空证据",
+      "expected": "uncertain",
+      "input": {
+        "post": {
+          "title": "",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": []
+    },
+    {
+      "id": "u03",
+      "scenario": "排版精致只是外观",
+      "expected": "uncertain",
+      "input": {
+        "post": {
+          "title": "排版精致",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "排版精致",
+              "kind": "appearance"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "u04",
+      "scenario": "颜色好看只是外观",
+      "expected": "uncertain",
+      "input": {
+        "post": {
+          "title": "颜色好看",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "颜色好看",
+              "kind": "appearance"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "u05",
+      "scenario": "海报与绘画素材冲突",
+      "expected": "uncertain",
+      "input": {
+        "post": {
+          "title": "一些收藏",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": [
+          {
+            "subject": [],
+            "description": "包装平面设计稿",
+            "layout": {},
+            "style": {},
+            "visible_text": ""
+          },
+          {
+            "subject": [],
+            "description": "人体绘画姿势参考",
+            "layout": {},
+            "style": {},
+            "visible_text": ""
+          }
+        ]
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "images[0].description",
+              "value": "包装平面设计稿",
+              "kind": "content"
+            }
+          ]
+        },
+        {
+          "category": "art_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "images[1].description",
+              "value": "人体绘画姿势参考",
+              "kind": "content"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "u06",
+      "scenario": "环境素材与旅游攻略冲突",
+      "expected": "uncertain",
+      "input": {
+        "post": {
+          "title": "资料",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": [
+          {
+            "subject": [],
+            "description": "绘画用场景素材",
+            "layout": {},
+            "style": {},
+            "visible_text": ""
+          },
+          {
+            "subject": [],
+            "description": "旅行交通住宿攻略",
+            "layout": {},
+            "style": {},
+            "visible_text": ""
+          }
+        ]
+      },
+      "backend_claims": [
+        {
+          "category": "art_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "images[0].description",
+              "value": "绘画用场景素材",
+              "kind": "content"
+            }
+          ]
+        },
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "images[1].description",
+              "value": "旅行交通住宿攻略",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "u07",
+      "scenario": "生活标题与多张设计图冲突",
+      "expected": "uncertain",
+      "input": {
+        "post": {
+          "title": "周末餐厅探店",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": [
+          {
+            "subject": [],
+            "description": "包装设计稿",
+            "layout": {},
+            "style": {},
+            "visible_text": ""
+          },
+          {
+            "subject": [],
+            "description": "品牌标志设计稿",
+            "layout": {},
+            "style": {},
+            "visible_text": ""
+          }
+        ]
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "周末餐厅探店",
+              "kind": "intent"
+            }
+          ]
+        },
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "images[0].description",
+              "value": "包装设计稿",
+              "kind": "content"
+            }
+          ]
+        },
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "images[1].description",
+              "value": "品牌标志设计稿",
+              "kind": "content"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "u08",
+      "scenario": "帖子用途本身冲突",
+      "expected": "uncertain",
+      "input": {
+        "post": {
+          "title": "餐厅购买与探店攻略",
+          "description": "同时作为建筑视觉排版设计资料",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": []
+      },
+      "backend_claims": [
+        {
+          "category": "life",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.title",
+              "value": "餐厅购买与探店攻略",
+              "kind": "intent"
+            }
+          ]
+        },
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "post.description",
+              "value": "同时作为建筑视觉排版设计资料",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "u09",
+      "scenario": "视频封面信息不足",
+      "expected": "uncertain",
+      "input": {
+        "post": {
+          "title": "看看这个",
+          "description": "",
+          "platform": "xhs",
+          "is_video": true
+        },
+        "images": [
+          {
+            "subject": [],
+            "description": "一个模糊画面",
+            "layout": {},
+            "style": {},
+            "visible_text": ""
+          }
+        ]
+      },
+      "backend_claims": []
+    },
+    {
+      "id": "u10",
+      "scenario": "仅layout和style不能定设计用途",
+      "expected": "uncertain",
+      "input": {
+        "post": {
+          "title": "",
+          "description": "",
+          "platform": "xhs",
+          "is_video": false
+        },
+        "images": [
+          {
+            "subject": [],
+            "description": "",
+            "layout": {
+              "columns": [
+                "multi"
+              ]
+            },
+            "style": {
+              "tags": [
+                "精致"
+              ]
+            },
+            "visible_text": ""
+          }
+        ]
+      },
+      "backend_claims": [
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "images[0].layout.columns[0]",
+              "value": "multi",
+              "kind": "content"
+            }
+          ]
+        },
+        {
+          "category": "design_reference",
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "field": "images[0].style.tags[0]",
+              "value": "精致",
+              "kind": "intent"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

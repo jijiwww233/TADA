@@ -1,0 +1,152 @@
+/* 素材库主页（Library.tsx 专用）：44px 搜索行 + CSS 多列瀑布流 + 图注。
+   单独一份，不动 main.css：类名都是新的（m-sl-v2 / m-tiles / m-tile / m-tile-cap），
+   搜索行沿用 m-sl-* 的 DOM，只在 .m-sl-v2 下面覆盖字号和提示文字样式。 */
+
+/* 中文要正体：给 CJK 单独声明“斜体”字面（字形是正的），英文/数字才落到真斜体 Newsreader。
+   main.css 里已有同样两份声明，这里重复一份，保证这份 css 自己也能成立。 */
+@font-face {
+  /* 宋体子集里没有的字（例如“蓝色”）：落到系统宋体，同样是正体 */
+  font-family: 'Lab Serif Upright Fallback';
+  src: local('SimSun'), local('宋体'), local('Songti SC'), local('Noto Serif CJK SC');
+  font-weight: 300 700;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+2018-201F, U+2025-2026, U+3000-303F, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FF00-FFEF;
+}
+
+/* 搜索行保留原来的 44px 桌面字号，浮动时使用胶囊字号。 */
+.m-sl-v2 .m-sl-input {
+  font-family: var(--m-title);
+  font-style: italic;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  line-height: 1.02;
+  color: var(--m-ink);
+  font-size: var(--m-type-large);
+}
+/* 首屏品牌占位复用最初版的浅灰，实际输入仍用正文色。 */
+.m-sl-v2 .m-sl-input::placeholder {
+  font-family: var(--m-title);
+  font-style: italic;
+  font-weight: 300;
+  color: var(--color-text-search-placeholder);
+  opacity: 1;
+}
+
+/* 相册保留各列独立排布，横向 24px、纵向 28px。 */
+.m-wall-wrap { overflow-anchor: none; }
+.m-tiles { padding-top: 12px; }
+.m-tiles .react-photo-album--masonry .react-photo-album--track { row-gap: 28px; }
+.m-tile {
+  display: block; width: 100%; margin: 0; padding: 0;
+  border: 0; border-radius: 0; background: transparent; box-shadow: none;
+  text-align: left; color: inherit; cursor: pointer;
+}
+.m-tile img {
+  display: block; width: 100%; height: auto; max-width: 100%;
+  filter: brightness(1);
+  transition: filter var(--mo-fb-dur, 150ms) var(--mo-fb-ease, ease-out);
+}
+/* 悬停只轻微变暗，不缩放 */
+.m-tile:hover img, .m-tile:focus-visible img { filter: brightness(0.94); }
+.m-tile:focus-visible { outline: 1px solid var(--m-ink); outline-offset: 3px; }
+
+/* 图注（8e）：标题 14px 油墨色、来源 12px 次要色，分两行，层级统一：标题 > 来源 > 标签 */
+.m-tile-cap {
+  display: flex; flex-direction: column; gap: 2px; margin-top: var(--space-2);
+  font-family: var(--font-family-serif); line-height: var(--line-height-snug); letter-spacing: 0;
+  color: var(--color-text-primary); min-width: 0;
+}
+.m-tile-title {
+  font-size: var(--font-size-body); font-weight: var(--font-weight-regular); color: var(--color-text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.m-tile-cap .m-tile-src {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--font-size-caption); color: var(--color-text-secondary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.m-sl-anchor {
+  min-height: calc(var(--m-type-large) * 1.02 + 11px);
+  overflow-anchor: none;
+}
+.m-sl-anchor > .m-searchline {
+  position: relative;
+  top: auto;
+  background: transparent;
+  backdrop-filter: none;
+  border-radius: 0;
+}
+.m-sl-anchor > .m-searchline.is-floating {
+  position: fixed;
+  top: var(--m-topbar-height);
+  z-index: 39;
+  inset-inline: 0;
+  width: min(620px, calc(100% - 32px));
+  height: 60px;
+  margin-inline: auto;
+  border: 1px solid oklch(0.25 0.02 55 / 0.16);
+  border-radius: var(--radius-pill);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  background: color-mix(in oklab, var(--m-page) 35%, transparent);
+  box-shadow: 0 1px 2px oklch(0.3 0.03 60 / 0.04), 0 10px 28px -16px oklch(0.3 0.04 60 / 0.14);
+}
+.m-sl-v2 .m-sl-input {
+  caret-color: var(--m-clay);
+  transition: font-size var(--mo-pop-dur) var(--mo-pop-ease);
+}
+.m-sl-v2.is-floating .m-sl-in { padding-inline: 16px 9px; }
+.m-sl-v2.is-floating .m-sl-row { height: 58px; align-items: center; gap: 10px; padding: 0; }
+.m-sl-v2.is-floating .m-sl-input,
+.m-sl-v2.is-floating .m-sl-input::placeholder {
+  font-family: var(--m-ui);
+  font-size: var(--m-type-body);
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.4;
+}
+.m-sl-v2.is-floating .m-sl-input::placeholder { color: var(--m-ink-2); }
+.m-sl-v2.is-floating .m-sl-tools { padding: 0; font: 400 var(--m-type-body) var(--m-ui); }
+.m-sl-v2.is-floating .m-sl-modes {
+  gap: 0;
+  padding: 3px;
+  border-radius: 999px;
+  background: oklch(0.42 0.03 60 / 0.06);
+}
+.m-sl-v2.is-floating .m-sl-dot { display: none; }
+.m-sl-v2.is-floating .m-sl-mode {
+  height: 38px;
+  padding: 0 clamp(7px, 1.05vw, 15px);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.m-sl-v2.is-floating .m-sl-mode.is-on {
+  background: oklch(0.935 0.022 84);
+  color: oklch(0.42 0.035 72);
+}
+.m-sl-send {
+  display: grid;
+  place-items: center;
+  flex: 0 0 var(--size-control-md);
+  height: var(--size-control-md);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-action-primary);
+  color: var(--color-text-on-primary);
+  cursor: pointer;
+  box-shadow: var(--shadow-primary);
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-standard), transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-sl-send:hover { background: var(--color-action-primary-hover); }
+.m-sl-send:active { background: var(--color-action-primary-active); transform: scale(0.96); }
+@media (prefers-reduced-motion: reduce) {
+  .m-sl-v2 .m-sl-input { transition: none; }
+}
+
+
+.m-sl-v2 .m-sl-row:has(.m-sl-input:focus) + .m-sl-rule { background: var(--m-clay); }
+.m-sl-v2 .m-sl-mode::after { background: var(--m-clay); }
+.m-sl-v2.is-floating .m-sl-mode::after { display: none; }

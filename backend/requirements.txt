@@ -1,0 +1,17 @@
+fastapi>=0.115
+uvicorn[standard]>=0.32
+python-multipart>=0.0.18
+pillow>=11
+qrcode[pil]>=8.2     # render the demo's iCloud installation QR locally
+# HEIC import. pillow-heif source is BSD-3-Clause, but the official binary wheels
+# bundle libheif/libde265 (LGPLv3) and x265 (GPLv2), so a wheel is GPLv2 overall.
+# Use here is local personal use only (no redistribution); distributing this
+# project needs a permissive build or a commercial licence.
+pillow-heif>=1.8
+python-dotenv>=1.0
+httpx>=0.27          # OpenAI-compatible vision calls
+playwright>=1.45     # xhs sync reader; drives the local Chrome (no `playwright install`)
+requests>=2.31       # vendor/pinterest scripts (pinterest_fetch.py / pinterest_reader.py)
+
+# tests
+pytest>=8

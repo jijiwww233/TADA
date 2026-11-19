@@ -1,0 +1,173 @@
+/* /lab only. Tailwind without preflight so the global reset never reaches other pages.
+   Utilities are unlayered on purpose: the app's global CSS is unlayered and would otherwise always win. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css";
+@import "./fonts/fonts.css";
+@source "./";
+
+/* Round 3: warm black like printing ink (OKLCH L≈0.25, a touch of brown), warm paper, tracing-paper surfaces.
+   --paper-h is the warmest strong hue of the collection (set by Lab.tsx from the images; 80 = fallback). */
+.lab {
+  --paper-h: 80;
+  --ink: oklch(0.25 0.02 55);
+  --ink-2: oklch(0.45 0.017 62);
+  --ink-3: oklch(0.63 0.012 70);
+  --line: oklch(0.915 0.008 80);
+  --page: oklch(0.984 0.0045 85);
+  --on-ink: oklch(0.975 0.01 85);
+  /* Round 4 clay: the rust of the user's poster (04.jpg, #9f4520 = oklch 0.50 0.13 41), a touch lighter and less
+     saturated. The one solid accent on the page: the send button (used through --wm-accent). */
+  --clay: oklch(0.56 0.112 42);
+  --clay-hover: oklch(0.51 0.108 42);
+  /* Colour variables (--wm-*): one place for every text colour and both accents. Picked in round 5:
+     text = 油墨 (the near-black ink of 02.jpg, h 75), second accent = B 旧纸 (05.jpg / 10.jpg). */
+  /* 设计系统整理：文字色和主操作色接到 src/styles/tokens.css（小字对比度 ≥ 4.5） */
+  --wm-title: var(--color-text-primary);    /* big title */
+  --wm-body: var(--color-text-secondary);   /* body text, subtitle */
+  --wm-muted: var(--color-text-tertiary);   /* small labels, placeholder（原来 0.62 只有约 3.4:1） */
+  --wm-input: var(--wm-title);        /* what the user types in the capsule: the same ink as the title */
+  --wm-accent: var(--color-action-primary);           /* the one solid accent: send */
+  --wm-accent-hover: var(--color-action-primary-hover);
+  --wm-on-accent: var(--color-text-on-primary);       /* icon / text on the accent */
+  /* 第三版配色：第二强调色 = 浅棕底 + 黑字，不描边；页面底统一成最初版主界面的米白 */
+  --wm-soft-bg: var(--color-action-secondary-bg);   /* second accent: the selected 找图 / 要参考 pill */
+  --wm-soft-text: var(--color-text-primary);
+  --wm-soft-edge: transparent;
+  --page: var(--color-bg-page);
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --font-ui: 'Lab Inter', 'Lab Sans SC', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-title: 'Lab Newsreader', 'Lab Serif SC', serif;
+  --shadow-1: 0 2px 2px oklch(0.3 0.03 60 / 0.04), 0 8px 8px -8px oklch(0.3 0.03 60 / 0.05);
+  --shadow-2: 0 2px 2px oklch(0.3 0.03 60 / 0.04), 0 8px 16px -4px oklch(0.3 0.03 60 / 0.05);
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.15' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .32 0 0 0 0 .26 0 0 0 0 .2 0 0 0 1.6 -.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  min-height: 100vh;
+  overflow-x: clip; /* full-bleed stages use 100vw; clip (not hidden) keeps position: sticky working */
+  background: var(--page);
+  color: var(--ink);
+  font: 15px/1.55 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+.lab h1, .lab h2, .lab h3 { text-wrap: balance; margin: 0; }
+.lab p { text-wrap: pretty; margin: 0; }
+.lab a { color: inherit; }
+.lab .num { font-variant-numeric: tabular-nums; }
+.lab button { font: inherit; }
+
+/* ---- Tracing paper (replaces the glossy glass): matte, warm white, fine grain, no shine, no highlight edge.
+   Still see-through: what is behind shows as soft colour. Only the capsule and panels use backdrop-filter. ---- */
+.paper, .capsule, .capsule-panel {
+  position: relative;
+  isolation: isolate;
+  background: oklch(0.972 0.016 var(--paper-h) / 0.6);
+  backdrop-filter: blur(18px) saturate(0.8);
+
+  border: 1px solid oklch(0.45 0.03 var(--paper-h) / 0.07); /* a faint dark fibre edge, never a white highlight */
+  box-shadow: 0 1px 2px oklch(0.3 0.03 60 / 0.05), 0 14px 34px -14px oklch(0.3 0.04 60 / 0.16);
+}
+.paper::after, .capsule::after, .capsule-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: var(--grain);
+  background-size: 140px;
+  opacity: 0.28; /* the noise itself is sparse and low-alpha (see the colour matrix): a fine, faint grain */
+}
+/* Round 4: the capsule body is clear — no tint, no grain, no colour under it; just a fine ink edge.
+   (A light backdrop blur keeps the words readable when cards pass behind it on the first screen.) */
+.lab .capsule {
+  height: 60px; border-radius: 999px; transition: box-shadow 150ms var(--ease);
+  background: transparent;
+  backdrop-filter: blur(14px);
+  border: 1px solid oklch(0.25 0.02 55 / 0.16);
+  box-shadow: 0 1px 2px oklch(0.3 0.03 60 / 0.04), 0 10px 28px -16px oklch(0.3 0.04 60 / 0.14);
+}
+.lab .capsule::after { display: none; }
+.capsule-panel { border-radius: 18px; background: oklch(0.975 0.014 var(--paper-h) / 0.88); } /* a panel carries content: more opaque */
+.capsule:focus-within {
+  box-shadow: 0 0 0 4px oklch(0.975 0.01 85 / 0.8), 0 0 0 6px oklch(0.25 0.02 55 / 0.16), 0 14px 34px -14px oklch(0.3 0.04 60 / 0.18);
+}
+.capsule { color: var(--wm-input); }
+.capsule input { background: transparent; border: 0; outline: 0; color: var(--wm-input); font: inherit; min-width: 0; }
+.capsule input::placeholder { color: var(--wm-muted); opacity: 1; }
+
+/* Hierarchy: send (solid clay) > selected mode (light warm pill, clay text) > everything else (ink-2, no fill).
+   找图 / 要参考: a faint track; the selected side is a pale warm pill with clay text — never black. */
+.capsule-track { padding: 3px; border-radius: 999px; background: oklch(0.42 0.03 60 / 0.06); }
+.capsule-thumb { border-radius: 999px; background: var(--wm-soft-bg); box-shadow: 0 0 0 1px var(--wm-soft-edge), 0 1px 2px oklch(0.3 0.04 60 / 0.07); }
+.capsule-seg {
+  height: 38px; padding: 0 15px; border: 0; border-radius: 999px; background: transparent; cursor: pointer;
+  font-size: 13.5px; font-weight: 500; color: var(--wm-body);
+  transition: color 150ms var(--ease), transform 150ms var(--ease);
+}
+.capsule-seg.is-on { color: var(--wm-soft-text); }
+.capsule-seg:not(.is-on):hover { color: var(--wm-title); }
+.capsule-seg:active, .capsule-icon-btn:active, .capsule-send:active, .lab-btn-primary:active, .lab-btn:active { transform: scale(0.96); }
+.capsule-icon-btn, .capsule-send {
+  display: grid; place-items: center; flex-shrink: 0; width: 40px; height: 40px; border: 0; border-radius: 999px; cursor: pointer;
+  transition: background-color 150ms var(--ease), color 150ms var(--ease), transform 150ms var(--ease);
+}
+.capsule-icon-btn { background: transparent; color: var(--wm-body); }
+.capsule-icon-btn:hover, .capsule-icon-btn.is-on { background: oklch(0.42 0.03 60 / 0.09); color: var(--wm-title); }
+.capsule-send { background: var(--wm-accent); color: var(--wm-on-accent); box-shadow: 0 1px 2px oklch(0.4 0.1 42 / 0.3), 0 4px 10px -4px oklch(0.45 0.11 42 / 0.45); }
+.capsule-send:hover { background: var(--wm-accent-hover); }
+.capsule-icon { color: var(--wm-body); }
+
+.lab svg[role='slider']:focus { outline: 0; }
+.lab svg[role='slider']:focus-visible { outline: 2px solid oklch(0.25 0.02 55 / 0.35); outline-offset: 2px; border-radius: 50%; }
+.lab :is(.capsule-seg, .capsule-icon-btn, .capsule-send, .lab-btn, .lab-btn-primary, a, input[type='checkbox']):focus-visible {
+  outline: 0; box-shadow: 0 0 0 2px var(--page), 0 0 0 4px oklch(0.25 0.02 55 / 0.4);
+}
+.lab-btn-primary {
+  height: 40px; padding: 0 22px; border: 0; border-radius: 999px; background: var(--ink); color: var(--on-ink); cursor: pointer;
+  font-size: 14px; font-weight: 500; box-shadow: var(--shadow-1); transition: opacity 150ms var(--ease), transform 150ms var(--ease);
+}
+.lab-btn {
+  height: 28px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink-2); cursor: pointer;
+  font-size: 12.5px; transition: color 150ms var(--ease), background-color 150ms var(--ease), transform 150ms var(--ease);
+}
+.lab-btn:hover { color: var(--ink); }
+.lab-btn.is-on { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+
+/* ---- Round 4 headline: a very large Light serif is the hero, lines packed until they almost touch; 明明 Bold.
+   The other language is one clear step smaller. Newsreader's optical size follows the font size (display cut). ---- */
+.hl { color: var(--wm-title); }
+.hl-small { color: var(--wm-body); }
+/* 近焦: the frosted patch under the pointer (Fog in reveal.tsx); 1.5em of the big title, soft round edge */
+.hl-fog {
+  position: absolute; left: 0; top: 0; width: 1.5em; height: 1.5em; border-radius: 50%; pointer-events: none;
+  opacity: 0; transition: opacity 200ms var(--ease); will-change: transform;
+  -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+  -webkit-mask-image: radial-gradient(closest-side, #000 35%, transparent); mask-image: radial-gradient(closest-side, #000 35%, transparent);
+}
+.hl-big { font-family: var(--font-title); font-weight: 300; font-size: var(--hl); font-optical-sizing: auto; margin: 0; text-wrap: nowrap; }
+.hl--zh .hl-big { line-height: 1.02; letter-spacing: -0.01em; }
+.hl--en .hl-big { line-height: 0.86; letter-spacing: -0.028em; }
+.hl-b { font-weight: 700; }
+.hl-small { font-family: var(--font-title); font-weight: 300; margin: 0; }
+.hl--zh .hl-small { font-size: calc(var(--hl) * 0.25); line-height: 1.2; margin-top: calc(var(--hl) * 0.2); letter-spacing: -0.005em; }
+.hl--en .hl-small { font-size: calc(var(--hl) * 0.24); line-height: 1.3; margin-top: calc(var(--hl) * 0.22); }
+.hl--en .hl-small .hl-b { font-weight: 600; }
+
+/* ---- first screen: small labels — one tiny sans style only, as few as possible ---- */
+.xs-type { color: var(--ink); font-family: var(--font-ui); }
+.xs-row { display: flex; gap: 14px; font-size: 10px; line-height: 1.3; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
+.xs-fade { opacity: calc(1 - var(--neat, 0) * 0.85); } /* labels step back once the wall forms */
+/* the big headline gives the stage to the wall: it fades out (drifting up a little) while the wall is up, back once collected */
+.xs-hero { opacity: calc(1 - var(--wall, 0)); transform: translateY(calc(var(--wall, 0) * -16px)); }
+
+/* Card corner meta (fonts group): two small styles, switchable */
+.meta-caps { font: 500 9px/1.2 'Lab Inter', 'Lab Sans SC', sans-serif; letter-spacing: 0.08em; text-transform: uppercase; }
+.meta-mono { font: 400 9.5px/1.2 'Lab Mono', 'Lab Sans SC', monospace; letter-spacing: 0.01em; text-transform: uppercase; }
+
+/* Hand-made ring (unchanged this round): 40s per turn. */
+@keyframes ring-spin { to { transform: rotateX(-8deg) rotateY(-360deg); } }
+.lab-ring { animation: ring-spin 40s linear infinite; transform: rotateX(-8deg); }
+
+.lab--reduced *, .lab--reduced *::before, .lab--reduced *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) {
+  .lab *, .lab *::before, .lab *::after { animation-play-state: paused !important; }
+}
+

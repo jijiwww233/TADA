@@ -1,0 +1,121 @@
+/* 「引导版」新增的样式，全部挂在 .m-refine 下；?refine=0 时根节点没有这个类，原样不变。
+   字体、字号、颜色、动画曲线都沿用原有变量：衬线小字 --m-type-body / --m-type-ui，陶土色 --m-clay，0.8s ease。 */
+
+/* ---------- 搜索行：空闲时也有一根光标在跳 ---------- */
+.m-refine .m-sl-row { position: relative; }
+.m-sl-fakecaret {
+  position: absolute;
+  left: 0;
+  bottom: calc(10px + var(--m-type-large) * 0.12);
+  width: 1.5px;
+  height: calc(var(--m-type-large) * 0.82);
+  background: var(--m-clay);
+  pointer-events: none;
+  animation: m-caret-blink 1.06s steps(1, end) infinite;
+}
+@keyframes m-caret-blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .m-sl-fakecaret { animation: none; } }
+
+/* ---------- 搜索行：聚焦后，品牌句后面淡入一行可以点的中文示例 ----------
+   层级刻意和右边「找图 · 要参考」拉开：小一号（12px）、更淡、不加下划线、用「」括起来像“例句”；
+   位置跟在品牌句后面（属于输入框），和右边的模式开关隔开一大段。
+   定位：整行盖在输入框上（左对齐、底边对齐搜索行的 10px 内边距），最前面是一段看不见的品牌句占位，
+   字体和输入框一模一样，所以例句永远从品牌句末尾 + 40px 开始，并且和品牌句同一条基线。 */
+.m-sl-examples {
+  position: absolute;
+  left: 0;
+  bottom: 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-family: var(--m-title);
+  /* 14px：12px 看不清，16px 抢「找图 · 要参考」；和右边同字号，靠位置、颜色、「」和常规字重区分 */
+  font-size: var(--m-type-body);
+  line-height: 1;
+  color: var(--m-ink-3);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+  transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.m-sl-examples.is-on { opacity: 1; transform: none; pointer-events: auto; }
+.m-sl-ghost {
+  visibility: hidden;
+  margin-right: 40px;
+  font-family: var(--m-title);
+  font-style: italic;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  line-height: 1.02;
+  font-size: var(--m-type-large);
+}
+.m-sl-examples-lead { margin-right: 4px; font-style: italic; }
+.m-app .m-sl-example {
+  padding: 0; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-weight: 400; color: var(--m-ink-2);
+  text-decoration: underline transparent; text-underline-offset: 3px; text-decoration-thickness: 1px;
+  transition: color 200ms ease, text-decoration-color 200ms ease;
+}
+.m-app .m-sl-example:hover, .m-app .m-sl-example:focus-visible { color: var(--m-clay); text-decoration-color: currentColor; outline: none; }
+@media (prefers-reduced-motion: reduce) { .m-sl-examples { transition: none; transform: none; } }
+/* 窄屏只留第一个示例，再窄就整行不显示（输入框要留出地方打字） */
+@media (max-width: 1360px) { .m-sl-examples .m-sl-example-more { display: none; } }
+@media (max-width: 960px) { .m-sl-examples { display: none; } }
+
+/* ---------- 高频动画压短：曲线和动作都不变，只是不用等 ----------
+   原来：菜单每行文字 1s + 每行错开 150ms（6 行的菜单最后一行 1.75s 才到位，筛选菜单要 2.6s）；
+   切换下划线 0.8s；文字滚动 0.8s。现在：菜单文字 0.45s、错开 40ms；切换 0.3s；滚动 0.36s。 */
+.m-refine .m-gm-rule, .m-refine .m-gm-row::after, .m-refine .m-gm-text { transition-duration: 300ms; }
+.m-refine .m-gm.is-open .m-gm-rule { transition: transform 450ms var(--gm-ease); }
+.m-refine .m-gm.is-open .m-gm-row::after { transition: transform 450ms var(--gm-ease) calc((var(--i) + 1) * 30ms); }
+.m-refine .m-gm.is-open .m-gm-text { transition: transform 450ms var(--gm-ease) calc(var(--i) * 40ms); }
+.m-refine .m-gm-foot { transition-duration: 300ms; }
+.m-refine .m-gm.is-open .m-gm-foot { transition: opacity 400ms var(--gm-ease) 200ms; }
+.m-refine .m-gm-row:hover .m-gm-label { transition-duration: 300ms; }
+
+.m-refine .m-hb.m-state-switch,
+.m-refine .m-sl-v2 .m-sl-mode,
+.m-refine .m-hb.m-state-switch::after,
+.m-refine .m-sl-v2 .m-sl-mode::after { transition-duration: 300ms; }
+
+.m-refine .m-roll-label > span { animation-duration: 360ms !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* :is() 里不能放 ::after，所以伪元素单独写 */
+  .m-refine :is(.m-gm-rule, .m-gm-text, .m-gm-foot, .m-gm-label),
+  .m-refine .m-gm.is-open :is(.m-gm-rule, .m-gm-text, .m-gm-foot),
+  .m-refine .m-gm-row::after, .m-refine .m-gm.is-open .m-gm-row::after { transition: none; }
+}
+
+/* ---------- 详情：「找相似」「找同色」并排 ---------- */
+.m-refine .m-ld-finds { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 23px; }
+.m-refine .m-ld-finds .m-ld-similar { margin-top: 0; }
+.m-refine .m-ld-samecolor {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  background: transparent; color: var(--m-ink); box-shadow: inset 0 0 0 1px var(--m-ink);
+}
+.m-refine .m-ld-samecolor:hover { background: oklch(0.25 0.02 55 / 0.06); }
+.m-ld-samecolor-dot { width: 9px; height: 9px; border-radius: 2px; box-shadow: inset 0 0 0 1px oklch(0.3 0.02 60 / 0.15); transition: background 200ms ease; }
+/* 当前主色的标记沿用详情右栏分隔线的墨色。 */
+.m-refine .m-ld-colors button { position: relative; }
+.m-refine .m-ld-colors button.is-on::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -4px; height: 1px; background: var(--m-ink);
+}
+
+/* ---------- 要参考：勾选圈常驻（半透明），不用先悬停才发现能选 ---------- */
+.m-refine .m-pick { opacity: 0.6; }
+.m-refine .m-ref-cell:hover .m-pick, .m-refine .m-ref-cell.is-picked .m-pick { opacity: 1; }
+.m-refine .m-result-line .m-pick-hint { color: var(--m-ink-3); font-style: italic; }
+
+.m-app.m-refine .m-ref-examples { grid-template-columns: minmax(0, 240px); }
+.m-app.m-refine .m-ref-col .m-ref-reason {
+  display: block;
+  margin: 10px 0 0;
+  color: var(--m-ink-2);
+  font-size: var(--m-type-ui);
+  line-height: 1.6;
+}
+
+/* ---------- 顶栏「导入 +」用的隐藏文件框 ---------- */
+.m-import-file { display: none; }

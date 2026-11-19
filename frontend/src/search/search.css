@@ -1,0 +1,9 @@
+.search-panel { border-block: 1px solid var(--border); margin: 16px 0; padding: 12px 0; }
+.search-panel form { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+.search-panel label { display: flex; flex-direction: column; gap: 4px; }
+.search-panel input { font: inherit; width: 300px; max-width: 100%; }
+.search-panel button { min-height: 36px; }
+.workspace-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr)); gap: 12px; padding-left: 24px; }
+.workspace-cards > li { min-width: 0; }
+.workspace-preview { display: block; width: 100%; border: 1px solid var(--border); padding: 4px; background: none; cursor: pointer; }
+.workspace-preview img { display: block; width: 100%; height: 180px; object-fit: contain; }

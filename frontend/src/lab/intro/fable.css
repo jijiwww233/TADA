@@ -1,0 +1,58 @@
+/* Fable 这一轮对引导页的调整都放在这个文件里，排在 intro.css 之后加载。 */
+
+/* ---- /intro 干净入口：顶上照主界面顶栏，没有背景，左名字、右三个小字 ---- */
+.intro-stage[data-clean] .intro-topbar { height: 73px; padding: 22px max(22px, 1.5vw) 0; align-items: flex-start; justify-content: space-between; overflow: visible; }
+.intro-stage[data-clean] .intro-masthead { display: none; }
+.intro-brand { display: inline-flex; align-items: center; height: 26px; font-family: 'Lab Newsreader', 'Lab Serif SC', serif; font-size: 16px; font-weight: 600; letter-spacing: -.01em; color: var(--wm-title); white-space: nowrap; }
+.intro-clean-tools { display: flex; align-items: center; gap: 7px; height: 26px; font-family: 'Lab Newsreader', 'Intro Serif SC', 'Lab Serif SC', serif; font-size: 14px; line-height: 1; color: var(--wm-muted); white-space: nowrap; }
+.lab .intro-clean-tools button { padding: 0 0 3px; border: 0; background: none; color: var(--wm-muted); cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; transition: color 150ms ease-out; }
+.lab .intro-clean-tools button:hover { color: var(--wm-title); }
+.lab .intro-clean-tools button[aria-pressed='true'] { color: var(--wm-title); text-decoration-color: var(--wm-accent); }
+/* 名字和小字压到图片上时自动反色（和主界面顶栏同一个办法），纸面上还是油墨色 */
+.intro-stage[data-clean] .intro-topbar { mix-blend-mode: difference; }
+.intro-stage[data-clean] .intro-brand { color: #fff; }
+.intro-stage[data-clean] .intro-clean-tools { color: #8d8d8d; }
+.lab .intro-stage[data-clean] .intro-clean-tools button { color: #8d8d8d; }
+.lab .intro-stage[data-clean] .intro-clean-tools button:hover,
+.lab .intro-stage[data-clean] .intro-clean-tools button[aria-pressed='true'] { color: #fff; text-decoration-color: currentColor; }
+
+/* ---- 钥匙页：回到原来的白框卡片和原来的字体，只把主次拉开——
+        一眼先看到输入框，再看到一颗实心的“验证”，“先跳过”退成一行小字，最底下是小注。
+        同一句“粘贴你的 API key”不再写两遍，“或”字去掉。 ---- */
+.lab .intro-stage .intro-key-label { font-size: 13px; font-weight: 600; color: var(--wm-title); }
+.lab .intro-stage .intro-key-input input { font-size: 15px; }
+.lab .intro-stage .intro-key-input input::placeholder { color: var(--wm-muted); opacity: .75; }
+.lab .intro-stage .intro-key-verify { min-height: 44px; border: 0; background: var(--wm-accent); color: var(--wm-on-accent); font-size: 14px; letter-spacing: .08em; transition: background-color 180ms ease-out, transform 180ms cubic-bezier(.22,1,.36,1); }
+.lab .intro-stage .intro-key-verify:hover { background: var(--wm-accent-hover); }
+.lab .intro-stage .intro-key-verify:active { transform: scale(.97); }
+.lab .intro-stage .intro-key-verify:disabled { opacity: .6; }
+.lab .intro-stage .intro-key-skip { align-self: center; width: auto; min-height: 0; height: 22px; padding: 0; border: 0; border-radius: 0; background: none; font-size: 12px; font-weight: 400; line-height: 22px; color: var(--wm-body); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; text-decoration-color: var(--wm-muted); transition: color 150ms ease-out; }
+.lab .intro-stage .intro-key-skip:hover { color: var(--wm-title); }
+.lab .intro-stage .intro-key-error { font-size: 12px; line-height: 18px; color: var(--wm-accent); }
+.lab .intro-stage .intro-key-footer { font-size: 11px; }
+
+/* ---- 节奏：把各处 1.1 秒左右的淡入淡出和排队等待压短（时长表在 copy.ts 的 PHASE_MS / DEMO_MS） ---- */
+.intro-stage .home-type, .intro-stage .home-foreground { transition-duration: 450ms; }
+.intro-stage .capsule { transition: background-color 450ms ease; }
+.intro-stage .capsule-field { transition: opacity 350ms ease; }
+.intro-stage .capsule-presenting > .capsule-send { transition: top 550ms cubic-bezier(.22,1,.36,1), right 550ms cubic-bezier(.22,1,.36,1), background-color 150ms ease; }
+.intro-key-title { transition-duration: 800ms; }
+.intro-key-form { transition-duration: 250ms; }
+.intro-key-form > * { animation-duration: 350ms; animation-delay: 560ms; }
+.intro-key-form > :nth-last-child(4) { animation-delay: 520ms; }
+.intro-key-form > :nth-last-child(3) { animation-delay: 480ms; }
+.intro-key-form > :nth-last-child(2) { animation-delay: 440ms; }
+.intro-key-form > :last-child { animation-delay: 400ms; }
+.intro-key-form > :nth-last-child(n+5) { animation-delay: 560ms; }
+.intro-stage .capsule-field > input { animation-delay: 300ms; }
+.intro-advanced { transition-duration: 380ms; transition-timing-function: cubic-bezier(.22,1,.36,1); }
+.intro-advanced.is-open label, .intro-advanced.is-open label:nth-child(2) { animation-duration: 300ms; animation-delay: 160ms; }
+.intro-platform-panel, .intro-platform-panel.is-clearing, .intro-platform-panel.is-gathering { transition-duration: 450ms; }
+.intro-platform-name, .intro-platform-row.is-current .intro-platform-name, .intro-platform-row.connected .intro-platform-name { transition: font-size 320ms cubic-bezier(.22,1,.36,1); }
+.intro-current-arrow { transition-duration: 180ms; }
+.intro-stage[data-phase='gather'] .intro-totals { animation-duration: 1300ms; }
+.intro-stage[data-phase='gather'] .home-capsule { animation: intro-capsule-out 600ms 600ms ease both; }
+.intro-stage[data-phase='ready'] .home-capsule { animation: intro-capsule-continue 500ms 400ms ease both; }
+.intro-stage[data-phase='ready'] .capsule-seg, .intro-stage[data-phase='ready'] .capsule-field > input { animation-delay: 700ms; }
+.intro-stage[data-phase='ready'] .intro-enter { animation-duration: 450ms; animation-delay: 1500ms; }
+.intro-main { transition-duration: 600ms; }

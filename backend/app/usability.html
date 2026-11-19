@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>能否使用 · 我明明收藏过</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#1f2937;background:#f7f7f5}
+*{box-sizing:border-box}body{margin:0}
+.top{padding:14px 20px;background:#fff;border-bottom:1px solid #ddd}
+h1{font-size:18px;margin:0 0 4px}
+.muted{color:#667085;font-size:13px}
+.main{padding:16px;max-width:1500px;margin:auto}
+.panel{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:16px}
+.summary{display:flex;gap:22px;flex-wrap:wrap;font-size:13px;margin-top:6px}
+.summary b{font-size:15px}
+.task h2{font-size:16px;margin:0 0 2px}
+.col{margin:14px 0 0;border-top:1px solid #eee;padding-top:10px}
+.col h3{font-size:14px;margin:0 0 8px;display:flex;gap:8px;align-items:center}
+.badge{font-size:11px;border-radius:999px;padding:1px 8px;background:#f0f0f0;color:#667085;font-weight:400}
+.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.card{border:2px solid #ddd;border-radius:9px;overflow:hidden;background:#fff;display:flex;flex-direction:column;margin:0}
+.card img{width:100%;height:165px;object-fit:cover;background:#eee;display:block}
+.card .meta{padding:6px 8px;font-size:12px;color:#475467;line-height:1.4;flex:1}
+.card .meta .id{font-weight:700;color:#111}
+.card .vote{display:flex;gap:6px;padding:6px 8px 9px}
+.card .vote button{flex:1;font:inherit;font-size:12px;padding:5px 0;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer}
+.card .vote button.on.yes{background:#067647;border-color:#067647;color:#fff}
+.card .vote button.on.no{background:#b42318;border-color:#b42318;color:#fff}
+.card.voted-yes{border-color:#067647}.card.voted-no{border-color:#b42318}
+.status{font-size:13px;color:#067647;min-height:18px}.err{color:#b42318}
+</style>
+</head>
+<body>
+<div class="top"><h1>能否使用 · create 三栏结果</h1>
+<p class="muted" id="source">读取中…</p></div>
+<div class="main">
+<section class="panel"><strong>可用率（能用数 / 展示数）</strong><div class="summary" id="summary"></div>
+<p class="muted">点每张图下面的「能用 / 不能用」；再点一次取消。点击即保存到 eval/usability.json。未点评的图也算展示，因此留在分母里。</p>
+<p role="status" id="status" class="status"></p></section>
+<div id="tasks"></div>
+</div>
+<script>
+var data = null;
+function $(id){return document.getElementById(id)}
+function pct(rate){return rate==null?'—':(rate*100).toFixed(1)+'%'}
+function status(text, error){var el=$('status');el.textContent=text;el.className=error?'status err':'status'}
+function renderSummary(summary){
+  var el=$('summary'); el.replaceChildren();
+  [['layout','排版'],['palette','配色'],['style','风格']].forEach(function(pair){
+    var b=summary[pair[0]]||{};
+    var box=document.createElement('span');
+    box.innerHTML='<div>'+pair[1]+'</div><b>'+pct(b.rate)+'</b><div class="muted">能用 '+(b.usable||0)+' / 展示 '+(b.displayed||0)+'（未评 '+(b.unvoted||0)+'）</div>';
+    el.append(box);
+  });
+  var o=summary.overall||{};
+  var box=document.createElement('span');
+  box.innerHTML='<div><b>整体</b></div><b>'+pct(o.rate)+'</b><div class="muted">能用 '+(o.usable||0)+' / 展示 '+(o.displayed||0)+'（未评 '+(o.unvoted||0)+'）</div>';
+  el.append(box);
+}
+function render(){
+  $('tasks').replaceChildren();
+  (data.tasks||[]).forEach(function(task){
+    var panel=document.createElement('section'); panel.className='panel task';
+    var h=document.createElement('h2'); h.textContent=task.query; panel.append(h);
+    var sub=document.createElement('p'); sub.className='muted';
+    sub.textContent='task '+task.id+' · '+task.split; panel.append(sub);
+    task.columns.forEach(function(column){
+      var col=document.createElement('div'); col.className='col';
+      var title=document.createElement('h3'); title.textContent=column.label;
+      var badge=document.createElement('span'); badge.className='badge'; badge.textContent=column.status||'';
+      title.append(badge); col.append(title);
+      var grid=document.createElement('div'); grid.className='items';
+      column.items.forEach(function(item){ grid.append(card(task,column,item)) });
+      col.append(grid); panel.append(col);
+    });
+    $('tasks').append(panel);
+  });
+}
+function card(task,column,item){
+  var box=document.createElement('figure'); box.className='card'+(item.usable===true?' voted-yes':item.usable===false?' voted-no':'');
+  var img=document.createElement('img'); img.src=item.url; img.alt='图片 '+item.image_id; img.loading='lazy';
+  var meta=document.createElement('figcaption'); meta.className='meta';
+  var id=document.createElement('div'); id.className='id'; id.textContent='#'+item.image_id;
+  var point=document.createElement('div'); point.textContent=item.reference_point||'（无借鉴点说明）';
+  var scope=document.createElement('div'); scope.className='muted'; scope.textContent=item.media_scope==='cover_and_description'?'视频封面':'图片';
+  meta.append(id,point,scope);
+  var votes=document.createElement('div'); votes.className='vote';
+  votes.append(voteButton(task,column,item,true,'能用'),voteButton(task,column,item,false,'不能用'));
+  box.append(img,meta,votes);
+  return box;
+}
+function voteButton(task,column,item,usable,label){
+  var b=document.createElement('button'); b.type='button'; b.textContent=label;
+  b.setAttribute('aria-label',label+' 图片 '+item.image_id);
+  if(item.usable===usable){b.className='on '+(usable?'yes':'no')}
+  b.onclick=function(){ vote(task,column,item,item.usable===usable?null:usable) };
+  return b;
+}
+async function vote(task,column,item,usable){
+  try{
+    var r=await fetch('/api/usability/vote',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({task_id:task.id,panel:column.panel,image_id:item.image_id,usable:usable})});
+    var body=await r.json();
+    if(!r.ok)throw new Error((body.detail&&body.detail.message)||'保存失败');
+    item.usable=usable; render(); renderSummary(body.summary);
+    status(usable===true?'已记：能用 #'+item.image_id:usable===false?'已记：不能用 #'+item.image_id:'已取消 #'+item.image_id);
+  }catch(e){status('保存失败：'+e.message,true)}
+}
+(async function(){
+  try{
+    var r=await fetch('/api/usability/data'); var body=await r.json();
+    if(!r.ok) throw new Error('读取失败');
+    data=body; var src=body.source||{};
+    $('source').textContent='来源：'+(src.responses||'')+' · '+(src.note||'');
+    renderSummary(body.summary); render();
+  }catch(e){status('读取失败：'+e.message,true)}
+})();
+</script>
+</body></html>

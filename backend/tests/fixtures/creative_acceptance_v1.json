@@ -1,0 +1,1831 @@
+{
+  "version": "acceptance/1",
+  "provenance": {
+    "find": "D retrieval_v2/out/eval_results.json: flash + D + 1024, recorded Top5 only; replay is not a new embedding run",
+    "create": "Synthetic hand-authored fields and similarity-group annotations; no real-library quality claim"
+  },
+  "find_catalog": [
+    "ov-15af705c",
+    "ov-15d5b557",
+    "ov-4011423d",
+    "ov-424537a4",
+    "ov-43efcef0",
+    "ov-49ebaaf2",
+    "ov-76d1c73d",
+    "ov-840801c3",
+    "ov-84e486b9",
+    "ov-88dc4957",
+    "ov-91733a05",
+    "ov-931f852e",
+    "ov-9cf7e0f6",
+    "ov-c48db657",
+    "ov-cf58276e",
+    "ov-d2bb5391",
+    "ov-df764a77",
+    "ov-e8584ccb",
+    "ov-eaa6c1dc",
+    "ov-fcf5891d",
+    "ov-fed4884f"
+  ],
+  "candidates": [
+    {
+      "image_id": 1,
+      "semantic_score": 0.99,
+      "sha256": "fixture-sha-1",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {
+          "columns": [
+            "multi"
+          ],
+          "whitespace": [
+            "much"
+          ],
+          "density": [
+            "high"
+          ],
+          "title_position": [
+            "top"
+          ],
+          "layout_note": "左侧说明，右侧图例"
+        },
+        "style": {
+          "tags": [
+            "复古"
+          ],
+          "medium": "typography",
+          "style_note": ""
+        },
+        "description": "建筑展板",
+        "visible_text": ""
+      },
+      "colors": [
+        {
+          "hex": "#f1e9da",
+          "ratio": 0.58
+        }
+      ],
+      "post_images": [
+        {
+          "post_id": 1
+        }
+      ]
+    },
+    {
+      "image_id": 2,
+      "semantic_score": 0.98,
+      "sha256": "fixture-sha-2",
+      "analyses": {
+        "subject": [
+          "食品"
+        ],
+        "layout": {
+          "columns": [
+            "multi"
+          ],
+          "whitespace": [
+            "much"
+          ],
+          "density": [
+            "high"
+          ],
+          "title_position": [
+            "top"
+          ]
+        },
+        "style": {
+          "tags": [
+            "现代"
+          ],
+          "medium": "typography",
+          "style_note": ""
+        },
+        "description": "食品海报",
+        "visible_text": ""
+      },
+      "colors": [
+        {
+          "hex": "#0000ff",
+          "ratio": 0.7
+        }
+      ],
+      "post_images": [
+        {
+          "post_id": 2
+        }
+      ]
+    },
+    {
+      "image_id": 3,
+      "semantic_score": 0.97,
+      "sha256": "fixture-sha-3",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {},
+        "style": {
+          "tags": [],
+          "medium": "photo",
+          "style_note": ""
+        },
+        "description": "建筑照片",
+        "visible_text": ""
+      },
+      "colors": [],
+      "post_images": [
+        {
+          "post_id": 3
+        }
+      ]
+    },
+    {
+      "image_id": 4,
+      "semantic_score": 0.96,
+      "sha256": "fixture-sha-4",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {
+          "columns": [
+            "single"
+          ],
+          "whitespace": [
+            "much"
+          ],
+          "density": [
+            "low"
+          ],
+          "title_position": [
+            "bottom"
+          ]
+        },
+        "style": {
+          "tags": [
+            "现代",
+            "极简"
+          ],
+          "medium": "typography",
+          "style_note": ""
+        },
+        "description": "活动海报",
+        "visible_text": ""
+      },
+      "colors": [
+        {
+          "hex": "#0000ff",
+          "ratio": 0.45
+        },
+        {
+          "hex": "#ffffff",
+          "ratio": 0.4
+        }
+      ],
+      "post_images": [
+        {
+          "post_id": 4
+        }
+      ]
+    },
+    {
+      "image_id": 5,
+      "semantic_score": 0.95,
+      "sha256": "fixture-sha-5",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {},
+        "style": {
+          "tags": [
+            "复古"
+          ],
+          "medium": "typography",
+          "style_note": ""
+        },
+        "description": "建筑展板",
+        "visible_text": ""
+      },
+      "colors": [
+        {
+          "hex": "#ff0000",
+          "ratio": 0.8
+        }
+      ],
+      "post_images": [
+        {
+          "post_id": 5
+        }
+      ]
+    },
+    {
+      "image_id": 6,
+      "semantic_score": 0.94,
+      "sha256": "fixture-sha-6",
+      "analyses": {
+        "subject": [],
+        "layout": {},
+        "style": {
+          "tags": [],
+          "medium": "typography",
+          "style_note": ""
+        },
+        "description": "建筑展板",
+        "visible_text": ""
+      },
+      "colors": [
+        {
+          "hex": "#ff0000",
+          "ratio": 0.45
+        },
+        {
+          "hex": "#0000ff",
+          "ratio": 0.4
+        }
+      ],
+      "post_images": [
+        {
+          "post_id": 6
+        }
+      ]
+    },
+    {
+      "image_id": 7,
+      "semantic_score": 0.93,
+      "sha256": "fixture-sha-7",
+      "analyses": {
+        "subject": [],
+        "layout": {},
+        "style": {
+          "tags": [],
+          "medium": "typography",
+          "style_note": ""
+        },
+        "description": "建筑展板",
+        "visible_text": ""
+      },
+      "colors": [
+        {
+          "hex": "#ff0000",
+          "ratio": 0.8
+        },
+        {
+          "hex": "#0000ff",
+          "ratio": 0.01
+        }
+      ],
+      "post_images": [
+        {
+          "post_id": 7
+        }
+      ]
+    },
+    {
+      "image_id": 8,
+      "semantic_score": 0.92,
+      "sha256": "fixture-sha-8",
+      "analyses": {
+        "subject": [
+          "食品"
+        ],
+        "layout": {},
+        "style": {
+          "tags": [],
+          "medium": "photo",
+          "style_note": ""
+        },
+        "description": "苹果照片",
+        "visible_text": "建筑展板"
+      },
+      "colors": [],
+      "post_images": [
+        {
+          "post_id": 8
+        }
+      ]
+    },
+    {
+      "image_id": 9,
+      "semantic_score": 0.99,
+      "sha256": "missing",
+      "analyses": null,
+      "colors": null
+    },
+    {
+      "image_id": 11,
+      "semantic_score": 0.89,
+      "sha256": "fixture-sha-11",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {
+          "columns": [
+            "multi"
+          ],
+          "whitespace": [
+            "much"
+          ],
+          "density": [
+            "high"
+          ],
+          "title_position": [
+            "top"
+          ]
+        },
+        "style": {
+          "tags": [
+            "复古"
+          ],
+          "medium": "typography",
+          "style_note": ""
+        },
+        "description": "建筑展板",
+        "visible_text": ""
+      },
+      "colors": [
+        {
+          "hex": "#f1e9da",
+          "ratio": 0.7
+        }
+      ],
+      "post_images": [
+        {
+          "post_id": 11
+        }
+      ],
+      "similar_group": "cream-retro-boards"
+    },
+    {
+      "image_id": 12,
+      "semantic_score": 0.88,
+      "sha256": "fixture-sha-12",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {
+          "columns": [
+            "multi"
+          ],
+          "whitespace": [
+            "much"
+          ],
+          "density": [
+            "high"
+          ],
+          "title_position": [
+            "top"
+          ]
+        },
+        "style": {
+          "tags": [
+            "复古"
+          ],
+          "medium": "typography",
+          "style_note": ""
+        },
+        "description": "建筑展板",
+        "visible_text": ""
+      },
+      "colors": [
+        {
+          "hex": "#f1e9da",
+          "ratio": 0.7
+        }
+      ],
+      "post_images": [
+        {
+          "post_id": 12
+        }
+      ],
+      "similar_group": "cream-retro-boards"
+    },
+    {
+      "image_id": 13,
+      "semantic_score": 0.87,
+      "sha256": "fixture-sha-13",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {
+          "columns": [
+            "multi"
+          ],
+          "whitespace": [
+            "much"
+          ],
+          "density": [
+            "high"
+          ],
+          "title_position": [
+            "top"
+          ]
+        },
+        "style": {
+          "tags": [
+            "复古"
+          ],
+          "medium": "typography",
+          "style_note": ""
+        },
+        "description": "建筑展板",
+        "visible_text": ""
+      },
+      "colors": [
+        {
+          "hex": "#f1e9da",
+          "ratio": 0.7
+        }
+      ],
+      "post_images": [
+        {
+          "post_id": 13
+        }
+      ],
+      "similar_group": "cream-retro-boards"
+    },
+    {
+      "image_id": 21,
+      "semantic_score": 0.79,
+      "sha256": "fixture-sha-21",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {},
+        "style": {
+          "tags": [],
+          "medium": "photo",
+          "style_note": ""
+        },
+        "description": "建筑照片",
+        "visible_text": ""
+      },
+      "colors": [],
+      "post_images": [
+        {
+          "post_id": 900
+        }
+      ]
+    },
+    {
+      "image_id": 22,
+      "semantic_score": 0.78,
+      "sha256": "fixture-sha-22",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {},
+        "style": {
+          "tags": [],
+          "medium": "photo",
+          "style_note": ""
+        },
+        "description": "建筑照片",
+        "visible_text": ""
+      },
+      "colors": [],
+      "post_images": [
+        {
+          "post_id": 900
+        }
+      ]
+    },
+    {
+      "image_id": 23,
+      "semantic_score": 0.77,
+      "sha256": "fixture-sha-23",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {},
+        "style": {
+          "tags": [],
+          "medium": "photo",
+          "style_note": ""
+        },
+        "description": "建筑照片",
+        "visible_text": ""
+      },
+      "colors": [],
+      "post_images": [
+        {
+          "post_id": 900
+        }
+      ]
+    },
+    {
+      "image_id": 24,
+      "semantic_score": 0.76,
+      "sha256": "fixture-sha-24",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {},
+        "style": {
+          "tags": [],
+          "medium": "photo",
+          "style_note": ""
+        },
+        "description": "建筑照片",
+        "visible_text": ""
+      },
+      "colors": [],
+      "post_images": [
+        {
+          "post_id": 900
+        }
+      ]
+    },
+    {
+      "image_id": 25,
+      "semantic_score": 0.75,
+      "sha256": "fixture-sha-25",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {},
+        "style": {
+          "tags": [],
+          "medium": "photo",
+          "style_note": ""
+        },
+        "description": "建筑照片",
+        "visible_text": ""
+      },
+      "colors": [],
+      "post_images": [
+        {
+          "post_id": 901
+        }
+      ]
+    },
+    {
+      "image_id": 31,
+      "semantic_score": 0.69,
+      "sha256": "shared-sha",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {},
+        "style": {
+          "tags": [
+            "复古"
+          ],
+          "medium": "typography",
+          "style_note": ""
+        },
+        "description": "建筑展板",
+        "visible_text": ""
+      },
+      "colors": [],
+      "post_images": [
+        {
+          "post_id": 910
+        }
+      ]
+    },
+    {
+      "image_id": 32,
+      "semantic_score": 0.68,
+      "sha256": "shared-sha",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {},
+        "style": {
+          "tags": [
+            "复古"
+          ],
+          "medium": "typography",
+          "style_note": ""
+        },
+        "description": "建筑展板",
+        "visible_text": ""
+      },
+      "colors": [],
+      "post_images": [
+        {
+          "post_id": 911
+        }
+      ]
+    },
+    {
+      "image_id": 33,
+      "semantic_score": 0.67,
+      "sha256": "fixture-sha-33",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {},
+        "style": {
+          "tags": [],
+          "medium": "photo",
+          "style_note": ""
+        },
+        "description": "建筑照片",
+        "visible_text": "建笂展扳"
+      },
+      "colors": [],
+      "post_images": [
+        {
+          "post_id": 33
+        }
+      ]
+    },
+    {
+      "image_id": 35,
+      "semantic_score": 0.65,
+      "sha256": "fixture-sha-35",
+      "analyses": {
+        "subject": [],
+        "layout": {
+          "columns": [
+            "unknown"
+          ],
+          "whitespace": [
+            "unknown"
+          ]
+        },
+        "style": {
+          "tags": [
+            "unknown"
+          ],
+          "medium": "typography",
+          "style_note": ""
+        },
+        "description": "",
+        "visible_text": ""
+      },
+      "colors": [],
+      "post_images": [
+        {
+          "post_id": 35
+        }
+      ]
+    },
+    {
+      "image_id": 40,
+      "semantic_score": 0.6,
+      "sha256": "fixture-sha-40",
+      "analyses": {
+        "subject": [
+          "建筑"
+        ],
+        "layout": {
+          "columns": [
+            "multi"
+          ],
+          "whitespace": [
+            "much"
+          ],
+          "density": [
+            "high"
+          ],
+          "title_position": [
+            "top"
+          ]
+        },
+        "style": {
+          "tags": [
+            "复古"
+          ],
+          "medium": "typography",
+          "style_note": ""
+        },
+        "description": "建筑展板",
+        "visible_text": ""
+      },
+      "colors": [
+        {
+          "hex": "#f1e9da",
+          "ratio": 0.6
+        }
+      ],
+      "post_images": [
+        {
+          "post_id": 40
+        }
+      ],
+      "is_video": true
+    }
+  ],
+  "cases": [
+    {
+      "id": "d-q01",
+      "mode": "find",
+      "category": "明确内容",
+      "query": "那个红唇和黑白颗粒的电影海报",
+      "ranking": [
+        "ov-43efcef0",
+        "ov-84e486b9",
+        "ov-fed4884f",
+        "ov-cf58276e",
+        "ov-fcf5891d"
+      ],
+      "recorded_scores": [
+        0.7418,
+        0.5519,
+        0.4635,
+        0.4402,
+        0.4367
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-43efcef0"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q02",
+      "mode": "find",
+      "category": "明确内容",
+      "query": "雪山、湖、彩色小镇的复古旅行海报",
+      "ranking": [
+        "ov-76d1c73d",
+        "ov-91733a05",
+        "ov-c48db657",
+        "ov-df764a77",
+        "ov-fed4884f"
+      ],
+      "recorded_scores": [
+        0.6923,
+        0.5768,
+        0.4108,
+        0.4037,
+        0.4013
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-76d1c73d"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q03",
+      "mode": "find",
+      "category": "明确内容",
+      "query": "拿红苹果的女人，旁边很多水果的复古广告",
+      "ranking": [
+        "ov-fed4884f",
+        "ov-9cf7e0f6",
+        "ov-df764a77",
+        "ov-43efcef0",
+        "ov-76d1c73d"
+      ],
+      "recorded_scores": [
+        0.7203,
+        0.4403,
+        0.4132,
+        0.3844,
+        0.3701
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-fed4884f"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q04",
+      "mode": "find",
+      "category": "明确内容",
+      "query": "深蓝底、白色大字刊名的工业杂志封面",
+      "ranking": [
+        "ov-424537a4",
+        "ov-49ebaaf2",
+        "ov-840801c3",
+        "ov-91733a05",
+        "ov-88dc4957"
+      ],
+      "recorded_scores": [
+        0.6788,
+        0.4645,
+        0.4615,
+        0.4433,
+        0.4356
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-424537a4"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q05",
+      "mode": "find",
+      "category": "明确内容",
+      "query": "美国地图和橙色节点连线的信息图",
+      "ranking": [
+        "ov-931f852e",
+        "ov-76d1c73d",
+        "ov-d2bb5391",
+        "ov-df764a77",
+        "ov-c48db657"
+      ],
+      "recorded_scores": [
+        0.6441,
+        0.3846,
+        0.3799,
+        0.3583,
+        0.3464
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-931f852e"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q06",
+      "mode": "find",
+      "category": "模糊记忆",
+      "query": "我记得有一张很空、蓝底白线、只有几句话的图",
+      "ranking": [
+        "ov-840801c3",
+        "ov-84e486b9",
+        "ov-c48db657",
+        "ov-76d1c73d",
+        "ov-91733a05"
+      ],
+      "recorded_scores": [
+        0.6008,
+        0.4755,
+        0.4684,
+        0.4502,
+        0.4487
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-840801c3"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q07",
+      "mode": "find",
+      "category": "模糊记忆",
+      "query": "好多卷草花纹、黄绿色、中间有巨大字母的字体样张",
+      "ranking": [
+        "ov-15d5b557",
+        "ov-88dc4957",
+        "ov-49ebaaf2",
+        "ov-76d1c73d",
+        "ov-fed4884f"
+      ],
+      "recorded_scores": [
+        0.7158,
+        0.4811,
+        0.4691,
+        0.4328,
+        0.4297
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-15d5b557"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q08",
+      "mode": "find",
+      "category": "模糊记忆",
+      "query": "黑白的、斑驳墙前站着穿长裙女人的时尚照片",
+      "ranking": [
+        "ov-fcf5891d",
+        "ov-9cf7e0f6",
+        "ov-15af705c",
+        "ov-d2bb5391",
+        "ov-fed4884f"
+      ],
+      "recorded_scores": [
+        0.6319,
+        0.4586,
+        0.4554,
+        0.4311,
+        0.4083
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-fcf5891d"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q09",
+      "mode": "find",
+      "category": "模糊记忆",
+      "query": "红橙色、几个人围着小圆桌的旧书封面",
+      "ranking": [
+        "ov-df764a77",
+        "ov-4011423d",
+        "ov-eaa6c1dc",
+        "ov-fed4884f",
+        "ov-43efcef0"
+      ],
+      "recorded_scores": [
+        0.7431,
+        0.508,
+        0.4788,
+        0.4522,
+        0.4182
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-df764a77"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q10",
+      "mode": "find",
+      "category": "排版",
+      "query": "适合做复古建筑展板的参考，文字很多、分栏很密的版式",
+      "ranking": [
+        "ov-15d5b557",
+        "ov-d2bb5391",
+        "ov-76d1c73d",
+        "ov-88dc4957",
+        "ov-840801c3"
+      ],
+      "recorded_scores": [
+        0.5244,
+        0.5177,
+        0.4436,
+        0.4287,
+        0.4244
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-15d5b557",
+          "ov-d2bb5391"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q11",
+      "mode": "find",
+      "category": "排版",
+      "query": "左边大标题、右边图片、上下分割的杂志封面版式",
+      "ranking": [
+        "ov-49ebaaf2",
+        "ov-424537a4",
+        "ov-df764a77",
+        "ov-d2bb5391",
+        "ov-84e486b9"
+      ],
+      "recorded_scores": [
+        0.5731,
+        0.557,
+        0.4793,
+        0.4761,
+        0.456
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-424537a4"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q12",
+      "mode": "find",
+      "category": "排版",
+      "query": "大面积留白、只有底部一行大标题的极简海报",
+      "ranking": [
+        "ov-840801c3",
+        "ov-84e486b9",
+        "ov-c48db657",
+        "ov-88dc4957",
+        "ov-43efcef0"
+      ],
+      "recorded_scores": [
+        0.6342,
+        0.6013,
+        0.5853,
+        0.585,
+        0.5511
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-c48db657"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q13",
+      "mode": "find",
+      "category": "排版",
+      "query": "模块化、很多小图表的信息图版式",
+      "ranking": [
+        "ov-931f852e",
+        "ov-88dc4957",
+        "ov-91733a05",
+        "ov-49ebaaf2",
+        "ov-15d5b557"
+      ],
+      "recorded_scores": [
+        0.468,
+        0.3958,
+        0.3674,
+        0.3589,
+        0.3534
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-931f852e"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q14",
+      "mode": "find",
+      "category": "风格",
+      "query": "瑞士国际主义、Helvetica、黄绿色极简排版",
+      "ranking": [
+        "ov-88dc4957",
+        "ov-840801c3",
+        "ov-424537a4",
+        "ov-c48db657",
+        "ov-49ebaaf2"
+      ],
+      "recorded_scores": [
+        0.8093,
+        0.5561,
+        0.4978,
+        0.489,
+        0.4798
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-88dc4957"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q15",
+      "mode": "find",
+      "category": "风格",
+      "query": "复古丝网印刷、黑白照片加橙色色块的拼贴",
+      "ranking": [
+        "ov-d2bb5391",
+        "ov-fed4884f",
+        "ov-eaa6c1dc",
+        "ov-df764a77",
+        "ov-4011423d"
+      ],
+      "recorded_scores": [
+        0.6594,
+        0.5414,
+        0.5219,
+        0.5031,
+        0.484
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-d2bb5391"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q16",
+      "mode": "find",
+      "category": "风格",
+      "query": "暗黑、双重曝光、超级英雄电影海报",
+      "ranking": [
+        "ov-cf58276e",
+        "ov-43efcef0",
+        "ov-84e486b9",
+        "ov-fed4884f",
+        "ov-c48db657"
+      ],
+      "recorded_scores": [
+        0.6278,
+        0.459,
+        0.3811,
+        0.3648,
+        0.3439
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-cf58276e"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q17",
+      "mode": "find",
+      "category": "风格",
+      "query": "手绘、复古褪色、装饰艺术风格的旅行海报",
+      "ranking": [
+        "ov-76d1c73d",
+        "ov-91733a05",
+        "ov-df764a77",
+        "ov-fed4884f",
+        "ov-4011423d"
+      ],
+      "recorded_scores": [
+        0.6614,
+        0.6539,
+        0.5457,
+        0.4767,
+        0.4687
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-76d1c73d",
+          "ov-91733a05"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q18",
+      "mode": "find",
+      "category": "主题",
+      "query": "适合做建筑主题海报参考的图",
+      "ranking": [
+        "ov-d2bb5391",
+        "ov-cf58276e",
+        "ov-76d1c73d",
+        "ov-91733a05",
+        "ov-4011423d"
+      ],
+      "recorded_scores": [
+        0.4989,
+        0.487,
+        0.4372,
+        0.4357,
+        0.4196
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-cf58276e",
+          "ov-d2bb5391"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q19",
+      "mode": "find",
+      "category": "主题",
+      "query": "时尚人像、棚拍、红色沙发的参考",
+      "ranking": [
+        "ov-9cf7e0f6",
+        "ov-fcf5891d",
+        "ov-15af705c",
+        "ov-43efcef0",
+        "ov-84e486b9"
+      ],
+      "recorded_scores": [
+        0.6802,
+        0.4381,
+        0.4372,
+        0.4049,
+        0.3832
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-9cf7e0f6"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q20",
+      "mode": "find",
+      "category": "主题",
+      "query": "电影节、渐变背景、棕榈树剪影的海报",
+      "ranking": [
+        "ov-e8584ccb",
+        "ov-84e486b9",
+        "ov-43efcef0",
+        "ov-c48db657",
+        "ov-cf58276e"
+      ],
+      "recorded_scores": [
+        0.7655,
+        0.5695,
+        0.4758,
+        0.4629,
+        0.4294
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-e8584ccb"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q21",
+      "mode": "find",
+      "category": "OCR文字",
+      "query": "图里有很大的英文单词 TYPE 和 FORM",
+      "ranking": [
+        "ov-49ebaaf2",
+        "ov-df764a77",
+        "ov-43efcef0",
+        "ov-15d5b557",
+        "ov-76d1c73d"
+      ],
+      "recorded_scores": [
+        0.4102,
+        0.3314,
+        0.3271,
+        0.3265,
+        0.32
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-49ebaaf2"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q22",
+      "mode": "find",
+      "category": "OCR文字",
+      "query": "写着 Helvetica 的字体海报",
+      "ranking": [
+        "ov-88dc4957",
+        "ov-840801c3",
+        "ov-fed4884f",
+        "ov-84e486b9",
+        "ov-43efcef0"
+      ],
+      "recorded_scores": [
+        0.628,
+        0.5644,
+        0.4864,
+        0.4851,
+        0.4742
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-88dc4957"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q23",
+      "mode": "find",
+      "category": "OCR文字",
+      "query": "很多中文小字的展板",
+      "ranking": [
+        "ov-15d5b557",
+        "ov-840801c3",
+        "ov-88dc4957",
+        "ov-84e486b9",
+        "ov-fed4884f"
+      ],
+      "recorded_scores": [
+        0.3979,
+        0.3965,
+        0.3924,
+        0.36,
+        0.3537
+      ],
+      "diagnostic": true,
+      "expect": {
+        "expected_ids": [],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q24",
+      "mode": "find",
+      "category": "说错细节",
+      "query": "黑底红线、中间一个心形的极简海报",
+      "ranking": [
+        "ov-84e486b9",
+        "ov-43efcef0",
+        "ov-c48db657",
+        "ov-840801c3",
+        "ov-4011423d"
+      ],
+      "recorded_scores": [
+        0.722,
+        0.6169,
+        0.5233,
+        0.5169,
+        0.4717
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-84e486b9"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "d-q25",
+      "mode": "find",
+      "category": "说错细节",
+      "query": "绿色背景、白色大字、有棕榈树的音乐节海报",
+      "ranking": [
+        "ov-e8584ccb",
+        "ov-fed4884f",
+        "ov-88dc4957",
+        "ov-15d5b557",
+        "ov-91733a05"
+      ],
+      "recorded_scores": [
+        0.6074,
+        0.4544,
+        0.4413,
+        0.4356,
+        0.4032
+      ],
+      "diagnostic": false,
+      "expect": {
+        "expected_ids": [
+          "ov-e8584ccb"
+        ],
+        "required_top_k": 3
+      }
+    },
+    {
+      "id": "c01",
+      "mode": "create",
+      "category": "排版导向",
+      "query": "多栏高密度的展板，顶部标题",
+      "candidate_ids": [
+        1,
+        4
+      ],
+      "expect": {
+        "contains": [
+          {
+            "image_id": 1,
+            "purposes": [
+              "layout"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c02",
+      "mode": "create",
+      "category": "米白与留白",
+      "query": "米白色、留白很多、学术一点的版式",
+      "candidate_ids": [
+        1,
+        2
+      ],
+      "expect": {
+        "contains": [
+          {
+            "image_id": 1,
+            "purposes": [
+              "layout",
+              "palette"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c03",
+      "mode": "create",
+      "category": "复古建筑",
+      "query": "复古建筑展板",
+      "candidate_ids": [
+        3,
+        1
+      ],
+      "expect": {
+        "contains": [
+          {
+            "image_id": 1,
+            "purposes": [
+              "layout",
+              "style",
+              "subject"
+            ]
+          },
+          {
+            "image_id": 3,
+            "exact_purposes": [
+              "subject"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c04",
+      "mode": "create",
+      "category": "抽象调性",
+      "query": "很有冲击力的活动海报",
+      "candidate_ids": [
+        4
+      ],
+      "expect": {
+        "contains": [
+          {
+            "image_id": 4,
+            "exact_purposes": [
+              "layout"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c05",
+      "mode": "create",
+      "category": "只要配色",
+      "query": "只要米白配色",
+      "candidate_ids": [
+        1,
+        2
+      ],
+      "expect": {
+        "exact_ids": [
+          1
+        ],
+        "contains": [
+          {
+            "image_id": 1,
+            "exact_purposes": [
+              "palette"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c06",
+      "mode": "create",
+      "category": "两色要求",
+      "query": "只要红蓝配色，两种都明显",
+      "candidate_ids": [
+        5,
+        6,
+        7
+      ],
+      "expect": {
+        "exact_ids": [
+          6
+        ],
+        "contains": [
+          {
+            "image_id": 6,
+            "exact_purposes": [
+              "palette"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c07",
+      "mode": "create",
+      "category": "主题与组织",
+      "query": "建筑内容组织参考",
+      "candidate_ids": [
+        1,
+        8
+      ],
+      "expect": {
+        "exact_ids": [
+          1
+        ],
+        "contains": [
+          {
+            "image_id": 1,
+            "purposes": [
+              "subject"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c08",
+      "mode": "create",
+      "category": "混合与排除",
+      "query": "复古建筑，留白多，不要红色",
+      "candidate_ids": [
+        1,
+        4,
+        5
+      ],
+      "expect": {
+        "contains": [
+          {
+            "image_id": 1,
+            "purposes": [
+              "style",
+              "subject",
+              "layout"
+            ]
+          }
+        ],
+        "forbidden_ids": [
+          5
+        ]
+      }
+    },
+    {
+      "id": "c09",
+      "mode": "create",
+      "category": "没有完全匹配",
+      "query": "海洋主题的多栏展板",
+      "candidate_ids": [
+        2
+      ],
+      "expect": {
+        "contains": [
+          {
+            "image_id": 2,
+            "exact_purposes": [
+              "layout"
+            ]
+          }
+        ],
+        "no_complete_match": true
+      }
+    },
+    {
+      "id": "c10",
+      "mode": "create",
+      "category": "高度相似",
+      "query": "复古展板",
+      "candidate_ids": [
+        11,
+        12,
+        13,
+        4
+      ],
+      "expect": {
+        "contains": [
+          {
+            "image_id": 11,
+            "purposes": [
+              "style",
+              "layout"
+            ]
+          },
+          {
+            "image_id": 4,
+            "purposes": [
+              "layout"
+            ]
+          }
+        ],
+        "max_results": 2
+      }
+    },
+    {
+      "id": "c11",
+      "mode": "create",
+      "category": "同帖多图",
+      "query": "建筑",
+      "candidate_ids": [
+        21,
+        22,
+        23,
+        24,
+        25
+      ],
+      "expect": {
+        "exact_ids": [
+          21,
+          25,
+          22
+        ],
+        "max_per_post": 2
+      }
+    },
+    {
+      "id": "c12",
+      "mode": "create",
+      "category": "同SHA跨帖",
+      "query": "复古建筑",
+      "candidate_ids": [
+        31,
+        32
+      ],
+      "expect": {
+        "exact_ids": [
+          31
+        ],
+        "contains": [
+          {
+            "image_id": 31,
+            "purposes": [
+              "style",
+              "subject"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c13",
+      "mode": "create",
+      "category": "OCR错误",
+      "query": "建筑",
+      "candidate_ids": [
+        33,
+        8
+      ],
+      "expect": {
+        "exact_ids": [
+          33
+        ],
+        "contains": [
+          {
+            "image_id": 33,
+            "purposes": [
+              "subject"
+            ]
+          }
+        ],
+        "forbidden_ids": [
+          8
+        ]
+      }
+    },
+    {
+      "id": "c14",
+      "mode": "create",
+      "category": "照片与展板",
+      "query": "建筑展板",
+      "candidate_ids": [
+        3,
+        1
+      ],
+      "expect": {
+        "contains": [
+          {
+            "image_id": 3,
+            "exact_purposes": [
+              "subject"
+            ]
+          },
+          {
+            "image_id": 1,
+            "purposes": [
+              "subject",
+              "layout"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c15",
+      "mode": "create",
+      "category": "字段缺失",
+      "query": "多栏高密度复古米白",
+      "candidate_ids": [
+        9,
+        35
+      ],
+      "expect": {
+        "empty": true,
+        "no_complete_match": true
+      }
+    },
+    {
+      "id": "c16",
+      "mode": "create",
+      "category": "用户追加条件",
+      "query": "复古建筑展板",
+      "candidate_ids": [
+        1,
+        3,
+        4
+      ],
+      "expect": {
+        "contains": [
+          {
+            "image_id": 4,
+            "purposes": [
+              "style",
+              "subject",
+              "layout"
+            ]
+          }
+        ],
+        "forbidden_ids": [
+          1
+        ]
+      },
+      "followups": [
+        "不要复古，换成现代极简"
+      ]
+    },
+    {
+      "id": "c17",
+      "mode": "create",
+      "category": "不足六张",
+      "query": "建筑",
+      "candidate_ids": [
+        33,
+        8
+      ],
+      "expect": {
+        "exact_ids": [
+          33
+        ],
+        "max_results": 1
+      }
+    },
+    {
+      "id": "c18",
+      "mode": "create",
+      "category": "视频证据范围",
+      "query": "复古建筑展板，米白色",
+      "candidate_ids": [
+        40
+      ],
+      "expect": {
+        "contains": [
+          {
+            "image_id": 40,
+            "purposes": [
+              "subject",
+              "style",
+              "layout",
+              "palette"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c19",
+      "mode": "create",
+      "category": "完全无用途证据",
+      "query": "复古",
+      "candidate_ids": [
+        9,
+        35,
+        8
+      ],
+      "expect": {
+        "empty": true,
+        "no_complete_match": true
+      }
+    }
+  ]
+}

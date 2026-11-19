@@ -1,0 +1,3 @@
+-r requirements-clip.txt
+# Offline calibration only; runtime reads a local exported profile with numpy.
+scikit-learn>=1.4,<2

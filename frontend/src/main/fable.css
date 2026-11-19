@@ -1,0 +1,79 @@
+/* Fable 这一轮对主界面的调整都放在这个文件里，排在 main.css / app-header.css 之后加载。 */
+
+/* 已经不用的设置抽屉收在屏幕外时，阴影会漏进画面右边缘（每一页右边那条发白的竖带）：收起时彻底不画 */
+.m-app .m-drawer:not(.is-on) { visibility: hidden; box-shadow: none; }
+
+/* ---- 顶栏名字：没有背景条，压到图片上时自动反色；在纸面上还是油墨色 ---- */
+.m-app .m-brand-float { position: fixed; top: 22px; left: max(22px, 1.5vw); z-index: 41; display: inline-flex; align-items: center; height: 26px; margin: 0;
+  color: #fff; mix-blend-mode: difference; font-weight: 600; }
+.m-app.m-with-detail .m-brand-float { z-index: 83; }
+/* ---- 胶囊：浮动搜索胶囊、导航胶囊、筛选菜单用同一种“纸白 + 一圈细墨线”，和引导页那颗是同一颗；
+        不再是压在图上发灰发闷的渐变玻璃 ---- */
+.m-app .m-sl-anchor > .m-searchline.is-floating {
+  background: color-mix(in oklab, var(--m-page) 88%, transparent);
+  backdrop-filter: blur(18px) saturate(0.9);
+  border-color: oklch(0.25 0.02 55 / 0.16);
+  box-shadow: 0 1px 2px oklch(0.3 0.03 60 / 0.04), 0 10px 28px -16px oklch(0.3 0.04 60 / 0.18);
+}
+.m-app .m-sl-v2.is-floating .m-sl-input::placeholder { color: var(--m-ink-3); }
+
+/* ---- “要参考”三栏、待确认里的图：直角、不带阴影、不做成卡片；悬停只轻微变暗（和瀑布流一致） ---- */
+.m-app .m-card { border-radius: 0; box-shadow: none; background: transparent; transform: none; transition: none; }
+.m-app .m-card:hover, .m-app .m-card:active { transform: none; box-shadow: none; }
+.m-app .m-card img { transition: filter var(--mo-fb-dur, 150ms) var(--mo-fb-ease, ease-out); }
+.m-app .m-pending-item, .m-app .m-pending-item img { border-radius: 0; }
+/* 三栏的栏名是这一屏的骨架：字重拉开，上面压一条墨线 */
+.m-app .m-ref-cols { gap: 24px; padding-top: 18px; }
+.m-app .m-ref-col h3 { margin: 0 0 12px; padding-top: 9px; border-top: 1px solid var(--m-ink); font-family: var(--m-title); font-size: var(--m-type-base); font-weight: 600; letter-spacing: 0; color: var(--m-ink); }
+.m-app .m-ref-grid { gap: 12px; }
+
+/* 中间胶囊里的页名（素材库）原来偏高，往下挪两像素让它在胶囊里居中 */
+.m-app .m-appbar .m-gm-title { position: relative; top: 2px; }
+
+/* 大搜索框：行高太紧，中文字顶（草字头那一横）会被输入框切掉。行高放松，再用负外边距抵回去，字和下面的线位置都不变 */
+.m-app .m-sl-v2:not(.is-floating) .m-sl-input { line-height: 1.4; margin-block: -0.19em; }
+
+/* ================= 项目页 ================= */
+/* 项目格子原来很小，三个项目只占半行、下面一大片空。格子放大，间距收紧，名字放到正文字号 */
+.m-app .m-proj-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); column-gap: 48px; row-gap: 56px; }
+.m-app .m-proj-cap { margin-top: 14px; font-size: var(--m-type-body); }
+.m-app .m-proj-cap .m-proj-name { font-size: var(--m-type-body); }
+.m-app .m-proj-no { margin-right: 1.2em; }
+
+/* ================= 日历页 ================= */
+/* “常用导入软件”“洞察”两段标题上面压一条墨线；每日灵感和收藏活动之间不画线 */
+.m-app .m-cal > .m-cal-h, .m-app .m-cal > .m-cal-row { margin-top: 56px; }
+.m-app .m-cal > .m-cal-h { padding-top: 10px; border-top: 1px solid var(--m-ink); }
+.m-app .m-cal > .m-cal-h:first-of-type { margin-top: 0; padding-top: 0; border-top: 0; }
+/* 热力图：空格子跟着纸色走，不再是冷灰 */
+.m-app .m-cal-chart { --color-foreground: var(--m-ink); margin-top: 22px; margin-bottom: -24px; }
+.m-app .m-cal-chart section { background: var(--m-page) !important; }
+/* 导入软件：居中；平时收成灰度，指上去才显出原色（整页只有它是高饱和的，抢眼） */
+.m-app .m-cal-sources { justify-content: center; gap: 56px; margin-top: 22px; }
+.m-app .m-cal-brand { width: 38px; height: 38px; filter: grayscale(1) contrast(0.92); opacity: 0.72; transition: filter 180ms ease-out, opacity 180ms ease-out, transform 180ms cubic-bezier(.22,1,.36,1); }
+.m-app .m-cal-sources li:hover .m-cal-brand { filter: none; opacity: 1; transform: translateY(-2px); }
+/* 洞察：四个数原来是四条横贯整页的细线，左边是名、最右边才是数，眼睛要跑一整屏。改成并排四栏，数字大、名字小 */
+.m-app .m-cal-insights { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin-top: 22px; }
+.m-app .m-cal-insights > div { flex-direction: column-reverse; justify-content: flex-end; gap: 8px; padding: 0; border-bottom: 0; }
+.m-app .m-cal-insights dt { font-size: var(--m-type-ui); color: var(--m-ink-2); }
+.m-app .m-cal-insights dd { font-family: var(--m-title); font-size: 30px; font-weight: 300; line-height: 1.15; letter-spacing: -0.01em; white-space: nowrap; }
+@media (max-width: 720px) { .m-app .m-cal-insights { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 28px; } }
+
+/* ================= 设置页 ================= */
+/* 每组顶上一条实墨线，组里的行用浅线隔开（原来全是一样粗的墨线，分不出组和行）；组和组之间不用空那么大 */
+.m-app .m-setp-body { gap: 76px; }
+.m-app .m-setp-h { margin-bottom: 14px; }
+.m-app .m-setp .m-set-row { min-height: 48px; }
+.m-app .m-setp .m-set-row::after { height: 1px; background: var(--m-line); }
+.m-app .m-setp .m-set-row:first-of-type::before { height: 1px; background: var(--m-ink); }
+/* 保存：原来是一条又扁又满宽的黑杠。改成正常高度、靠左的一颗按钮 */
+.m-app .m-setp .m-set-save { align-self: flex-start; min-width: 148px; height: 40px; margin-top: 36px; padding: 0 28px; font-size: var(--m-type-body); letter-spacing: 0.08em; }
+.m-app .m-setp .m-set-add { height: 32px; margin-top: 18px; padding-inline: 14px; }
+/* 左侧“设置”两个字和下面的小标题之间多留一点 */
+.m-app .m-setp-title { margin-bottom: 44px; }
+
+/* ================= 出场统一 ================= */
+/* 日历页原来整页一起浮上来，别的页都是从上到下依次出。这里给第一屏的几块补上同样的错开（每块 40ms） */
+.m-app .m-cal > [data-reveal]:nth-child(2) { --rv-d: 40ms; }
+.m-app .m-cal > [data-reveal]:nth-child(3) { --rv-d: 80ms; }
+.m-app .m-cal > [data-reveal]:nth-child(4) { --rv-d: 120ms; }

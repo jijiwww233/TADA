@@ -1,0 +1,37 @@
+.m-project-browse .m-ld-strip { top: 0; margin-inline: 0; padding-inline: 0; }
+.m-project-browse-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 6.29vw;
+}
+.m-project-browse-image {
+  width: fit-content;
+  max-width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.m-project-browse-image img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(100%, 45vw);
+  max-height: min(66vh, calc(100dvh - var(--m-topbar-height) - max(44px, 5vw) - 6.69vw - 36px));
+  object-fit: contain;
+  object-position: left top;
+}
+.m-project-browse-index {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  font-family: var(--m-title);
+  font-variant-numeric: tabular-nums;
+  color: var(--m-ink);
+  line-height: 1;
+}
+.m-project-browse-index > span { font-size: var(--m-type-large); }
+.m-project-browse-index > small { font-size: var(--m-type-ui); white-space: nowrap; }

@@ -1,0 +1,556 @@
+/* =====================================================================
+   组件层（设计系统）——放在所有页面样式之后加载
+   只用 tokens.css 里的令牌。前缀 ds- 是新组件；后半段把老组件（m-hb、m-btn、m-set-save…）
+   归到同一套「主要 / 次要 / 幽灵」三种按钮上，老页面不用改 DOM 也统一了。
+   选择器统一以 .m-app 开头，确保压过前面各版留下的样式。
+
+   文字按钮 8px，纯图标按钮为圆形。卡片与弹窗浅棕叠米白、16px。
+   页面切换与筛选展开时使用原版玻璃叠层。
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   0. 全局
+   --------------------------------------------------------------------- */
+/* 8i：任何一处溢出都不再撑出横向滚动条（clip 不影响 position: sticky） */
+.m-app { overflow-x: clip; }
+.m-app :focus-visible { outline-color: var(--color-focus-ring); }
+
+/* ---------------------------------------------------------------------
+   1. 按钮：主要 / 次要 / 幽灵 × 正常 / 悬停 / 按下 / 禁用 / 加载中
+      一组按钮里只放一个主要按钮。
+   --------------------------------------------------------------------- */
+.m-app .ds-btn, .ds-root .ds-btn {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: var(--size-button); padding: 0 var(--space-7);
+  border: 0; border-radius: var(--radius-button); box-shadow: none;
+  font-family: var(--font-family-ui); font-size: var(--font-size-body); font-weight: var(--font-weight-medium);
+  line-height: 1; letter-spacing: 0.02em; text-decoration: none; white-space: nowrap;
+  cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-standard),
+    color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-app .ds-btn:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+
+/* 主要：陶土橙底、白字（约 4.87 : 1） */
+.m-app .ds-btn.ds-btn--primary { background: var(--color-action-primary); color: var(--color-text-on-primary); }
+.m-app .ds-btn.ds-btn--primary:hover:not(:disabled) { background: var(--color-action-primary-hover); }
+.m-app .ds-btn.ds-btn--primary:active:not(:disabled) { background: var(--color-action-primary-active); }
+
+/* 次要：浅棕底、黑字，没有框；尺寸和主要按钮一样 */
+.m-app .ds-btn.ds-btn--secondary { background: var(--color-action-secondary-bg); color: var(--color-text-primary); }
+.m-app .ds-btn.ds-btn--secondary:hover:not(:disabled) { background: var(--color-action-secondary-hover); }
+.m-app .ds-btn.ds-btn--secondary:active:not(:disabled) { background: var(--color-action-secondary-active); }
+
+/* 幽灵：只有字，悬停变陶土橙；不加底、不加下划线 */
+.m-app .ds-btn.ds-btn--ghost {
+  padding: 0 var(--space-2);
+  background: transparent; color: var(--color-text-primary);
+}
+.m-app .ds-btn.ds-btn--ghost:hover:not(:disabled) { color: var(--color-text-accent); }
+.m-app .ds-btn.ds-btn--ghost:active:not(:disabled) { color: var(--color-action-primary-active); }
+
+/* 禁用：浅底灰字但仍然看得清，不响应 */
+.m-app .ds-btn:disabled, .m-app .ds-btn[aria-disabled='true'] {
+  cursor: not-allowed; color: var(--color-action-disabled-text); background: var(--color-action-disabled-bg);
+}
+.m-app .ds-btn.ds-btn--ghost:disabled { background: transparent; }
+
+/* 加载中：文字变透明，中间转一个小圈，不能重复点 */
+.m-app .ds-btn[aria-busy='true'] { cursor: progress; color: transparent !important; pointer-events: none; }
+.m-app .ds-btn[aria-busy='true']::after {
+  content: ''; position: absolute; inset: 0; margin: auto; width: 16px; height: 16px;
+  border: 2px solid currentColor; border-radius: 50%; border-right-color: transparent;
+  color: var(--color-text-primary); animation: ds-spin 700ms linear infinite;
+}
+.m-app .ds-btn.ds-btn--primary[aria-busy='true']::after { color: var(--color-text-on-primary); }
+@keyframes ds-spin { to { transform: rotate(360deg); } }
+
+/* 设计系统页里「悬停 / 按下」两栏的静态展示 */
+.m-app .ds-btn.ds-btn--primary.is-hover { background: var(--color-action-primary-hover); }
+.m-app .ds-btn.ds-btn--primary.is-active { background: var(--color-action-primary-active); }
+.m-app .ds-btn.ds-btn--secondary.is-hover { background: var(--color-action-secondary-hover); }
+.m-app .ds-btn.ds-btn--secondary.is-active { background: var(--color-action-secondary-active); }
+.m-app .ds-btn.ds-btn--ghost.is-hover { color: var(--color-text-accent); }
+.m-app .ds-btn.ds-btn--ghost.is-active { color: var(--color-action-primary-active); }
+
+/* 紧凑按钮只收左右留白，和同级按钮等高。 */
+.m-app .ds-btn.ds-btn--sm { padding-inline: var(--space-4); }
+.m-app .ds-btn.ds-btn--ghost.ds-btn--sm { padding-inline: var(--space-2); }
+.m-app .ds-btn.ds-btn--lg { min-height: var(--size-button-lg); font-size: var(--font-size-body-lg); }
+.m-app .ds-btn.ds-icon-btn { width: var(--size-button); padding: 0; border-radius: var(--radius-icon-button); }
+.m-app .ds-btn.ds-btn--block { display: flex; width: 100%; }
+
+/* 包着 <input type=file> 的按钮：手指点到的就是文件框本身（手机相册最稳的写法） */
+.m-app .ds-file-btn { overflow: hidden; }
+.m-app .ds-file-btn input[type='file'] {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: pointer; font-size: 0;
+}
+.m-app .ds-file-btn:focus-within { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+
+/* ---------------------------------------------------------------------
+   2. 老按钮归队
+   --------------------------------------------------------------------- */
+/* 幽灵：顶栏右侧的小字、设置里的文字链接、菜单里的「清除筛选」——只有字，悬停陶土橙 */
+.m-app :is(.m-hb, .m-setp-link, .m-gm-clear, .m-proj-add, .m-proj-new button) {
+  color: var(--color-text-primary); text-decoration: none; border-radius: var(--radius-button); box-shadow: none;
+  transition: color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+/* 详情页的「+ 标签」「加入项目 · 打开参考画板」：颜色照最初版（灰），只是悬停从变黑改成变陶土橙 */
+.m-app :is(.m-hb, .m-setp-link, .m-gm-clear, .m-proj-add, .m-proj-new button, .m-ld-addtag, .m-ld-more button):hover:not(:disabled) {
+  color: var(--color-text-accent);
+}
+.m-app :is(.m-hb, .m-setp-link, .m-gm-clear, .m-proj-add, .m-proj-new button):active:not(:disabled) { color: var(--color-action-primary-active); }
+.m-app :is(.m-hb, .m-setp-link, .m-proj-new button, .m-ld-more button):disabled {
+  opacity: 1; color: var(--color-action-disabled-text); cursor: not-allowed;
+}
+.m-app .m-hb-dot { color: var(--color-text-tertiary); }
+.m-app .m-appbar-tools { height: var(--size-button); }
+.m-app .m-appbar-tools :is(.m-hb, .m-gm-word-head) { display: inline-flex; align-items: center; min-height: var(--size-button); }
+
+/* 顶栏里的切换（翻看 | 网格、每天 · 每周 · 累计、找图 · 要参考）：没选中用次要色（≥ 8:1）；
+   选中的下面一道 1px 陶土橙细线（不加粗） */
+.m-app .m-hb.m-state-switch, .m-app .m-sl-v2 .m-sl-mode { opacity: 1; color: var(--color-text-secondary); text-decoration: none; }
+.m-app .m-hb.m-state-switch:hover, .m-app .m-sl-v2 .m-sl-mode:hover { color: var(--color-text-accent); }
+.m-app .m-hb.m-state-switch.is-on, .m-app .m-sl-v2 .m-sl-mode.is-on { color: var(--color-text-primary); }
+.m-app .m-hb.m-state-switch::after, .m-app .m-sl-v2 .m-sl-mode::after { height: 1px; background: var(--color-action-primary); }
+
+/* 次要：老的 m-btn、设置里的「添加文件夹」——浅棕底、黑字、没有框 */
+.m-app .m-btn, .m-app .m-set-add, .m-app .m-setp .m-set-add {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: auto; min-height: var(--size-button); margin-top: 0; padding: 0 var(--space-7);
+  border: 0; border-radius: var(--radius-button);
+  background: var(--color-action-secondary-bg); color: var(--color-text-primary);
+  font-size: var(--font-size-body); font-weight: var(--font-weight-medium); letter-spacing: 0.02em;
+  box-shadow: none; transform: none;
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-app .m-setp .m-set-add { margin-top: var(--space-4); }
+.m-app .m-btn:hover:not(:disabled), .m-app .m-set-add:hover:not(:disabled) { transform: none; box-shadow: none; background: var(--color-action-secondary-hover); color: var(--color-text-primary); }
+.m-app .m-btn:active:not(:disabled), .m-app .m-set-add:active:not(:disabled) { transform: none; background: var(--color-action-secondary-active); }
+
+/* 主要：老的 m-primary、设置里的「保存设置」、教程弹窗按钮——陶土橙底、白字、字重 500 */
+.m-app :is(.m-btn.m-primary, .m-set-save, .m-onboard-cta), .m-app .m-setp .m-set-save {
+  min-height: var(--size-button); height: auto; padding: 0 var(--space-7); border: 0; border-radius: var(--radius-button);
+  background: var(--color-action-primary); color: var(--color-text-on-primary); box-shadow: none;
+  font-size: var(--font-size-body); font-weight: var(--font-weight-medium); letter-spacing: 0.02em; opacity: 1; transform: none;
+}
+.m-app :is(.m-btn.m-primary, .m-set-save, .m-onboard-cta):hover:not(:disabled) { background: var(--color-action-primary-hover); box-shadow: none; opacity: 1; transform: none; }
+.m-app :is(.m-btn.m-primary, .m-set-save, .m-onboard-cta):active:not(:disabled) { background: var(--color-action-primary-active); transform: none; }
+.m-app .m-platform-row { gap: var(--space-3); flex-wrap: wrap; }
+.m-app .m-platform-row small { display: block; }
+.m-app .m-platform-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.m-app :is(.m-btn, .m-set-save, .m-set-add, .m-onboard-cta):disabled {
+  opacity: 1; cursor: not-allowed; box-shadow: none; transform: none;
+  background: var(--color-action-disabled-bg); color: var(--color-action-disabled-text);
+}
+
+/* 圆形小图标按钮（发送、关闭）：同样扁平，不加阴影、不上浮 */
+.m-app :is(.m-sl-send, .m-cap-send) { border-radius: var(--radius-icon-button); background: var(--color-action-primary); color: var(--color-text-on-primary); box-shadow: none; }
+.m-app :is(.m-sl-send, .m-cap-send):hover { background: var(--color-action-primary-hover); box-shadow: none; transform: none; }
+.m-app :is(.m-sl-send, .m-cap-send):active { background: var(--color-action-primary-active); transform: none; }
+
+/* ---------------------------------------------------------------------
+   3. 下拉菜单：触发处都写成「字 ▾」，展开时箭头翻过来
+   --------------------------------------------------------------------- */
+.m-app .m-gm-word .m-gm-word-head { border-radius: var(--radius-button); color: var(--color-text-primary); text-decoration: none; }
+.m-app .m-gm-word .m-gm-word-head::after {
+  content: '▾'; display: inline-block; margin-left: var(--space-1); font-size: 0.8em; text-decoration: none;
+  transition: transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-app .m-gm-word.is-open .m-gm-word-head::after { transform: rotate(180deg); }
+.m-app .m-gm-word .m-gm-word-head:hover { color: var(--color-text-accent); }
+.m-app .m-gm-chevron {
+  position: absolute; right: 9px; top: 50%; margin-top: -0.5em; font-size: 10px; line-height: 1; color: currentColor;
+  transition: transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-app .m-gm.is-open .m-gm-chevron { transform: rotate(180deg); }
+/* 顶栏展开菜单的原始玻璃值由 app-header.css 提供。 */
+.m-app .m-gm-panel { background: var(--color-bg-surface); box-shadow: none; }
+.m-app .m-appbar-tools .m-gm-word.is-open .m-gm-panel { background: var(--m-nav-glass-base); }
+/* 菜单里的行：编号和数量用次要色（原来 50% 透明的浅灰）；指到的那行变陶土橙 */
+.m-app .m-gm-text b, .m-app .m-gm-section { color: var(--color-text-secondary); }
+.m-app .m-gm-row:hover .m-gm-label { color: var(--color-text-accent); }
+
+/* 原生下拉 */
+.m-app .ds-select, .m-app select.ds-select {
+  min-height: var(--size-control-sm); max-width: 100%; padding: 0 var(--space-8) 0 var(--space-4);
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-input);
+  background: var(--color-bg-input) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%232b2420' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center;
+  appearance: none; -webkit-appearance: none; color: var(--color-text-primary); font: inherit; font-size: var(--font-size-body); cursor: pointer;
+  transition: border-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-app .ds-select:hover { border-color: var(--color-action-primary); }
+.m-app .ds-select:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 1px; }
+
+/* ---------------------------------------------------------------------
+   4. 顶部页面切换：入口和展开菜单同宽
+   --------------------------------------------------------------------- */
+.m-app .m-appbar-center {
+  --m-nav-head-width: 112px;
+  --m-nav-head-height: var(--size-control-sm);
+}
+.m-app .m-appbar-center .m-gm { height: var(--m-nav-head-height); }
+.m-app .m-appbar-center:not([data-help]) .m-gm {
+  --m-nav-panel-width: calc(var(--gm-w) + 2px);
+  width: var(--m-nav-panel-width);
+}
+.m-app .m-appbar-center .m-gm-head {
+  width: min(100%, var(--m-nav-head-width)); height: var(--m-nav-head-height); margin-inline: auto;
+  border-radius: var(--radius-button); padding: 0 var(--space-5); cursor: pointer; box-shadow: none;
+}
+.m-app .m-appbar-center:not([data-help]) .m-gm-head { width: 100%; }
+@media (max-width: 768px) {
+  .m-app .m-appbar-center { --m-nav-head-width: 96px; --m-nav-head-height: var(--size-button); }
+  .m-app .m-appbar-center:not([data-help]) .m-gm { --m-nav-panel-width: 110px; }
+}
+.m-app .m-appbar-center .m-gm-panel {
+  background: var(--brand-tan); color: var(--color-text-primary);
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-app .m-appbar-center:not([data-help]) .m-gm-panel {
+  left: 50%; translate: -50% 0; width: var(--m-nav-panel-width);
+  border-radius: var(--radius-button); pointer-events: none;
+  background: linear-gradient(var(--m-nav-glass-tint), var(--m-nav-glass-tint)),
+    var(--m-nav-glass-base);
+  -webkit-backdrop-filter: var(--m-nav-glass-blur);
+  backdrop-filter: var(--m-nav-glass-blur);
+}
+.m-app .m-appbar-center:not([data-help]) .m-gm-panel::before,
+.m-app .m-appbar-center:not([data-help]) .m-gm-rule,
+.m-app .m-appbar-center:not([data-help]) .m-gm-row::after,
+.m-app .m-appbar-tools .m-gm-word .m-gm-rule,
+.m-app .m-appbar-tools .m-gm-word .m-gm-row::after { display: none; }
+.m-app .m-appbar-center:not([data-help]) .m-gm-section-divider {
+  margin-top: var(--space-2);
+  border-top: 1px solid color-mix(in srgb, var(--color-text-primary) 16%, transparent);
+}
+.m-app .m-appbar-center:not([data-help]) .m-gm-row.is-on .m-gm-label { text-decoration: none; }
+.m-app .m-appbar-center:not([data-help]) .m-gm-row.is-on .m-gm-text::after {
+  content: '';
+  flex: 0 0 6px;
+  height: 6px;
+  margin-inline: auto var(--space-1);
+  align-self: center;
+  border-radius: 50%;
+  background: var(--color-action-primary);
+}
+.m-app .m-appbar-center:not([data-help]) .m-gm-head,
+.m-app .m-appbar-center:not([data-help]) .m-gm.is-open .m-gm-body { pointer-events: auto; }
+.m-app .m-appbar-center .m-gm-title { font-size: var(--font-size-body); font-weight: var(--font-weight-medium); }
+.m-app .m-appbar-center .m-gm-head:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: -2px; }
+.m-app .m-nav-hint {
+  position: absolute; left: 50%; top: calc(100% + var(--space-2)); transform: translateX(-50%);
+  padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill);
+  background: var(--color-bg-inverse); color: var(--color-text-on-inverse);
+  font-size: var(--font-size-caption); line-height: 1.5; white-space: nowrap; pointer-events: none;
+  animation: ds-nav-hint 2.4s var(--motion-ease-emphasized) 1s both;
+}
+.m-app .m-nav-hint::before {
+  content: ''; position: absolute; left: 50%; top: -4px; width: 8px; height: 8px; margin-left: -4px;
+  background: inherit; transform: rotate(45deg);
+}
+@keyframes ds-nav-hint { 0% { opacity: 0; transform: translate(-50%, 4px); } 15%, 100% { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .m-app .m-nav-hint { animation: none; } }
+
+/* ---------------------------------------------------------------------
+   5. 8c / 8d：素材库顶部搜索区——保留斜体大字，看得出是输入框
+   --------------------------------------------------------------------- */
+.m-app .m-sl-v2 .m-sl-row { align-items: center; gap: var(--space-4); }
+.m-app .m-sl-v2:not(.is-floating) .m-sl-row { align-items: flex-end; }
+.m-app .m-sl-icon {
+  flex: none; display: grid; place-items: center; width: var(--size-touch-target); height: var(--size-touch-target);
+  margin: 0 0 calc(var(--m-type-large) * 0.06) calc(var(--space-3) * -1); padding: 0; border: 0; border-radius: var(--radius-icon-button);
+  background: transparent; color: var(--color-text-secondary); cursor: text;
+  transition: color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-app .m-sl-v2.is-floating .m-sl-icon { width: var(--size-control-sm); height: var(--size-control-sm); margin: 0; }
+.m-app .m-sl-row:focus-within .m-sl-icon { color: var(--color-text-accent); }
+.m-app .m-sl-field { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
+.m-app .m-sl-field .m-sl-fakecaret { left: 0; bottom: calc(var(--m-type-large) * 0.1); }
+.m-app .m-sl-v2 .m-sl-input { border-radius: var(--radius-input); }
+.m-app .m-sl-v2:not(.is-floating) .m-sl-input { cursor: text; }
+@media (min-width: 769px) {
+  .m-app .m-sl-wrap { padding-top: var(--space-12); }
+}
+.m-app .m-sl-wrap .m-sl-anchor { margin-bottom: var(--space-10); }
+/* 保留浅棕细线，输入时由光标提示焦点。 */
+.m-app .m-sl-v2 .m-sl-rule,
+.m-app .m-sl-v2 .m-sl-row:has(.m-sl-input:focus) + .m-sl-rule {
+  height: 1px; transform: none; background: var(--color-border-default);
+}
+/* 线下面：左边「试试：」一行字，右边模式说明 */
+.m-app .m-sl-sub {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3) var(--space-6); flex-wrap: wrap;
+  padding: var(--space-2) 0 0;
+}
+/* 示例和辅助说明使用同一档可读的灰。 */
+.m-app .m-sl-tries { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 var(--space-2); min-width: 0; font-size: var(--font-size-caption); line-height: var(--line-height-snug); }
+.m-app .m-sl-tries-lead { color: var(--color-text-tertiary); }
+.m-app .m-sl-try-sep { color: var(--color-text-tertiary); }
+.m-app .m-sl-try {
+  padding: 0; border: 0; border-radius: var(--radius-button); background: none;
+  font: inherit; font-style: normal; color: var(--color-text-tertiary); text-decoration: none; cursor: pointer;
+  transition: color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-app .m-sl-try:hover { color: var(--color-text-accent); }
+.m-app .m-sl-try:focus-visible { color: var(--color-text-accent); outline: 2px solid var(--color-focus-ring); outline-offset: 3px; }
+.m-app .m-sl-modehint { margin: 0; font-size: var(--font-size-caption); line-height: var(--line-height-snug); color: var(--color-text-tertiary); text-align: right; }
+.m-app .m-sl-modehint b { font-weight: var(--font-weight-medium); }
+.m-app .m-sl-status:not(:empty) { margin-top: var(--space-1); font-size: var(--font-size-caption); color: var(--color-text-secondary); }
+.m-app .m-sl-v2:not(.is-floating) .m-sl-tools { padding-bottom: 0; }
+.m-app .m-sl-v2:not(.is-floating) .m-sl-modes { align-items: flex-end; }
+.m-app .m-sl-v2:not(.is-floating) .m-sl-mode {
+  display: inline-flex; align-items: flex-end; min-height: var(--size-button);
+  padding-block: 0 3px; border-radius: var(--radius-button);
+}
+.m-app .m-sl-v2:not(.is-floating) .m-sl-dot { padding-bottom: 3px; }
+
+/* ---------------------------------------------------------------------
+   6. 标签
+   --------------------------------------------------------------------- */
+.m-app .ds-tag {
+  display: inline-flex; align-items: center; gap: var(--space-1); min-height: 28px; padding: 0 var(--space-3);
+  border: 0; border-radius: var(--radius-pill); background: var(--color-bg-subtle);
+  color: var(--color-text-secondary); font-family: var(--font-family-ui); font-size: var(--font-size-caption); font-weight: var(--font-weight-regular); line-height: 1;
+  white-space: nowrap;
+}
+.m-app .ds-tag.is-on { background: var(--brand-tan); color: var(--color-text-primary); }
+.m-app button.ds-tag, .m-app .ds-tag.ds-tag--action {
+  cursor: pointer; color: var(--color-text-primary); font-size: var(--font-size-body); min-height: var(--size-button); border-radius: var(--radius-button);
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-standard), color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-app button.ds-tag:hover { background: var(--brand-tan); }
+.m-app button.ds-tag:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+
+/* ---------------------------------------------------------------------
+   7. 卡片（8e）+ 分析中
+   --------------------------------------------------------------------- */
+.m-app :is(.m-proj-table, .m-pending-item) {
+  background: var(--color-bg-surface); border-radius: var(--radius-card); overflow: hidden; box-shadow: none;
+}
+.m-app .m-proj-table { border-radius: 0; }
+.m-app .m-tile-title.is-empty { color: var(--color-text-tertiary); font-style: italic; }
+.m-app .ds-analyzing {
+  display: inline-flex; align-items: center; gap: var(--space-1); flex: none;
+  font-size: var(--font-size-caption); color: var(--color-text-secondary);
+}
+.m-app .ds-analyzing::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--color-status-info);
+  animation: ds-breathe 1.6s ease-in-out infinite;
+}
+@keyframes ds-breathe { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .m-app .ds-analyzing::before { animation: none; } }
+.m-app .ds-analysis-note {
+  display: flex; flex-direction: column; gap: var(--space-1); margin: 0 0 var(--space-4);
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-card); background: var(--color-bg-subtle);
+  font-size: var(--font-size-caption); line-height: var(--line-height-snug); color: var(--color-text-secondary);
+}
+.m-app .ds-analysis-note .ds-analyzing { color: var(--color-text-primary); font-weight: var(--font-weight-medium); }
+.m-app .ds-link {
+  color: var(--color-text-primary); text-decoration: none;
+  transition: color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-app .ds-link:hover { color: var(--color-text-accent); }
+
+/* ---------------------------------------------------------------------
+   8. 输入框、开关、帮助文字、报错
+   --------------------------------------------------------------------- */
+.m-app .ds-input { width: 100%; }
+.m-app :is(.ds-input, .m-set-input, .m-setp .m-set-input, .m-appbar-input, .m-proj-new input, .m-ld-taginput) {
+  min-height: var(--size-control-md); padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-input); background: var(--color-bg-input);
+  color: var(--color-text-primary); font: inherit; font-size: var(--font-size-body); text-align: left;
+}
+.m-app :is(.ds-input, .m-set-input, .m-setp .m-set-input, .m-appbar-input, .m-proj-new input, .m-ld-taginput):focus { outline: none; border-color: var(--color-focus-ring); box-shadow: none; }
+.m-app .ds-help { margin: var(--space-2) 0 0; font-size: var(--font-size-caption); line-height: var(--line-height-body); color: var(--color-text-secondary); }
+/* 报错条：浅棕兑米白的底、黑字，前面一颗陶土橙小点（陶土橙字放在有底色的地方对比度不够） */
+.m-app .ds-alert {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3);
+  margin: var(--space-4) var(--m-page-gutter); padding: var(--space-3) var(--space-4); border-radius: var(--radius-card);
+  background: var(--color-bg-subtle); color: var(--color-text-primary); font-size: var(--font-size-body);
+}
+.m-app .ds-alert::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--color-status-danger); }
+.m-app .m-switch { background: var(--brand-tan); }
+.m-app .m-switch:hover { background: var(--color-action-secondary-active); }
+.m-app .m-switch.is-on { background: var(--color-action-primary); }
+.m-app .m-switch::after { box-shadow: none; }
+.m-app .m-switch:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.m-app .m-switch:disabled { opacity: 0.5; cursor: not-allowed; }
+/* 设置页的连接状态小点：已连接浅棕、冷却中陶土橙、未连接灰（原来是绿 / 黄） */
+.m-app .m-status::before { background: var(--color-border-subtle); box-shadow: inset 0 0 0 1px var(--color-text-tertiary); }
+.m-app .m-status.is-ok::before { background: var(--color-status-success); box-shadow: none; }
+.m-app .m-status.is-cool::before { background: var(--color-status-warning); box-shadow: none; }
+
+/* ---------------------------------------------------------------------
+   9. 空结果（8j）、导入结果（第 5 条）、提示条
+   --------------------------------------------------------------------- */
+.m-app .ds-empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); padding: var(--space-10) 0 var(--space-6); max-width: 560px; }
+.m-app .ds-empty-title { margin: 0; font-family: var(--font-family-serif); font-style: italic; font-weight: var(--font-weight-light); font-size: var(--font-size-title); line-height: var(--line-height-tight); color: var(--color-text-primary); }
+.m-app .ds-empty-text { margin: 0; font-size: var(--font-size-body); line-height: var(--line-height-body); color: var(--color-text-secondary); }
+.m-app .ds-empty-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
+
+.m-app .ds-import-result {
+  position: fixed; left: 50%; bottom: var(--space-6); z-index: var(--z-toast); transform: translateX(-50%);
+  display: grid; gap: var(--space-3); width: min(520px, calc(100vw - 2 * var(--space-4))); max-height: calc(100dvh - 2 * var(--space-6)); overflow: auto;
+  padding: var(--space-4) var(--space-5); border: 1px solid var(--color-border-default); border-radius: var(--radius-card);
+  background: var(--color-bg-surface); box-shadow: none;
+  font-family: var(--font-family-ui); color: var(--color-text-primary);
+  animation: ds-rise var(--motion-duration-base) var(--motion-ease-emphasized) both;
+}
+@keyframes ds-rise { from { opacity: 0; transform: translate(-50%, 8px); } }
+@media (prefers-reduced-motion: reduce) { .m-app .ds-import-result { animation: none; } }
+.m-app .ds-import-result-main { display: flex; align-items: baseline; gap: var(--space-2); }
+/* 小圆点：导入完成浅棕、还在导入陶土橙（一呼一吸）、有失败陶土橙 */
+.m-app .ds-import-result-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--color-status-success); transform: translateY(-1px); }
+.m-app .ds-import-result.is-busy .ds-import-result-dot { background: var(--color-status-info); animation: ds-breathe 1.2s ease-in-out infinite; }
+.m-app .ds-import-result.is-warn .ds-import-result-dot { background: var(--color-status-warning); }
+.m-app .ds-import-result-line { margin: 0; font-size: var(--font-size-body-lg); line-height: var(--line-height-snug); font-weight: var(--font-weight-medium); }
+.m-app .ds-import-result-fails { display: grid; gap: var(--space-2); margin: 0; padding: 0 0 0 var(--space-4); list-style: none; }
+.m-app .ds-import-result-fails li { display: grid; gap: 2px; font-size: var(--font-size-body); line-height: var(--line-height-snug); }
+.m-app .ds-import-result-fails b { color: var(--color-text-danger); font-weight: var(--font-weight-medium); }
+.m-app .ds-import-result-fails span { color: var(--color-text-primary); }
+.m-app .ds-import-result-fails small { font-size: var(--font-size-caption); color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-app .ds-import-result-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); }
+
+/* 提示条：字号 14、接近黑色的底、米白字，扁平 */
+.m-app .m-toast {
+  max-width: calc(100vw - 2 * var(--space-4)); padding: var(--space-3) var(--space-4); border-radius: var(--radius-card);
+  background: var(--color-bg-inverse); color: var(--color-text-on-inverse); font-size: var(--font-size-body); line-height: var(--line-height-snug);
+  text-align: center; box-shadow: none;
+}
+
+/* ---------------------------------------------------------------------
+   10. 卡片和弹窗：浅棕叠米白、极细浅棕线、16px 圆角、不模糊、不加阴影
+   --------------------------------------------------------------------- */
+/* 导入面板、待确认、教程 */
+.m-app .m-import-dialog,
+.m-app .m-modal-panel,
+.m-app .m-onboard-card {
+  background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-card);
+  box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.m-app .m-import-dialog::backdrop {
+  background: color-mix(in srgb, var(--color-bg-page) 47%, transparent);
+  -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px);
+}
+.m-app :is(.m-modal-bg, .m-onboard-bg) { background: var(--color-bg-overlay); -webkit-backdrop-filter: none; backdrop-filter: none; animation: none; }
+.m-app .m-onboard-hero { background: var(--color-bg-subtle); }
+.m-app .m-onboard-hero::after { display: none; }
+.m-app .m-onboard-tile { background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-card); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* 色环弹层、项目转盘侧栏、设置抽屉、所有 .m-frost 面板 */
+.m-app .m-wheel-pop, .m-app .m-pwheel, .m-app .m-drawer, .m-app .m-frost {
+  background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-card);
+  box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.m-app .m-pwheel { border-radius: 0; border-left: 0; }
+/* 关闭按钮（圆）：浅棕底、黑字，扁平 */
+.m-app :is(.m-close, .m-onboard-close) { border-radius: var(--radius-icon-button); background: var(--brand-tan); color: var(--color-text-primary); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.m-app :is(.m-close, .m-onboard-close):hover { background: var(--color-action-secondary-hover); transform: none; }
+/* 拖拽导入：陶土橙虚线框，底是不透明的米白 */
+.m-app .m-drop { border: 1px dashed var(--color-action-primary); border-radius: var(--radius-card); background: var(--color-bg-page); -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* 待确认：选中的图一圈陶土橙线，右上角陶土橙小勾 */
+.m-app .m-pending-item.is-keep { outline-color: var(--color-action-primary); }
+.m-app .m-pending-item b { background: var(--color-action-primary); color: var(--color-text-on-primary); }
+/* 项目台面、项目封面占位：浅棕兑米白，选中浅棕 */
+.m-app .m-proj.is-on .m-proj-table { background: var(--brand-tan); box-shadow: none; }
+
+/* ---------------------------------------------------------------------
+   11. 手机（≤ 768px）和 iPad（769–1180px）
+   --------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  /* 所有按钮、下拉、标签：手指能点准（44px） */
+  .m-app :is(.ds-btn, .ds-select, button.ds-tag, .m-btn, .m-set-save, .m-set-add) { min-height: var(--size-button); }
+  .m-app .ds-btn.ds-btn--sm { min-height: var(--size-button); font-size: var(--font-size-body); }
+  .m-app .m-appbar-tools :is(.m-hb, .m-gm-word-head) { min-height: var(--size-button); }
+
+  /* 搜索区：放大镜 + 输入框一行，模式切换另起一行，「试试」一行可以横着滑 */
+  .m-app .m-sl-v2:not(.is-floating) .m-sl-row {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: end; justify-items: stretch; gap: var(--space-1) var(--space-2);
+  }
+  .m-app .m-sl-v2:not(.is-floating) .m-sl-tools { grid-column: 1 / -1; justify-self: start; }
+  .m-app .m-sl-v2:not(.is-floating) .m-sl-icon { margin: 0 0 var(--space-1) calc(var(--space-2) * -1); }
+  .m-app .m-sl-sub { flex-direction: column; gap: var(--space-2); }
+  .m-app .m-sl-modehint { order: -1; text-align: left; }
+  .m-app .m-sl-tries { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding-bottom: var(--space-1); scrollbar-width: none; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+  .m-app .m-sl-tries::-webkit-scrollbar { display: none; }
+  .m-app .m-sl-try { flex: none; min-height: var(--size-button); }
+
+  /* 空结果：按钮各占一行的一半 */
+  .m-app .ds-empty { padding-top: var(--space-6); }
+  .m-app .ds-empty-title { font-size: var(--font-size-title-sm); }
+  .m-app .ds-empty-actions > * { flex: 1 1 calc(50% - var(--space-2)); }
+
+  /* 导入结果：贴底铺满，按钮整行，字够大 */
+  .m-app .ds-import-result {
+    left: var(--space-2); right: var(--space-2); bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
+    width: auto; transform: none; padding: var(--space-4);
+  }
+  @keyframes ds-rise-m { from { opacity: 0; transform: translateY(8px); } }
+  .m-app .ds-import-result { animation-name: ds-rise-m; }
+  .m-app .ds-import-result-actions > .ds-btn { flex: 1 1 0; }
+  .m-app .m-toast { bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px)); }
+
+  /* 顶部胶囊：44px 高，右边给 ▾ 留位置，长项目名省略号收尾 */
+  .m-app .m-appbar .m-gm-head { padding-inline: 23px var(--space-6); }
+
+  /* 顶部胶囊的第一次提示：手机上缩短，别挤出屏幕 */
+  .m-app .m-nav-hint { white-space: normal; width: max-content; max-width: calc(100vw - 2 * var(--space-4)); text-align: center; }
+
+  /* 日历图例：说明字另起一行 */
+  .m-app .m-heat-legend { flex-wrap: wrap; }
+  .m-app .m-heat-legend-hint { flex-basis: 100%; }
+  .m-app .m-heat-legend button { width: 16px !important; height: 16px !important; }
+}
+
+@media (min-width: 769px) and (max-width: 1180px) {
+  /* iPad：示例只留两个，顶栏触点 44px */
+  .m-app .m-sl-try-more { display: none; }
+  .m-app .m-appbar-tools :is(.m-hb, .m-gm-word-head) { min-height: var(--size-button); }
+}
+
+/* 日历热力图图例：说明字和格子 */
+.m-app .m-heat-legend { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+.m-app .m-heat-legend-hint { margin-right: var(--space-2); }
+
+/* ---------------------------------------------------------------------
+   12. 图片详情页：长相退回最初版（布局、字体、按钮位置都照最初版，样式在 main.css / refine.css）
+       这里只做三件事：统一按钮并保留最初版的分隔线
+   --------------------------------------------------------------------- */
+/* 找相似 = 主要按钮（原来是黑底白字的扁条） */
+.m-app .m-ld .m-ld-similar {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  height: auto; min-height: var(--size-button); padding: 0 var(--space-4);
+  border: 0; border-radius: var(--radius-button); box-shadow: none;
+  background: var(--color-action-primary); color: var(--color-text-on-primary);
+  font-family: var(--m-title); font-size: var(--font-size-body); font-weight: var(--font-weight-medium); letter-spacing: 0.02em;
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-app .m-ld .m-ld-similar:hover { background: var(--color-action-primary-hover); }
+.m-app .m-ld .m-ld-similar:active { background: var(--color-action-primary-active); }
+/* 按颜色找 = 次要按钮（原来是黑色描边）：浅棕底、黑字、没有框，尺寸和找相似一样 */
+.m-app .m-ld .m-ld-similar.m-ld-samecolor { background: var(--color-action-secondary-bg); color: var(--color-text-primary); box-shadow: none; }
+.m-app .m-ld .m-ld-similar.m-ld-samecolor:hover { background: var(--color-action-secondary-hover); }
+.m-app .m-ld .m-ld-similar.m-ld-samecolor:active { background: var(--color-action-secondary-active); }
+.m-app .m-ld .m-ld-finds .m-ld-similar { width: 100%; padding: 0 var(--space-3); }
+.m-app .m-ld .m-ld-back:hover, .m-app .m-ld .m-ld-links a:hover { color: var(--color-text-accent); }
+.m-app .m-ld-taginput:focus { border-color: var(--color-action-primary); }
+.m-app .m-ld button:focus-visible, .m-app .m-ld a:focus-visible { outline-color: var(--color-focus-ring); }
+/* 「收藏：未记录收藏夹」+ 下面一行小字说明原因 */
+.m-app .m-ld-spec > div.m-ld-spec-saved { align-items: flex-start; }
+.m-app .m-ld-unrecorded { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); }
+.m-app .m-ld-spec-saved dt { flex: none; }
+.m-app .m-ld-spec-saved dd { min-width: 0; }
+.m-app .m-ld-unrecorded small {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11px; line-height: var(--line-height-snug); color: var(--color-text-tertiary); text-align: right;
+}
+
+/* ---------------------------------------------------------------------
+   13. 动效统一：短反馈一律 150ms + 同一条曲线
+   --------------------------------------------------------------------- */
+.m-app :is(.m-hb, .m-gm-word-head, .m-setp-link, .m-ld-back, .m-ld-links a, .m-ld-addtag, .m-ld-more button, .m-proj-add,
+  .m-proj-switch button, .m-cal-tab, .m-sl-mode, .m-sl-color, .m-sl-try, .m-switch, .m-tile img, .m-card img) {
+  transition-duration: var(--motion-duration-fast);
+  transition-timing-function: var(--motion-ease-standard);
+}

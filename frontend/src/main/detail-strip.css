@@ -1,0 +1,57 @@
+.m-ld-strip {
+  --ld-strip-image: max(44px, 5vw);
+  --ld-strip-gap: 0.4vw;
+  --ld-strip-top: 0px;
+  --ld-strip-height: calc(var(--ld-strip-top) + var(--ld-strip-image) + var(--ld-strip-gap) + 1px);
+}
+
+.m-ld-strip {
+  position: sticky;
+  top: var(--m-topbar-height);
+  z-index: 2;
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ld-strip-gap);
+  margin-inline: -21px;
+  padding: var(--ld-strip-top) 1.5vw 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  background: var(--m-page);
+}
+
+.m-ld-strip .m-ld-strip-item {
+  flex: none;
+  display: block;
+  padding: 0 0 var(--ld-strip-gap);
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+
+.m-ld-strip-item img {
+  display: block;
+  width: auto;
+  height: var(--ld-strip-image);
+  max-width: none;
+  opacity: 0.55;
+  transition: opacity var(--mo-fb-dur) var(--mo-fb-ease);
+}
+
+.m-ld-strip-item:is(:hover, :focus-visible, [aria-current]) img {
+  opacity: 1;
+}
+
+.m-ld-strip .m-ld-strip-item[aria-current] {
+  border-bottom-color: var(--m-ink);
+}
+
+.m-ld-strip .m-ld-strip-item:focus-visible {
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m-ld-strip-item img { transition: none; }
+}

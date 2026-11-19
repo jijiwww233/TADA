@@ -1,0 +1,280 @@
+/* ================= 全站统一顶栏（照 Lusano 顶栏量：上留白 22、中间一颗 26 高的胶囊、下面 25 空气） =================
+   左：品牌字（保持原来的字体和字号）；中：正中一颗胶囊（复用主页筛选菜单那颗 GlassMenu）；
+   右：这一页自己的工具，带下划线的衬线小字，字号统一 14（Lusano 右侧 Feed | Grid 那一档）。
+   --m-topbar-height = 73 = 22 + 26 + 25，页面内容从 73 开始。 */
+.m-app .m-appbar {
+  --m-nav-glass-base: #f7f4ef66;
+  --m-nav-glass-tint: rgb(74 34 20 / 15%);
+  --m-nav-glass-blur: blur(15px);
+  position: fixed;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  height: var(--m-topbar-height);
+  padding: 22px max(22px, 1.5vw) 0;
+  gap: 0;
+  border-bottom: 0;
+  margin: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+  transition: none;
+}
+
+.m-appbar .m-brand { display: inline-flex; align-items: center; height: 26px; margin-right: 0; }
+
+.m-appbar-center { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); }
+
+.m-appbar-tools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  height: 26px;
+  gap: 7px;
+  font-family: var(--m-title);
+  font-size: var(--m-type-body);
+  line-height: 1;
+  color: var(--m-ink-3);
+  white-space: nowrap;
+}
+
+/* 右侧的一颗字：下划线衬线小字 */
+.m-hb {
+  padding: 0 0 3px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--m-ink-3);
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: currentColor;
+  transition: color var(--mo-fb-dur) var(--mo-fb-ease);
+}
+.m-hb:hover { color: var(--m-ink-2); }
+.m-hb.is-on { color: var(--m-ink); }
+.m-hb:disabled { opacity: 0.45; cursor: default; }
+.m-hb:focus-visible { outline: 2px solid var(--m-clay); outline-offset: 3px; border-radius: 2px; }
+.m-hb-dot { color: var(--m-ink-3); }
+/* 触发词后面跟的当前值（全部 / 时间）用 Newsreader 斜体，和菜单里的编号数字同一套 */
+.m-hb i, .m-gm-word-head i { font-family: var(--m-title); font-style: italic; font-variant-numeric: tabular-nums; }
+
+/* 筛选 / 排序：菜单胶囊换成一颗字，玻璃卡片从字下面长出来（下方放不下往上长） */
+.m-gm.m-gm-word { width: auto; height: auto; }
+.m-gm-word .m-gm-word-head {
+  display: inline-block;
+  padding: 0 0 3px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--m-ink-3);
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  transition: color var(--mo-fb-dur) var(--mo-fb-ease);
+}
+.m-gm-word .m-gm-word-head:hover, .m-gm-word.is-open .m-gm-word-head { color: var(--m-ink); }
+.m-gm-word .m-gm-word-head:focus-visible { outline: 2px solid var(--m-clay); outline-offset: 3px; border-radius: 2px; }
+.m-gm-word .m-gm-panel { top: calc(100% + 8px); left: auto; right: 0; width: var(--gm-w); }
+.m-gm-word[data-dir="up"] .m-gm-panel { top: auto; bottom: calc(100% + 8px); flex-direction: column; }
+
+/* 色环挂在这个位置下面，右边缘对齐这颗字 */
+.m-appbar-wheel-host { position: absolute; right: var(--m-page-gutter); top: 40px; }
+.m-appbar .m-wheel-pop { left: auto; right: -6px; top: calc(100% + 14px); z-index: 48; }
+
+/* 项目页在顶栏里新建项目：一棵细下划线的输入框 + 创建 */
+.m-appbar-form { display: flex; align-items: center; gap: 8px; }
+.m-appbar-input {
+  width: 168px;
+  height: 24px;
+  padding: 0 0 2px;
+  border: 0;
+  border-bottom: 1px solid var(--m-line);
+  background: transparent;
+  font-family: var(--m-title);
+  font-size: var(--m-type-body);
+  color: var(--m-ink);
+  outline: none;
+}
+.m-appbar-input::placeholder { color: var(--m-ink-3); opacity: 1; }
+.m-appbar-input:focus { border-bottom-color: var(--m-ink); }
+
+.m-hb-filter-active {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  margin-left: 5px;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: var(--m-ink);
+}
+
+/* 筛选和帮助沿用最初版的两层玻璃。 */
+.m-appbar .m-gm.is-open .m-gm-panel {
+  background: var(--m-nav-glass-base);
+}
+.m-appbar .m-gm.is-open .m-gm-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--m-nav-glass-tint);
+  -webkit-backdrop-filter: var(--m-nav-glass-blur);
+  backdrop-filter: var(--m-nav-glass-blur);
+  pointer-events: none;
+}
+.m-appbar :is(.m-gm-head, .m-gm-body) { position: relative; }
+.m-appbar .m-gm-entry > .m-gm-row { width: 100%; }
+.m-appbar .m-gm-inner.m-gm-no-footer { padding-bottom: 41px; }
+.m-gm-section {
+  display: block;
+  margin: 8px 0 3px;
+  font-size: var(--m-type-ui);
+  line-height: 1;
+}
+.m-gm-section-divider { padding-top: 8px; }
+.m-gm-word:not(.is-open) .m-gm-panel {
+  visibility: hidden;
+  transition: visibility 0s 0.5s;
+}
+
+/* The saved Products page fades each button's own line; there is no sliding marker. */
+.m-hb.m-state-switch {
+  position: relative;
+  text-decoration: none;
+}
+.m-hb.m-state-switch,
+.m-sl-v2 .m-sl-mode {
+  color: var(--m-ink);
+  opacity: 0.5;
+  transition: opacity 0.8s ease, color 0.8s ease;
+}
+.m-hb.m-state-switch::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: var(--m-clay);
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+.m-hb.m-state-switch.is-on,
+.m-hb.m-state-switch.is-on::after,
+.m-sl-v2 .m-sl-mode.is-on { opacity: 1; }
+.m-sl-v2 .m-sl-mode::after { transition: opacity 0.8s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .m-hb.m-state-switch, .m-hb.m-state-switch::after,
+  .m-sl-v2 .m-sl-mode, .m-sl-v2 .m-sl-mode::after { transition: none; }
+}
+
+/* The label rolls within its own mask. The existing selection line stays in place. */
+.m-roll-label { display: inline-grid; overflow: clip; overflow-clip-margin: 2px; }
+.m-roll-label > span { grid-area: 1 / 1; }
+.m-roll-label > span[aria-hidden] { visibility: hidden; transform: translateY(120%); }
+.m-gm-row:hover .m-gm-label:has(.m-roll-label) { transform: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .m-roll-label[data-roll-tap] > span:first-child,
+  button:focus-visible .m-roll-label > span:first-child {
+    animation: m-roll-out 800ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+  .m-roll-label[data-roll-tap] > span[aria-hidden],
+  button:focus-visible .m-roll-label > span[aria-hidden] {
+    animation: m-roll-in 800ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  button:hover .m-roll-label > span:first-child {
+    animation: m-roll-out 800ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+  button:hover .m-roll-label > span[aria-hidden] {
+    animation: m-roll-in 800ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+}
+
+@keyframes m-roll-out { to { transform: translateY(-120%); } }
+@keyframes m-roll-in {
+  0% { visibility: hidden; }
+  6.25% { visibility: visible; }
+  100% { visibility: visible; transform: translateY(0); }
+}
+
+.m-appbar-center[data-help] .m-gm { max-width: calc(100vw - 24px); }
+.m-appbar-center[data-help] .m-gm-panel { max-width: calc(100vw - 22px); }
+.m-help-steps { margin: 0; padding: 0; list-style: none; }
+.m-help-row { cursor: default; }
+.m-help-row .m-gm-text { line-height: 1.3; }
+.m-help-description { margin-inline-start: auto; color: var(--m-ink-2); white-space: normal; text-align: end; }
+
+@media (prefers-reduced-motion: no-preference) {
+  @starting-style {
+    .m-gm.is-open .m-help-row .m-gm-text { transform: translateY(150%); }
+    .m-gm.is-open .m-help-row::after { transform: scaleX(0); }
+    .m-appbar-center[data-help] .m-gm.is-open .m-gm-foot { opacity: 0; }
+  }
+}
+
+.m-import-dialog {
+  margin: auto;
+  padding: 0;
+  box-sizing: border-box;
+  width: min(480px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--m-line);
+  border-radius: 12px;
+  background: var(--m-page);
+  color: var(--m-ink);
+  font-family: var(--m-title);
+  white-space: normal;
+}
+.m-import-dialog:has(.m-import-options--public) { width: min(840px, calc(100% - 32px)); }
+.m-import-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-3) var(--space-6) 0;
+}
+.m-app .m-import-head h2 { margin: 0; font: var(--font-weight-medium) var(--font-size-subtitle) var(--font-family-serif); }
+.m-import-notice {
+  display: flex; align-items: baseline; gap: var(--space-2);
+  margin: 0 var(--space-6) var(--space-2);
+  font-size: var(--font-size-caption); line-height: var(--line-height-body);
+  color: var(--color-text-secondary);
+}
+.m-import-notice::before {
+  content: ''; flex: none; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--color-action-primary);
+}
+.m-import-options {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4);
+  padding: var(--space-4) var(--space-6) var(--space-6);
+}
+.m-import-options section + section { border-top: 1px solid var(--color-border-default); padding-top: var(--space-4); }
+.m-app .m-import-options h3 {
+  margin: 0 0 var(--space-1); font: var(--font-weight-medium) var(--font-size-body) var(--font-family-serif);
+}
+.m-import-options h3 i { font-weight: var(--font-weight-regular); color: var(--color-text-tertiary); }
+.m-app .m-import-options p {
+  margin: 0 0 var(--space-2); font-size: var(--font-size-caption); line-height: var(--line-height-body);
+}
+.m-app .m-import-options .ds-btn { padding-inline: var(--space-4); white-space: normal; text-align: center; }
+.m-import-options .m-set-input { display: block; width: 100%; margin-top: var(--space-2); }
+.m-import-unavailable { color: var(--color-text-tertiary); }
+.m-import-qr {
+  display: block; width: 136px; max-width: 100%; height: auto;
+  margin-top: var(--space-2); border-radius: var(--radius-input);
+}
+.m-import-qr[src='/api/demo/wechat-qr'] { width: 176px; }
+@media (min-width: 701px) {
+  .m-import-options--public { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .m-import-options--public section + section {
+    border-top: 0; border-inline-start: 1px solid var(--color-border-default);
+    padding-top: 0; padding-inline-start: var(--space-4);
+  }
+}
+

@@ -1,0 +1,7 @@
+{
+  "queries": [
+    {"id": "q01", "category": "明确内容", "query": "黑底白线、留白很多的极简海报", "expected": [1]},
+    {"id": "q02", "category": "模糊记忆", "query": "我记得有一张很多文字、分栏很密的建筑展板", "expected": [2, 3]},
+    {"id": "q03", "category": "OCR文字", "query": "图里写着 TYPE 和 FORM 的那张", "expected": [4]}
+    ]
+}

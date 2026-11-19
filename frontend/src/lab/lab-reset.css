@@ -1,0 +1,5 @@
+/* index.css styles the app's image grid via a global, unlayered `.grid`. Undo it inside /lab with
+   the same specificity; lab.css (loaded after this) then lets Tailwind's `grid-cols-*`/`gap-*` win. */
+:where(.lab) .grid { grid-template-columns: none; gap: 0; margin-top: 0; }
+/* `.grid img { width/height: 100% }` from index.css outranks single-class utilities, so lab code
+   writes `[display:grid]` instead of `grid`. (Vendored components keep their own classes.) */

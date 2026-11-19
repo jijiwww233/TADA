@@ -1,0 +1,5 @@
+# Optional local-only image search; Python 3.10-3.12 (validated with 3.12).
+-r requirements.txt
+torch>=2.6
+transformers>=4.28.1,<4.57
+numpy>=1.24,<2

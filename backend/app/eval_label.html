@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>标注 · 我明明收藏过</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#1f2937;background:#f7f7f5}
+*{box-sizing:border-box}body{margin:0}.top{padding:14px 20px;background:#fff;border-bottom:1px solid #ddd;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+h1{font-size:18px;margin:0}.muted{color:#667085;font-size:13px}.main{display:grid;grid-template-columns:390px 1fr;gap:16px;padding:16px;max-width:1500px;margin:auto}
+.panel{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+label{font-size:13px;color:#344054}input[type=text],select,textarea{font:inherit;padding:7px 9px;border:1px solid #ccc;border-radius:7px;background:#fff}
+input[type=text]{width:100%}textarea{width:100%;min-height:58px}.tabs button{border:1px solid #ccc;background:#fff;padding:6px 10px;border-radius:999px;cursor:pointer}
+.tabs button.on{background:#1f2937;color:#fff;border-color:#1f2937}.primary{background:#1f2937;color:#fff;border:0;border-radius:7px;padding:8px 12px;cursor:pointer}
+button{font:inherit;cursor:pointer}.ghost{background:#fff;border:1px solid #ccc;border-radius:7px;padding:5px 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:9px;max-height:calc(100vh - 250px);overflow:auto;padding:2px}
+.card{border:2px solid transparent;border-radius:8px;background:#fff;overflow:hidden;cursor:pointer;position:relative}
+.card img{width:100%;height:135px;object-fit:cover;display:block;background:#eee}.card.sel{border-color:#2563eb;box-shadow:0 0 0 2px #bfdbfe}
+.card .meta{padding:6px;font-size:11px;color:#555;line-height:1.35}.card .id{font-weight:700;color:#111}.colors{display:flex;gap:2px;margin-top:3px}.colors i{display:block;width:14px;height:9px;border-radius:2px;border:1px solid #ddd}
+.badge{position:absolute;top:5px;left:5px;background:#2563eb;color:#fff;border-radius:999px;font-size:11px;padding:1px 7px}
+.task{border-bottom:1px solid #eee;padding:8px 0;font-size:13px}.task b{font-size:13px}.task button{margin-left:4px}
+.status{font-size:12px;color:#067647}.err{color:#b42318}.hint{font-size:12px;color:#667085;line-height:1.5}
+.right-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+@media(max-width:900px){.main{grid-template-columns:1fr}.grid{max-height:55vh}}
+</style>
+</head>
+<body>
+<div class="top"><h1>评测标注</h1><span id="libCount">读取图库…</span><span class="muted">只读已分析图库；保存只写 eval/tasks.json；本页不调用付费模型</span></div>
+<div class="main"><section class="panel">
+<label for="taskSelect">选一道题</label><select id="taskSelect"><option value="">新建题目</option></select>
+<div class="row"><label>题型 <select id="kind"><option value="find">find 找图</option><option value="create">create 创作</option></select></label><label>分组 <select id="split"><option>dev</option><option>test</option></select></label></div>
+<label for="query">题目</label><input id="query" type="text" placeholder="填写查询或创作任务">
+<label for="note">标注说明</label><textarea id="note" placeholder="跨主题参考、标注疑问等"></textarea>
+<div class="row tabs" id="tabs"><button data-dim="find">find</button><button data-dim="layout">排版 layout</button><button data-dim="color">配色 color</button><button data-dim="style">风格 style</button></div>
+<p id="selectedCount" class="hint"></p>
+<button id="saveTask" class="primary">暂存这道题</button> <button id="newTask" class="ghost">新建题目</button>
+<p class="hint">find 题标1张；create 每栏分别标2–6张，可以跨主题。同一张图可属于多个栏。未标注不计作通过。已看过答案的题只能进 dev；4道 test 请自己出新题。</p>
+<div class="row"><button id="saveFile" class="primary">保存全部到 tasks.json</button></div><p role="status" id="status"></p>
+<label for="filter">筛选图片（本地编号 / 平台 / 标题 / 主题 / 描述）</label><input id="filter" type="text" placeholder="例如 建筑 或 119">
+<button id="clearFilter" class="ghost">显示全部图片</button><p id="filterStatus" class="hint"></p>
+</section><section class="panel"><div class="right-head"><strong>全部已分析图片</strong><span class="muted">点选图片标注当前栏；“找相似”仅过滤，不改标注</span></div><div class="grid" id="grid"></div></section></div>
+<script>
+const $=id=>document.getElementById(id), keys=['find','layout','color','style'];
+let library=[],tasks=[],editingId=null,dim='find',expected=empty(),similarIds=null;
+function empty(){return Object.fromEntries(keys.map(k=>[k,[]]))}
+function status(text,error=false){$('status').textContent=text;$('status').className=error?'err':'status'}
+async function getJSON(url,opts){const r=await fetch(url,opts);const j=await r.json();if(!r.ok)throw new Error(typeof j.detail==='string'?j.detail:j.detail?.message||'读取失败');return j}
+function updateTabs(){const kind=$('kind').value;if(kind==='find')dim='find';else if(dim==='find')dim='layout';$('tabs').querySelectorAll('button').forEach(b=>{b.disabled=kind==='find'?b.dataset.dim!=='find':b.dataset.dim==='find';b.classList.toggle('on',b.dataset.dim===dim);b.setAttribute('aria-pressed',String(b.dataset.dim===dim))});render()}
+function renderTasks(){const select=$('taskSelect');select.innerHTML='<option value="">新建题目</option>';tasks.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=`${t.split} · ${t.query}`;select.append(o)});select.value=editingId||''}
+function loadTask(id){const t=tasks.find(x=>x.id===id);if(!t)return reset();editingId=t.id;$('query').value=t.query;$('note').value=t.note||'';$('split').value=t.split;$('kind').value=t.type;expected=structuredClone(t.expected);updateTabs()}
+function reset(){editingId=null;expected=empty();$('query').value='';$('note').value='';$('split').value='dev';$('kind').value='find';renderTasks();updateTabs()}
+function render(){const q=$('filter').value.trim().toLowerCase();let arr=library.filter(i=>(!similarIds||similarIds.includes(i.image_id))&&(!q||[i.image_id,...i.platforms,i.post_title,...i.subject,i.description].join(' ').toLowerCase().includes(q)));if(similarIds)arr.sort((a,b)=>similarIds.indexOf(a.image_id)-similarIds.indexOf(b.image_id));$('grid').replaceChildren();
+arr.forEach(i=>{const selected=expected[dim].includes(i.image_id),card=document.createElement('div');card.className='card'+(selected?' sel':'');const toggle=document.createElement('button');toggle.type='button';toggle.style.cssText='border:0;background:transparent;width:100%;padding:0;text-align:left';toggle.setAttribute('aria-label',`标注 ${dim} 图片 ${i.image_id}`);toggle.setAttribute('aria-pressed',String(selected));const img=document.createElement('img');img.src=i.url;img.loading='lazy';img.alt=`图片 ${i.image_id}`;const meta=document.createElement('div');meta.className='meta';meta.textContent=`#${i.image_id} · ${i.platforms.join('/')} · ${i.subject.join('、')} · ${i.description.slice(0,60)}`;toggle.append(img,meta);toggle.onclick=()=>{expected[dim]=selected?expected[dim].filter(id=>id!==i.image_id):[...expected[dim],i.image_id];render()};const sim=document.createElement('button');sim.textContent='找相似';sim.className='ghost';sim.setAttribute('aria-label',`找相似 图片 ${i.image_id}`);sim.onclick=async()=>{try{const r=await getJSON('/api/eval/similar/'+i.image_id);similarIds=[i.image_id,...r.items.map(x=>x.image_id)];$('filter').value='';$('filterStatus').textContent='当前按图片 #'+i.image_id+' 的本地近邻筛选；只显示已分析图';render()}catch(e){status(String(e),true)}};card.append(toggle,sim);$('grid').append(card)});
+$('selectedCount').textContent=keys.map(k=>`${k}: ${expected[k].length}张`).join(' / ')+`；当前标注 ${dim}`;$('libCount').textContent=`图库 done ${library.length} 张 · 显示 ${arr.length} 张`}
+function saveCurrent(){const query=$('query').value.trim();if(!query){status('请填写题目',true);return false}const task={id:editingId||crypto.randomUUID(),type:$('kind').value,query,split:$('split').value,expected:structuredClone(expected),note:$('note').value};if(task.type==='find'){for(const k of keys)if(k!=='find')task.expected[k]=[]}else task.expected.find=[];const at=tasks.findIndex(t=>t.id===task.id);if(at>=0)tasks[at]=task;else tasks.push(task);editingId=task.id;renderTasks();status('已暂存，请保存全部');return true}
+$('tabs').onclick=e=>{const b=e.target.closest('button');if(b&&!b.disabled){dim=b.dataset.dim;updateTabs()}};$('kind').onchange=updateTabs;$('taskSelect').onchange=()=>loadTask($('taskSelect').value);$('filter').oninput=render;$('clearFilter').onclick=()=>{similarIds=null;$('filter').value='';$('filterStatus').textContent='';render()};$('saveTask').onclick=saveCurrent;$('newTask').onclick=reset;
+$('saveFile').onclick=async()=>{try{if($('query').value.trim()&&!saveCurrent())return;const result=await getJSON('/api/eval/tasks',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:1,tasks})});tasks=result.tasks;renderTasks();status(`已保存 ${tasks.length} 题到 eval/tasks.json`)}catch(e){status(String(e),true)}};
+(async()=>{try{const [l,t]=await Promise.all([getJSON('/api/eval/library'),getJSON('/api/eval/tasks')]);library=l.items;tasks=t.tasks.map(x=>{if(x.expected)return x;const e=empty();if(x.type==='find')e.find=x.expected_image_ids||[];else for(const k of ['layout','color','style'])if((x.expected_purposes||[]).includes(k==='color'?'palette':k))e[k]=x.expected_image_ids||[];return{id:x.id,type:x.type,query:x.query||x.brief,split:x.group||'dev',expected:e,note:x.note||''}});renderTasks();updateTabs()}catch(e){status(String(e),true)}})();
+</script></body></html>

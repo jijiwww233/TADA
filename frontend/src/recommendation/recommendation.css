@@ -1,0 +1,10 @@
+.recommendation-panel { border-bottom: 1px solid var(--border); margin: 16px 0; padding: 0 0 12px; }
+.recommendation-panel form { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+.recommendation-panel label { display: flex; flex-direction: column; gap: 4px; }
+.recommendation-panel textarea { font: inherit; width: 300px; max-width: 100%; min-height: 3em; }
+.recommendation-panel button { min-height: 36px; }
+.recommendation-query { color: var(--muted, inherit); }
+.recommendation-cards h3 { font-size: 1em; margin: 8px 0 4px; }
+.recommendation-cards code { word-break: break-all; }
+.recommendation-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px; }
+.recommendation-meta { color: var(--muted, inherit); font-size: .85em; }

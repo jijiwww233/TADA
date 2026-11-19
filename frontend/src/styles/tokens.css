@@ -1,0 +1,150 @@
+/* =====================================================================
+   设计令牌（Design Tokens）——全站唯一的取值来源
+   ---------------------------------------------------------------------
+   第三版配色：只有三种主色 + 黑色系中性色。
+     · 米白   #fafaf8              —— 最初版的页面底色（main.css「第 5 版：底色统一 #fafaf8」）
+     · 陶土橙 oklch(0.56 0.112 42) —— 最初版的 --m-clay，约等于 #AA5C3D
+     · 浅棕   #DFD8D3              —— 最初版顶栏「素材库」切换胶囊的颜色。原代码是两层叠出来的：
+                                     #f7f4ef 40% 透明的底 + rgb(74 34 20) 15% 透明的一层，叠在米白上约等于 #DFD8D3
+     · 文字：黑色 / 接近黑色，说明文字用同一系的灰（中性色）
+   不出现别的颜色：没有绿色、没有深棕、没有别的橙；状态（已连接、成功、分析中、出错）也只用这三种颜色 + 文字。
+   规则：
+   1. 组件只引用这里的变量，不写死颜色、字号、间距、圆角、阴影、动效。
+   2. 名字按「用途」起（text-secondary、action-primary），不按长相。
+   3. 文字色在米白底上对比度都 ≥ 4.5（数值见每行注释）。
+   旧变量（--m-ink、--wm-body 等）在 main.css / lab.css 里接到这里，老样式自动跟着变。
+   ===================================================================== */
+
+:root {
+  /* ---------- 三种主色（只在这里写一次） ---------- */
+  --brand-cream: #fafaf8;                                /* 米白 */
+  --brand-clay: oklch(0.56 0.112 42);                    /* 陶土橙 ≈ #AA5C3D */
+  --brand-tan: #dfd8d3;                                  /* 浅棕 */
+
+  /* ---------- 颜色 · 背景 ---------- */
+  --color-bg-page: var(--brand-cream);                   /* 页面底 */
+  --color-bg-surface: color-mix(in srgb, var(--brand-tan) 15%, var(--brand-cream)); /* 卡片 / 弹窗 */
+  --color-bg-input: var(--brand-cream);                 /* 卡片内的输入框 */
+  --color-bg-subtle: #ece8e4;                            /* 浅棕兑米白一半：选中行、提示块的底 */
+  --color-bg-muted: var(--brand-tan);                    /* 项目台面、占位 */
+  --color-bg-inverse: oklch(0.25 0.02 55);               /* 提示条：接近黑色的底 */
+  --color-bg-overlay: oklch(0.25 0.02 55 / 0.32);        /* 弹窗后面的遮罩（不模糊） */
+
+  /* ---------- 颜色 · 文字（黑色系中性色） ---------- */
+  --color-text-primary: oklch(0.25 0.02 55);             /* 正文、标题：接近黑色 ≈ 14:1 */
+  --color-text-secondary: oklch(0.40 0.016 62);          /* 说明、次要信息        ≈ 8:1  */
+  --color-text-tertiary: oklch(0.50 0.012 70);           /* 小字、来源、计数      ≈ 5.7:1 */
+  --color-text-placeholder: oklch(0.54 0.012 70);        /* 输入框提示文字        ≈ 4.8:1 */
+  --color-text-search-placeholder: oklch(0.25 0.02 55 / 0.3); /* 保留最初版的大字占位 */
+  --color-text-on-primary: #fff;                         /* 白字叠陶土橙 ≈ 4.87:1 */
+  --color-text-on-inverse: var(--brand-cream);
+  --color-text-link: var(--color-text-primary);
+  --color-text-accent: var(--brand-clay);                /* 强调字（陶土橙，米白底上 ≈ 4.7:1，只放在米白底上） */
+  --color-text-danger: var(--brand-clay);                /* 报错：陶土橙字 + 写清楚出了什么错 */
+  --color-text-success: var(--color-text-primary);       /* 成功：不用绿色，黑字 + 浅棕小圆点 */
+
+  /* ---------- 颜色 · 线 ---------- */
+  --color-border-subtle: oklch(0.915 0.008 80);          /* 分隔细线（中性灰） */
+  --color-border-default: var(--brand-tan);              /* 卡片、弹窗、输入框的极细浅棕线 */
+  --color-border-strong: var(--color-text-primary);      /* 表格墨线 */
+  --color-focus-ring: var(--brand-clay);                 /* 键盘聚焦描边 */
+
+  /* ---------- 颜色 · 操作 ---------- */
+  --color-action-primary: var(--brand-clay);             /* 主要按钮：陶土橙底、白字 */
+  --color-action-primary-hover: oklch(0.51 0.108 42);    /* 最初版的 --m-clay-hover（同一个橙，暗一点） */
+  --color-action-primary-active: oklch(0.47 0.104 42);
+  --color-action-secondary-bg: var(--brand-tan);         /* 次要按钮：浅棕底、黑字，没有框 */
+  --color-action-secondary-hover: #d4ccc6;               /* 浅棕深一点 */
+  --color-action-secondary-active: #c9c0b9;
+  --color-action-ghost-hover: transparent;               /* 幽灵按钮：只有字，悬停变陶土橙，不加底 */
+  --color-action-disabled-bg: #ece8e4;
+  --color-action-disabled-text: oklch(0.50 0.012 70);    /* 禁用也保持可读 */
+
+  /* ---------- 颜色 · 状态（只用三种主色） ---------- */
+  --color-status-success: var(--brand-tan);              /* 已连接、已导入：浅棕小圆点 */
+  --color-status-warning: var(--brand-clay);             /* 有失败：陶土橙小圆点 */
+  --color-status-danger: var(--brand-clay);
+  --color-status-info: var(--brand-clay);                /* 「分析中」：陶土橙小圆点，一呼一吸 */
+  --color-status-neutral: var(--brand-tan);
+
+  /* ---------- 颜色 · 数据（收藏活动热力图，从无到多：浅棕 → 陶土橙） ---------- */
+  --color-data-0: #ece8e4;
+  --color-data-1: #e6d2c9;                               /* 陶土橙 25% 叠在米白上 */
+  --color-data-2: #d2ab9b;                               /* 50% */
+  --color-data-3: #be846c;                               /* 75% */
+  --color-data-4: #aa5c3d;                               /* 100% = 陶土橙 */
+
+  /* ---------- 字体 ---------- */
+  --font-family-serif: 'Main Newsreader', 'Main Serif SC', 'Source Han Serif SC', SimSun, serif;
+  --font-family-ui: var(--font-family-serif);
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;                             /* 所有按钮的字重 */
+  --font-weight-bold: 600;
+
+  /* ---------- 字号：7 级 ---------- */
+  --font-size-caption: 12px;     /* 图注来源、计数、辅助说明 */
+  --font-size-body: 14px;        /* 正文、按钮、卡片标题 */
+  --font-size-body-lg: 16px;     /* 品牌字、强调正文 */
+  --font-size-subtitle: 20px;    /* 小节标题 */
+  --font-size-title-sm: 24px;    /* 手机上的页面标题 */
+  --font-size-title: 36px;       /* 页面标题、详情标题 */
+  --font-size-display: 48px;     /* 衬线斜体大标题（搜索行） */
+
+  --line-height-tight: 1.1;
+  --line-height-snug: 1.35;
+  --line-height-body: 1.6;
+
+  /* ---------- 间距：4 的倍数 ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+
+  /* ---------- 尺寸 ---------- */
+  --size-touch-target: 44px;
+  --size-button: var(--size-touch-target);
+  --size-button-lg: 48px;
+  --size-control-sm: 32px;
+  --size-control-md: 40px;
+  --size-icon: 16px;
+
+  /* ---------- 圆角：文字按钮、图标按钮、卡片、输入框分开 ---------- */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius-pill: 999px;
+  --radius-button: 8px;
+  --radius-icon-button: 50%;
+  --radius-card: 16px;
+  --radius-input: 8px;
+
+  /* ---------- 阴影：全站扁平，不用阴影 ---------- */
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-primary: none;
+
+  /* ---------- 动效 ----------
+     短反馈（悬停、按下、选中）一律 150ms + 同一条缓动；motion.ts 装到 <html> 上的 --mo-fb-* 是同一组数。 */
+  --motion-duration-fast: 150ms;
+  --motion-duration-base: 240ms;
+  --motion-duration-slow: 400ms;
+  --motion-ease-standard: cubic-bezier(0, 0, 0.58, 1);
+  --motion-ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* ---------- 层级 ---------- */
+  --z-header: 40;
+  --z-popover: 48;
+  --z-toast: 95;
+  --z-modal: 100;
+}

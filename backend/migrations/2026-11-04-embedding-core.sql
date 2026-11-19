@@ -1,0 +1,31 @@
+-- Day-4 embedding core: APPLIED as schema v3 in backend/app/db.py MIGRATIONS (kept here as the record)
+--
+-- Reuse the existing embeddings table (image_id, dimension, model, vector).
+--   dimension  -> scheme / text version, e.g. 'combined_d_v1'
+--   model      -> embedding model, e.g. 'qwen3.7-text-embedding-flash'
+--   vector     -> float32 little-endian BLOB (unchanged)
+--   UNIQUE(image_id, dimension) stays: one current embedding per image per scheme.
+--
+-- Minimal additions only. Old rows get NULL for both columns and are therefore
+-- "legacy / invalid" until re-embedded.
+--
+-- No status/error columns:
+--   * a row exists only after a successful embedding (vector is NOT NULL);
+--   * a missing or mismatching row is exactly the "needs rebuild" state;
+--   * a failed attempt leaves the previous row untouched (or no row) and is retried;
+--   * error text belongs in logs, not in the vector row.
+-- No new table, no view, no index: the existing unique index covers
+-- (image_id, dimension) lookups.
+--
+-- Validity for one image (rebuild decision):
+--   model = configured model
+--   AND dimension = configured scheme ('combined_d_v1')
+--   AND dimensions = configured dimensions (1024)
+--   AND text_hash = sha256(scheme + "\n" + freshly built text)
+--   AND length(vector) = dimensions * 4
+--
+-- text_hash is per image (it hashes that image's text), so it is compared with the
+-- freshly computed hash during rebuild/backfill, not used as a global search filter.
+
+ALTER TABLE embeddings ADD COLUMN dimensions INTEGER;
+ALTER TABLE embeddings ADD COLUMN text_hash TEXT;
