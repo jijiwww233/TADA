@@ -54,7 +54,8 @@ class PipSceneStore:
     @staticmethod
     def _project(conn, project_id):
         core._id(project_id, "project_id")
-        if conn.execute("SELECT 1 FROM projects WHERE id=?", (project_id,)).fetchone() is None:
+        if conn.execute("SELECT 1 FROM projects WHERE id=? AND deleted_at IS NULL",
+                        (project_id,)).fetchone() is None:
             raise ProjectNotFound()
 
     @staticmethod
@@ -86,7 +87,7 @@ class PipSceneStore:
             return
         marks = ",".join("?" for _ in image_ids)
         found = {row[0] for row in conn.execute(
-            f"SELECT id FROM images WHERE id IN ({marks})", image_ids)}
+            f"SELECT id FROM images WHERE id IN ({marks}) AND deleted_at IS NULL", image_ids)}
         missing = sorted(set(image_ids) - found)
         if missing:
             raise ImageNotFound(missing)

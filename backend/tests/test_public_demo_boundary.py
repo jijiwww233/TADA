@@ -21,8 +21,9 @@ def test_sensitive_operations_stay_blocked():
         ("DELETE", "/api/watch-folders/1"),
         ("POST", "/api/phone-import/pairing"),
         ("DELETE", "/api/phone-import/pairing"),
-        ("DELETE", "/api/projects/1"),
-        ("DELETE", "/api/images/1"),
+        ("DELETE", "/api/projects"),
+        ("DELETE", "/api/images"),
+        ("DELETE", "/api/images/import"),
     ]
     for method, path in blocked:
         assert not public_demo.request_allowed(method, path), (method, path)
@@ -34,4 +35,15 @@ def test_reads_and_existing_project_writes_still_work():
     assert public_demo.request_allowed("POST", "/api/projects")
     assert public_demo.request_allowed("PATCH", "/api/projects/3")
     assert public_demo.request_allowed("DELETE", "/api/projects/3/pins/7")
-    assert not public_demo.request_allowed("DELETE", "/api/projects/3")
+    assert public_demo.request_allowed("DELETE", "/api/projects/3")
+    assert public_demo.request_allowed("DELETE", "/api/images/7")
+
+
+def test_soft_delete_whitelist_allows_only_numeric_ids():
+    """P0-3 公网白名单：只放行 DELETE 单个项目/图片，其它 DELETE 仍 403。"""
+    assert public_demo.request_allowed("DELETE", "/api/images/182")
+    assert public_demo.request_allowed("DELETE", "/api/projects/4")
+    assert not public_demo.request_allowed("DELETE", "/api/images/import")
+    assert not public_demo.request_allowed("DELETE", "/api/images/182/other")
+    assert not public_demo.request_allowed("DELETE", "/api/projects/4/pins")
+    assert not public_demo.request_allowed("DELETE", "/api/sync/huaban/start")

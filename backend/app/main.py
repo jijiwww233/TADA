@@ -356,7 +356,8 @@ def create_app(worker: analysis.Worker | None = None,
     def confirm_analysis(image_id: int):
         conn = db.connect()
         try:
-            if not conn.execute("SELECT 1 FROM images WHERE id=?", (image_id,)).fetchone():
+            if not conn.execute("SELECT 1 FROM images WHERE id=? AND deleted_at IS NULL",
+                                (image_id,)).fetchone():
                 raise HTTPException(404, "图片不存在")
             conn.execute("""INSERT INTO image_reference_labels(image_id,confirmed) VALUES (?,1)
                 ON CONFLICT(image_id) DO UPDATE SET confirmed=1""", (image_id,))
@@ -439,7 +440,8 @@ def create_app(worker: analysis.Worker | None = None,
             if trained and local_discovery.search_subject(query) in local_discovery.SHORT_EXPANSIONS:
                 expanded, _ = local_discovery.visual_scores(query, similar)
                 trained = sorted(trained, key=lambda hit: -(hit["score"] + .15 * expanded.get(hit["image_id"], 0)))
-            if trained and conn.execute("SELECT COUNT(*) FROM images").fetchone()[0] == len(reviewed):
+            if trained and conn.execute(
+                    "SELECT COUNT(*) FROM images WHERE deleted_at IS NULL").fetchone()[0] == len(reviewed):
                 return {"status": "ok", "items": local_discovery.representative_hits(trained)}
             hits, channel = local_discovery.visual_hits(conn, query, similar)
             result = {"status": "ok", "items": hits}
@@ -463,7 +465,8 @@ def create_app(worker: analysis.Worker | None = None,
             return fallback()
         with readonly_connection(config.db_path()) as conn:
             trained, reviewed = learned_find.learned_hits(conn, query, similar)
-            all_reviewed = len(reviewed) == conn.execute("SELECT COUNT(*) FROM images").fetchone()[0]
+            all_reviewed = len(reviewed) == conn.execute(
+                "SELECT COUNT(*) FROM images WHERE deleted_at IS NULL").fetchone()[0]
         scoped = None
         expanded_clip = None
         boosts = _search_boosts(query)
@@ -630,7 +633,8 @@ def create_app(worker: analysis.Worker | None = None,
                 found = local_search(effective, colors=False)
                 with readonly_connection(config.db_path()) as conn:
                     if request.project_id is not None and not conn.execute(
-                        "SELECT 1 FROM projects WHERE id=?", (request.project_id,)
+                        "SELECT 1 FROM projects WHERE id=? AND deleted_at IS NULL",
+                        (request.project_id,)
                     ).fetchone():
                         raise HTTPException(404, "项目不存在")
                     return local_discovery.local_columns(
@@ -823,6 +827,14 @@ def create_app(worker: analysis.Worker | None = None,
                    for f, modified_at in zip(files, modified_times)]
         return importer.import_images(uploads)
 
+    @app.delete("/api/images/{image_id}")
+    def delete_image(image_id: int):
+        """软删除：只写 images.deleted_at；文件和记录都留着，恢复脚本清标记即回来。"""
+        result = importer.delete_image(image_id)
+        if result is None:
+            raise HTTPException(404, "图片不存在")
+        return result
+
     @app.get("/api/images/{image_id}")
     def get_image(image_id: int):
         image = importer.get_image(image_id)
@@ -932,6 +944,11 @@ def create_app(worker: analysis.Worker | None = None,
             conn.close()
         if row is None:
             raise HTTPException(status_code=404, detail="图片不存在")
+        # 链接导入存的是用户当时复制的原链接（小红书短链或带 xsec_token 的长链）；有就直接跳。
+        url = row["url"] or ""
+        share_link = url.startswith(("http://xhslink.", "https://xhslink."))
+        if url and (row["platform"] != "xhs" or "xsec_token=" in url or share_link):
+            return RedirectResponse(url, status_code=302)
         if row["platform"] != "xhs":
             if not row["url"]:
                 return _source_page("这条记录没有原帖链接。", post_id)

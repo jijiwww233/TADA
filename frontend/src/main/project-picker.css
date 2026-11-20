@@ -1,0 +1,105 @@
+/* 详情页「加入项目」选择面板（Detail.tsx）。
+   电脑 / iPad：居中一块面板，宽度至少 480px；
+   手机：从底部升起、占屏幕高度 70% 的面板（见 styles/phone.css 里同一套类名的覆盖）。
+   只用 styles/tokens.css 的令牌，不另造风格。 */
+
+.m-app .m-proj-pick {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+}
+
+/* 遮罩：和待确认弹窗用同一个底色令牌 */
+.m-app .m-proj-pick-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--color-bg-overlay);
+}
+
+.m-app .m-proj-pick-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  /* 电脑上至少 480px 宽；屏幕比 480 + 边距更窄时按屏幕收 */
+  width: 480px;
+  min-width: min(480px, calc(100vw - var(--space-8)));
+  max-width: calc(100vw - var(--space-8));
+  max-height: min(560px, calc(100dvh - var(--space-8)));
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
+.m-app .m-proj-pick-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-5) var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.m-app .m-proj-pick-head h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-subtitle);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-snug);
+}
+/* 「×」关闭：复用 .m-close 的圆形次要按钮，只把绝对定位改回行内 */
+.m-app .m-proj-pick .m-proj-pick-close {
+  position: static;
+  flex: none;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  font-size: var(--font-size-body-lg);
+  line-height: 1;
+}
+
+.m-app .m-proj-pick-help {
+  margin: 0;
+  padding: var(--space-3) var(--space-5) var(--space-1);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-snug);
+  color: var(--color-text-secondary);
+}
+
+.m-app .m-proj-pick-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: var(--space-2) var(--space-3) var(--space-4);
+  list-style: none;
+}
+.m-app .m-proj-pick-list li + li { border-top: 1px solid var(--color-border-subtle); }
+.m-app .m-proj-pick-list button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--size-button);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-body-lg);
+  line-height: var(--line-height-snug);
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--motion-duration-fast) var(--motion-ease-standard),
+    background-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-app .m-proj-pick-list button:hover { color: var(--color-text-accent); background: var(--color-bg-subtle); }
+.m-app .m-proj-pick-list button:active { background: var(--brand-tan); }
+.m-app .m-proj-pick-list button:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: -2px; }
+.m-app .m-proj-pick-name { min-width: 0; overflow-wrap: anywhere; }
+.m-app .m-proj-pick-count { flex: none; font-size: var(--font-size-caption); color: var(--color-text-secondary); }

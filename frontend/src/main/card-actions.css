@@ -1,0 +1,277 @@
+/* =====================================================================
+   卡片操作：长按 / 右键 / 「…」打开的小菜单 + 改名 / 删除确认面板
+   只属于 frontend/src/main 这一层，不改项目页网格列数 / 间距。
+   ===================================================================== */
+
+/* ---------- 浮层根：挂到 body 下，仍然带 .m-app 拿到设计系统令牌 ---------- */
+.m-app.m-actroot {
+  position: fixed !important;
+  inset: 0;
+  z-index: 96;
+  overflow: visible;
+  pointer-events: none;
+  background: transparent;
+}
+.m-app.m-actroot-dialog { z-index: 94; }
+
+/* ---------- 小菜单 ---------- */
+.m-actmenu {
+  position: absolute;
+  min-width: 176px;
+  max-width: min(300px, calc(100vw - 20px));
+  padding: 6px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-surface);
+  box-shadow: 0 18px 48px -20px oklch(0.25 0.02 55 / 0.38), 0 2px 6px oklch(0.25 0.02 55 / 0.08);
+  pointer-events: auto;
+  animation: m-actmenu-in 140ms var(--motion-ease-standard) both;
+}
+@keyframes m-actmenu-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-actmenu { animation: none; }
+}
+.m-actmenu-title {
+  margin: 6px 10px 6px;
+  overflow: hidden;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-caption);
+  line-height: 1.35;
+  color: var(--color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-actmenu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-ui);
+  font-size: var(--font-size-body);
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.m-actmenu-item:hover,
+.m-actmenu-item:focus-visible {
+  outline: none;
+  background: var(--color-bg-subtle);
+}
+.m-actmenu-item.is-danger { color: var(--color-text-danger); }
+
+/* ---------- 改名 / 删除确认 ---------- */
+.m-actmodal {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  pointer-events: auto;
+}
+.m-actmodal-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--color-bg-overlay);
+}
+.m-actmodal-panel {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  width: min(400px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 22px 22px 18px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-surface);
+  box-shadow: 0 24px 64px -28px oklch(0.25 0.02 55 / 0.42);
+  animation: m-actmodal-in 160ms var(--motion-ease-standard) both;
+}
+@keyframes m-actmodal-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.99); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-actmodal-panel { animation: none; }
+}
+.m-actmodal-title {
+  margin: 0;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-title);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-text-primary);
+}
+.m-actform { display: grid; gap: 14px; }
+.m-actfield { display: grid; gap: 6px; }
+.m-actfield > span {
+  font-family: var(--font-family-ui);
+  font-size: var(--font-size-caption);
+  line-height: 1.3;
+  color: var(--color-text-secondary);
+}
+.m-actinput {
+  width: 100%;
+  min-height: var(--size-control-md);
+  padding: 0 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-input);
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-body);
+  text-align: left;
+}
+.m-actinput:focus { outline: none; border-color: var(--color-focus-ring); }
+.m-acttext {
+  margin: 0;
+  font-family: var(--font-family-ui);
+  font-size: var(--font-size-body-lg);
+  line-height: 1.6;
+  color: var(--color-text-primary);
+}
+.m-acthelp {
+  margin: 0;
+  font-family: var(--font-family-ui);
+  font-size: var(--font-size-caption);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+.m-actactions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* ---------- 卡片：长按时不要弹系统菜单 / 选中文字 ---------- */
+.m-app .m-proj,
+.m-app .m-proj-table,
+.m-app .m-tile,
+.m-app .m-card {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.m-app :is(.m-proj, .m-tile, .m-card) img {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ---------- 项目卡右上角的「…」 ---------- */
+.m-app .m-proj-cell { position: relative; }
+.m-app .m-proj-more {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0 0 4px;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-bg-page) 84%, transparent);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-ui);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 160ms ease, color 160ms ease, background-color 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.m-app .m-proj-cell:hover .m-proj-more,
+.m-app .m-proj-cell:focus-within .m-proj-more,
+.m-app .m-proj-more:focus-visible { opacity: 1; }
+.m-app .m-proj-more:hover { color: var(--color-text-primary); background: var(--color-bg-surface); }
+@media (hover: none) {
+  .m-app .m-proj-more { opacity: 1; }
+}
+@media (max-width: 768px) {
+  .m-app .m-proj-more { top: 2px; right: 2px; width: 44px; height: 44px; font-size: 20px; }
+}
+
+/* ---------- 项目详情页顶部：项目名 + 「…」 ---------- */
+.m-app .m-ld-projectbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.m-app .m-ld-projectname {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-app .m-ld-projmore {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0 0 4px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-ui);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.m-app .m-ld-projmore:hover { color: var(--color-text-primary); background: var(--color-bg-subtle); }
+.m-app .m-ld-projmore:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+@media (max-width: 768px) {
+  .m-app .m-ld .m-ld-projectbar { order: 1; margin: 0 0 var(--space-2); }
+  .m-app .m-ld .m-ld-projmore { width: 44px; height: 44px; font-size: 20px; }
+}
+
+/* ---------- 详情页信息区最下方：「删除这张图」文字按钮（红褐色，不实心） ---------- */
+.m-app .m-ld-more-danger { text-align: right; }
+.m-app .m-ld-danger {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-danger);
+  font: inherit;
+  font-size: var(--font-size-body);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.m-app .m-ld-danger:hover { color: var(--color-action-primary-hover); }
+.m-app .m-ld-danger:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 3px; }
+@media (max-width: 768px) {
+  /* 手机上底部那排「加入项目 · 打开小窗」收进底部操作条，但删除要一直看得见 */
+  .m-app .m-ld .m-ld-right > .m-ld-bottom > .m-ld-more.m-ld-more-danger {
+    display: block;
+    order: 12;
+    margin: var(--space-4) 0 0;
+    text-align: left;
+  }
+  .m-app .m-ld .m-ld-more-danger .m-ld-danger { min-height: 44px; padding-inline: 2px; }
+}

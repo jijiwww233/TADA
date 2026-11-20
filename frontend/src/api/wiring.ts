@@ -1,5 +1,5 @@
 import { getImage, getSyncStatus } from '../api'
-import { responseError } from './errors'
+import { libraryCounts, libraryImages, wiringJson } from './libraryRead'
 import type { ColorSwatch, ImageDetail, ImageItem, ImportResult, SyncPlatform } from '../api'
 import type { Annotation, AnnotationInput } from '../annotations/contract'
 import { createProjectApi } from '../projects/api'
@@ -61,11 +61,7 @@ export type DemoData = {
   platformCounts?: PlatformCount[]
 }
 
-export async function wiringJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, init)
-  if (!response.ok) throw responseError(response)
-  return response.json()
-}
+export { wiringJson } from './libraryRead'
 
 export const jsonBody = (method: 'POST' | 'PUT', body: unknown): RequestInit => ({
   method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -154,7 +150,7 @@ export function createWiringApi(mode: WiringMode, fixture: DemoData = {}) {
 
   return {
     async listImages(view?: LibraryView) {
-      const images = demo ? fixture.images ?? [] : await wiringJson<LibraryImage[]>('/api/images?include_palette=true')
+      const images = demo ? fixture.images ?? [] : await libraryImages.read()
       return selectLibraryImages(images, view)
     },
     async search(query: string) {
@@ -177,7 +173,7 @@ export function createWiringApi(mode: WiringMode, fixture: DemoData = {}) {
       return demo ? fixture.similar ?? noSearch : findSimilar(imageId, dimension)
     },
     async findByColor(color: string, view?: LibraryView) {
-      const images = demo ? fixture.images ?? [] : await wiringJson<LibraryImage[]>('/api/images?include_palette=true')
+      const images = demo ? fixture.images ?? [] : await libraryImages.fetchLatest()
       return selectLibraryImages(images.filter(item => item.colors.length > 0), { ...view, color })
     },
     sourceUrl(post: ImageDetail['posts'][number]) {
@@ -266,7 +262,7 @@ export function createWiringApi(mode: WiringMode, fixture: DemoData = {}) {
     },
     async getLibraryCounts() {
       return demo ? fixture.libraryCounts ?? { collections: 697, references: 112 }
-        : wiringJson<LibraryCounts>('/api/stats/library')
+        : libraryCounts.read()
     },
     async getCooldown() {
       if (demo) return fixture.cooldown ?? locked

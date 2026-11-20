@@ -1,5 +1,7 @@
 ﻿import { useRef, useState } from 'react'
 import { usePhoneLayout } from './useMobileLayout'
+import { track } from './telemetry'
+import './import-tip.css'
 
 type ImportOptions = {
   shortcut: { url: string; qr: string } | null
@@ -7,45 +9,24 @@ type ImportOptions = {
 }
 
 /**
- * 「导入 +」：打开导入面板。
+ * 「导入 +」：打开导入面板。电脑、手机同一套文字，只有三块，按这个顺序：
+ *   (01) 相册 / 文件 → (02) iPhone / iPad 快捷指令 → (03) 安卓「图图」
  * 「选图片」用的是 <label> 包着真正的 <input type="file">：手指点到的就是文件框本身，
  * 不再用脚本去点一个隐藏的文件框——安卓 / iOS 浏览器都能直接弹出相册，不会被拦。
  */
-export function ImportDialog({ demo, busy = false, onFiles }: { demo: boolean; busy?: boolean; onFiles: (files: File[]) => void }) {
+export function ImportDialog({ busy = false, onFiles }: { demo: boolean; busy?: boolean; onFiles: (files: File[]) => void }) {
   const publicDemo = import.meta.env.VITE_PUBLIC_DEMO === '1'
   const phone = usePhoneLayout()
   const dialog = useRef<HTMLDialogElement>(null)
-  const [pairing, setPairing] = useState('')
-  const [pending, setPending] = useState(false)
-  const [message, setMessage] = useState('')
   const [options, setOptions] = useState<ImportOptions | null>(null)
   const open = () => {
+    track('import_open')
     dialog.current?.showModal()
+    // 快捷指令的链接：沿用现在的配置（演示站从接口读）
     if (publicDemo) {
       void fetch('/api/demo/import-options', { cache: 'no-store' })
         .then(response => response.ok ? response.json() : null)
         .then(setOptions, () => setOptions(null))
-    }
-  }
-  const pair = async (start: boolean) => {
-    setPending(true)
-    setMessage('')
-    try {
-      const response = await fetch('/api/phone-import/pairing', {
-        method: start ? 'POST' : 'DELETE',
-        headers: { 'X-Library-Client': 'desktop' },
-      })
-      if (response.status === 409) {
-        setMessage('没生成链接：电脑没连上局域网。连上 Wi-Fi 后再试，或者直接点「选图片」。')
-        return
-      }
-      if (!response.ok) throw new Error()
-      setPairing(start ? (await response.json()).url : '')
-      setMessage(start ? '用手机浏览器打开这个链接，就能从手机相册导入。' : '手机配对已关闭。')
-    } catch {
-      setMessage('手机配对暂时用不了：服务没响应。稍后再试，或者直接点「选图片」。')
-    } finally {
-      setPending(false)
     }
   }
 
@@ -58,11 +39,10 @@ export function ImportDialog({ demo, busy = false, onFiles }: { demo: boolean; b
         <h2 id="m-import-title">导入图片</h2>
         <form method="dialog"><button type="submit" className="ds-btn ds-btn--ghost" aria-label="关闭导入面板">关闭</button></form>
       </header>
-      {publicDemo && <p className="m-import-notice">这是共用演示库，大家都能看到上传的图，请只上传可以公开的素材。</p>}
       <div className={`m-import-options${publicDemo ? ' m-import-options--public' : ''}`}>
         <section>
           <h3><i aria-hidden="true">(01)</i> 相册 / 文件</h3>
-          <p className="ds-help">{demo ? '演示模式：选的图不会真的存下来。' : '可以一次选多张，也能直接把图拖进来。'}</p>
+          <p className="ds-help">可以一次选多张，收进来的图不带原链接。</p>
           <label className="ds-btn ds-btn--primary ds-file-btn">
             选图片
             <input type="file" accept="image/*" multiple
@@ -70,40 +50,39 @@ export function ImportDialog({ demo, busy = false, onFiles }: { demo: boolean; b
                 const files = Array.from(event.currentTarget.files ?? [])
                 event.currentTarget.value = ''
                 dialog.current?.close()
-                if (files.length) onFiles(files)
+                if (files.length) {
+                  track('import', { method: 'picker', count: files.length })
+                  onFiles(files)
+                }
               }} />
           </label>
         </section>
-        {publicDemo && <>
-          <section>
-            <h3><i aria-hidden="true">(02)</i> iPhone / iPad 快捷指令</h3>
-            <p className="ds-help">截图或选图后，点分享 →「收进 TADA」。</p>
-            {options?.shortcut ? <>
-              <a className="ds-btn ds-btn--secondary" href={options.shortcut.url} target="_blank" rel="noreferrer">添加快捷指令</a>
-              {/* 手机上就是要装快捷指令的那台设备，扫自己屏幕上的码没意义：只留按钮 */}
-              {!phone && <img className="m-import-qr" src={options.shortcut.qr} alt="添加快捷指令二维码" />}
-            </> : <p className="m-import-unavailable">请向演示负责人索取</p>}
-          </section>
-          <section>
-            <h3><i aria-hidden="true">(03)</i> 微信</h3>
-            <p className="ds-help">扫码关注测试号，把图发给它。</p>
-            {options?.wechat ? (
-              <div className="m-import-wechat">
-                <img className="m-import-qr" src="/api/demo/wechat-qr" alt="微信测试号二维码" />
-                {phone && <p className="m-import-wechat-tip">长按保存二维码，再用微信扫一扫</p>}
-              </div>
-            ) : <p className="m-import-unavailable">请向演示负责人索取</p>}
-          </section>
-        </>}
-        {!demo && !publicDemo && <section>
-          <h3><i aria-hidden="true">(02)</i> 局域网配对</h3>
-          <p className="ds-help">手机和电脑连在同一个 Wi-Fi 时，用手机打开链接就能从相册导入。</p>
-          <button type="button" className="ds-btn ds-btn--secondary" disabled={pending} aria-busy={pending || undefined}
-            onClick={() => void pair(!pairing)}>{pairing ? '关闭手机配对' : '生成手机配对链接'}</button>
-          {pairing && <input className="m-set-input ds-input" aria-label="手机配对链接" readOnly
-            value={pairing} onFocus={event => event.currentTarget.select()} />}
-          {message && <p className="ds-help" role="status">{message}</p>}
-        </section>}
+        <section>
+          <h3><i aria-hidden="true">(02)</i> iPhone / iPad：所有 App 都能用</h3>
+          <p className="ds-help">
+            在任何 App 里分享图片，选「tada」就收进来。<br />
+            小红书点「复制链接」后运行 tada，整条笔记和原链接一起收。
+          </p>
+          {/* 链接沿用现在的配置；还没读到链接（或这个环境没配）时按钮先不能点 */}
+          {options?.shortcut ? <>
+            <a className="ds-btn ds-btn--secondary" href={options.shortcut.url} target="_blank" rel="noreferrer"
+              onClick={() => track('import', { method: 'shortcut' })}>添加快捷指令</a>
+            {/* 电脑上照旧带二维码（用手机扫了去装）；手机上就是要装的那台，只留按钮 */}
+            {!phone && <img className="m-import-qr" src={options.shortcut.qr} alt="添加快捷指令二维码" />}
+          </> : <button type="button" className="ds-btn ds-btn--secondary" disabled>添加快捷指令</button>}
+        </section>
+        <section>
+          <h3><i aria-hidden="true">(03)</i> 安卓：小红书专用</h3>
+          <p className="ds-help">
+            装上图图，在小红书点「分享」再点图图，整条笔记和原链接一起收。<br />
+            其他 App 的图，截图后用上面的「选图片」。
+          </p>
+          <a className="ds-btn ds-btn--secondary" href="/downloads/tutu.apk" download
+            onClick={() => track('import', { method: 'tutu' })}>下载图图</a>
+        </section>
+        <p style={{ margin: '4px 0 0', fontSize: 12, lineHeight: 1.5, color: 'var(--color-text-tertiary, #8a8178)' }}>
+          为了改进体验，会匿名记录操作
+        </p>
       </div>
     </dialog>
   </>

@@ -1,0 +1,18 @@
+/* 验收当天第 9 条：导入面板顶部的一句话（标题下面、演示库提示上面） */
+.m-app .m-import-tip {
+  margin: 0 var(--space-6) var(--space-2);
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  color: var(--color-text-primary);
+}
+@media (max-width: 768px) {
+  .m-app .m-import-tip { margin-inline: var(--space-4); font-size: var(--font-size-body); }
+}
+
+/* 「安卓：图图」下面的三步：和面板里的帮助小字（.ds-help）同一档，按钮和第一步之间空一档 */
+.m-app .m-import-steps {
+  display: grid; gap: var(--space-1);
+  margin: var(--space-3) 0 0; padding: 0; list-style: none;
+  font-size: var(--font-size-caption); line-height: var(--line-height-body); color: var(--color-text-secondary);
+}

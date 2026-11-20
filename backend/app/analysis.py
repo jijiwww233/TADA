@@ -95,7 +95,8 @@ def claim(token: str, image_id: int | None = None, *, now: int | None = None,
                     conn.execute("COMMIT")
                     return None
             sql = """SELECT a.image_id FROM analyses a JOIN images i ON i.id = a.image_id
-                     WHERE a.status = 'pending' AND a.claimed_by IS NULL"""
+                     WHERE a.status = 'pending' AND a.claimed_by IS NULL
+                       AND i.deleted_at IS NULL"""
             if image_id is None:
                 row = conn.execute(sql + " ORDER BY i.post_id DESC, i.position ASC LIMIT 1").fetchone()
             else:
@@ -272,15 +273,20 @@ def get_analysis(image_id: int) -> dict:
 def summary() -> dict:
     conn = db.connect()
     try:
+        # Soft-deleted images leave every count, so the progress bar cannot hang on
+        # rows the grid no longer shows.
         counts = {r["status"]: r["n"] for r in conn.execute(
-            "SELECT status, COUNT(*) AS n FROM analyses GROUP BY status")}
+            """SELECT a.status, COUNT(*) AS n FROM analyses a
+               JOIN images i ON i.id=a.image_id AND i.deleted_at IS NULL
+               GROUP BY a.status""")}
         processing = conn.execute(
-            "SELECT COUNT(*) FROM analyses WHERE status = 'pending' AND claimed_by IS NOT NULL"
+            """SELECT COUNT(*) FROM analyses a JOIN images i ON i.id=a.image_id
+               WHERE i.deleted_at IS NULL AND a.status = 'pending' AND a.claimed_by IS NOT NULL"""
         ).fetchone()[0]
         tok = conn.execute(
-            """SELECT COALESCE(SUM(prompt_tokens), 0) AS p, COALESCE(SUM(completion_tokens), 0) AS c
-               FROM analyses""").fetchone()
-        total = conn.execute("SELECT COUNT(*) FROM images").fetchone()[0]
+            """SELECT COALESCE(SUM(a.prompt_tokens), 0) AS p, COALESCE(SUM(a.completion_tokens), 0) AS c
+               FROM analyses a JOIN images i ON i.id=a.image_id AND i.deleted_at IS NULL""").fetchone()
+        total = conn.execute("SELECT COUNT(*) FROM images WHERE deleted_at IS NULL").fetchone()[0]
     finally:
         conn.close()
     return {

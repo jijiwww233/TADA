@@ -5,6 +5,9 @@ export function explainImportFailure(reason: string): { why: string; fix: string
   // 先认后端 / 代理给的真实原因，别被下面的「太大」泛化掉
   if (/演示版不提供此功能/.test(reason)) return { why: '演示版不提供此功能', fix: '这个共用演示版没有开放该功能，请在本机版使用' }
   if (/20MB|图片太大/.test(reason)) return { why: '图片太大，单张最多 20MB', fix: '换一张小于 20MB 的图片再试' }
+  if (/演示库今天收满|明天再试/.test(reason)) return { why: '演示库今天收满 200 张了', fix: '明天再传；想马上收自己的图，就在自己电脑上装 TADA' }
+  if (/上传超时|网络太慢/.test(reason)) return { why: '上传超时（图太大或网太慢）', fix: '一张一张传；还是超时就先把图裁小或截图再导入' }
+  if (/服务器出错/.test(reason)) return { why: '服务器出错', fix: '等半分钟再试一次；一直不行就换一张图或明天再试' }
   if (/网络或服务出错/.test(reason)) return { why: '网络或服务出错', fix: '检查网络后重新导入这几张' }
   if (/50MB|太大|too large/i.test(reason)) return { why: '文件太大（超过 50MB）', fix: '压缩或截图后再导入' }
   if (/HEIC/i.test(reason)) return { why: 'HEIC 照片读不出来', fix: '在相册里导出为 JPG，或把相机格式改成「兼容性最佳」' }
@@ -80,11 +83,11 @@ export function ImportResult({ status, progress, cancelled, error, onView, onClo
       )}
       <div className="ds-import-result-actions">
         {importing ? (
-          <button type="button" className="ds-btn ds-btn--ghost" disabled={cancelled} onClick={onCancel}>停止导入</button>
+          <button type="button" className="ds-btn ds-import-action ds-btn--ghost" aria-label="停止导入" disabled={cancelled} onClick={onCancel}>停止导入</button>
         ) : (
           <>
-            {progress.added > 0 && <button type="button" className="ds-btn ds-btn--primary" onClick={onView}>查看刚导入的</button>}
-            <button type="button" className="ds-btn ds-btn--ghost" onClick={onClose}>关闭</button>
+            {progress.added > 0 && <button type="button" className="ds-btn ds-import-action ds-btn--primary" aria-label="查看刚导入的图片" onClick={onView}>查看刚导入的</button>}
+            <button type="button" className="ds-btn ds-import-action ds-btn--ghost" aria-label="返回素材库" onClick={onClose}>← 返回</button>
           </>
         )}
       </div>

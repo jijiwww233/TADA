@@ -112,8 +112,31 @@ def load_current_text_hashes(conn: sqlite3.Connection, image_ids: Iterable[int],
     return hashes
 
 
+def _visible_image_ids(conn: sqlite3.Connection, ids: list[int]) -> set[int]:
+    """Image ids that are not soft-deleted. Pre-v15 databases (no deleted_at column,
+    e.g. a raw fixture) keep every row visible."""
+    if not ids:
+        return set()
+    try:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(images)")}
+    except sqlite3.DatabaseError:
+        return set(ids)
+    if "deleted_at" not in columns:
+        return set(ids)
+    visible: set[int] = set()
+    for start in range(0, len(ids), 500):
+        chunk = ids[start:start + 500]
+        placeholders = ",".join("?" for _ in chunk)
+        visible.update(row[0] for row in conn.execute(
+            f"SELECT id FROM images WHERE id IN ({placeholders}) AND deleted_at IS NULL", chunk))
+    return visible
+
+
 def load_search_rows(conn: sqlite3.Connection, spec: EmbeddingSpec) -> list[SearchRow]:
     embeddings = load_embeddings(conn, spec)
+    if embeddings:
+        visible = _visible_image_ids(conn, [row.image_id for row in embeddings])
+        embeddings = [row for row in embeddings if row.image_id in visible]
     hashes = load_current_text_hashes(conn, [row.image_id for row in embeddings], spec)
     rows: list[SearchRow] = []
     for embedding in embeddings:

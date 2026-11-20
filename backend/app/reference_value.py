@@ -114,10 +114,12 @@ def candidate_heuristic(row):
 def labels(conn, image_id=None):
     # Missing labels remain uncertain for retrieval, but are blocked from paid
     # analysis until local preclassification has actually completed.
+    where = (' WHERE i.id=? AND i.deleted_at IS NULL' if image_id is not None
+             else ' WHERE i.deleted_at IS NULL')
     rows = conn.execute('''SELECT i.id,CASE WHEN m.is_reference=1 THEN 'visual_ref' ELSE COALESCE(r.manual_category,r.auto_category,'uncertain') END category,
         r.auto_category,r.manual_category,r.reason,r.version auto_version,COALESCE(r.confirmed,0) confirmed,m.is_reference manual_reference
         FROM images i LEFT JOIN image_reference_labels r ON r.image_id=i.id
-        LEFT JOIN reference_manual_decisions m ON m.image_id=i.id''' + (' WHERE i.id=?' if image_id is not None else ''), (() if image_id is None else (image_id,)))
+        LEFT JOIN reference_manual_decisions m ON m.image_id=i.id''' + where, (() if image_id is None else (image_id,)))
     return {r['id']: dict(r) for r in rows}
 
 
@@ -150,7 +152,8 @@ class ReferenceLabels:
         try:
             rows = [dict(r) for r in conn.execute('''SELECT i.id,i.file_path,i.sha256,a.* FROM images i
                 LEFT JOIN analyses a ON a.image_id=i.id LEFT JOIN image_reference_labels r ON r.image_id=i.id
-                WHERE r.version IS NULL OR r.version!=? OR (a.status='done' AND r.source!='analysis')''', (self.version,))]
+                WHERE i.deleted_at IS NULL
+                  AND (r.version IS NULL OR r.version!=? OR (a.status='done' AND r.source!='analysis'))''', (self.version,))]
             if not rows: return 0
             if analysis_only: rows = [r for r in rows if r.get('status') == 'done']
             pending = [r for r in rows if r.get('status') != 'done']

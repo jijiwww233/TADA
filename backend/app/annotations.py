@@ -109,7 +109,10 @@ def save(image_id: int, description=UNSET, tags=UNSET) -> dict | None:
     try:
         conn.execute("BEGIN IMMEDIATE")
         try:
-            if conn.execute("SELECT 1 FROM images WHERE id = ?", (image_id,)).fetchone() is None:
+            visible = (" AND deleted_at IS NULL"
+                       if db.has_column(conn, "images", "deleted_at") else "")
+            if conn.execute("SELECT 1 FROM images WHERE id = ?" + visible,
+                            (image_id,)).fetchone() is None:
                 raise KeyError(image_id)
             row = conn.execute(
                 "SELECT description, tags_json FROM image_annotations WHERE image_id = ?",
@@ -175,6 +178,8 @@ def search_matches(query: str, limit: int = 20, *, manual_only: bool = False) ->
     query_bigrams = _bigrams(needle)
     conn = db.connect()
     try:
+        visible = (" AND i.deleted_at IS NULL"
+                   if db.has_column(conn, "images", "deleted_at") else "")
         rows = conn.execute(
             """SELECT i.id AS image_id,
                       COALESCE(a.description, v.description) AS description,
@@ -182,7 +187,8 @@ def search_matches(query: str, limit: int = 20, *, manual_only: bool = False) ->
                FROM images i
                LEFT JOIN image_annotations a ON a.image_id = i.id
                LEFT JOIN analyses v ON v.image_id = i.id AND v.status = 'done' AND NOT ?
-               WHERE a.image_id IS NOT NULL OR v.image_id IS NOT NULL""", (manual_only,)).fetchall()
+               WHERE (a.image_id IS NOT NULL OR v.image_id IS NOT NULL)""" + visible,
+            (manual_only,)).fetchall()
     finally:
         conn.close()
     matches: list[dict] = []
@@ -223,6 +229,10 @@ def post_search_matches(query: str) -> dict[int, float]:
             """SELECT post_id, image_id FROM post_images WHERE image_id IS NOT NULL
                UNION SELECT post_id, id FROM images"""
         ).fetchall()
+        if db.has_column(conn, "images", "deleted_at"):
+            visible = {row[0] for row in conn.execute(
+                "SELECT id FROM images WHERE deleted_at IS NULL")}
+            images = [row for row in images if row[1] in visible]
     finally:
         conn.close()
 

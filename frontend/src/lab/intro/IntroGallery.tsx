@@ -2,21 +2,24 @@ import { useEffect, useMemo, useState } from 'react'
 import CircularGallery from '../vendor/reactbits/CircularGallery'
 import { take, useImages } from '../data'
 import { cardThumbnailUrl } from './cardThumbnail'
-import { ONE_TAKE_GALLERY_HOLD_MS, ONE_TAKE_GALLERY_SPEED, PHONE_ONE_TAKE, oneTakeGallery, oneTakeItemSize } from './oneTake'
+import { ONE_TAKE_GALLERY_SPEED, PHONE_ONE_TAKE, oneTakeItemSize } from './oneTake'
 
 /** Same component and local images as the lab's “一圈图片” group. No remote font URL. */
 export function IntroGallery({ reduced, phone = false }: { reduced: boolean; phone?: boolean }) {
-  /** 一镜到底（手机）：卡片从环上飞进来落成这一排，转盘卡宽 = S、停得更久再转、转速快 1.5 倍、从环正前方那张开始排 */
+  /**
+   * 一镜到底（手机）：最后一页整页淡入时转盘一出来就按巡航速度转（不再「先停再加速」）。转盘卡宽 = S、转速快 1.5 倍
+   */
   const oneTake = phone && PHONE_ONE_TAKE
-  const [speed,setSpeed]=useState(reduced||phone?0:-2.8)
+  const [speed,setSpeed]=useState(reduced||phone?(oneTake&&!reduced?ONE_TAKE_GALLERY_SPEED:0):-2.8)
   useEffect(()=>{
     if(reduced){setSpeed(0);return}
     const started=performance.now()
+    if(oneTake){setSpeed(ONE_TAKE_GALLERY_SPEED);return}
     if(phone){
       // 手机：环刚在画布上落成这一排，转盘先停着，再用 1.5 秒从 0 缓缓加到巡航速度 −0.35（电脑版不变）。
       // 停的时间从 0.6 秒加到 1.0 秒：画布上那排卡要到 0.85 秒才淡完，转盘提前转起来会和它错开、看到两层图
       setSpeed(0)
-      const hold=oneTake?ONE_TAKE_GALLERY_HOLD_MS:1000, cruise=oneTake?ONE_TAKE_GALLERY_SPEED:-.35
+      const hold=1000, cruise=-.35
       const timer=setInterval(()=>{
         const t=Math.min(1,Math.max(0,(performance.now()-started-hold)/1500))
         setSpeed(cruise*t*t*(3-2*t))
@@ -47,12 +50,9 @@ export function IntroGallery({ reduced, phone = false }: { reduced: boolean; pho
     }, () => { if (live && !settled) { settled = true; setThumbsReady(true) } })
     return () => { live = false; clearTimeout(timer) }
   }, [cards, phone])
-  // 一镜到底：转盘第 0 格（正中）= 环散开时正前方那张，其余按环上的顺序往两边排（挂上时读一次）
-  const [offset] = useState(() => oneTake ? oneTakeGallery.offset : 0)
-  const items = useMemo(() => {
-    const list = take(cards,16).map((i,index)=>({ image:thumbs[index % Math.max(1, thumbs.length)] ?? i.src, alt:`收藏 #${i.id}` }))
-    return offset && list.length ? list.map((_, m) => list[(m + offset) % list.length]) : list
-  },[cards,thumbs,offset])
+  const items = useMemo(() =>
+    take(cards,16).map((i,index)=>({ image:thumbs[index % Math.max(1, thumbs.length)] ?? i.src, alt:`收藏 #${i.id}` })),
+  [cards,thumbs])
   const itemSize = useMemo(() => !phone ? undefined : oneTake ? oneTakeItemSize(innerWidth, innerHeight) : .89, [phone, oneTake])
   if (!thumbsReady) return null
   return <div className="intro-circular-gallery">

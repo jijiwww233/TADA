@@ -14,7 +14,7 @@ import '../main/main-serif-sc.css'
  * /intro：只有引导页本身的入口（课堂演示用）。舞台、状态机、接线都是 /lab#scatter 里那一套，
  * 只是不带选样页的说明文字，调试开关也收起来。地址后面加 ?play 会自动从头播放；加 ?page=key / platforms / ready 直接从那一页开始（排练用）。
  */
-export default function IntroPage() {
+export default function IntroPage({ onOpenLibrary }: { onOpenLibrary: (href: string) => void }) {
   const manifest = useManifest(false, '/intro-samples/original.json')
   const [phone, setPhone] = useState(() => window.matchMedia('(width < 600px)').matches)
   useEffect(() => {
@@ -40,7 +40,7 @@ export default function IntroPage() {
     <ManifestProvider value={manifest}>
       <MotionConfig reducedMotion="user">
         <div className="lab" style={{ '--paper-h': warmHue(manifest) } as React.CSSProperties}>
-          <ScatterStage plan={plan} bounce={BOUNCES[1]} direction="premotio" english={false} reduced={false} clean phone={phone} autoplay={autoplay} startPage={startPage} />
+          <ScatterStage plan={plan} bounce={BOUNCES[1]} direction="premotio" english={false} reduced={false} clean phone={phone} autoplay={autoplay} startPage={startPage} onOpenLibrary={onOpenLibrary} />
         </div>
       </MotionConfig>
     </ManifestProvider>

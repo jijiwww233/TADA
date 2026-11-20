@@ -863,25 +863,103 @@
    第一页、收进胶囊、Key 页和原版一样；从选平台页起画布上同一组卡接着变队形，所以画布要一直露出来：
    - 选平台页 / unlock：原来把画布藏起来、用 DOM 卷轴的图；现在画布上的卡排成右栏的卷轴（DOM 卷轴只剩空的定位框）
    - 换页淡出：文字和按钮照常淡出，画布不淡（卡片在镜头里接着变队形）
-   - 最后一页：卡片 1.1 秒内飞进底部转盘那一排；转盘（CircularGallery）挂上后等 850ms 再 0.4 秒淡入，
-     画布那排卡 1.6～2.0 秒淡出（从 gather 算，gather 0.3 秒），所以画布到 ready 后 1.8 秒才藏 */
+   - 整理页 → 最后一页（真机反馈：不要连续的卡片动画）：和其他页面一样的普通转场——
+     gather：整理页整体淡出（胶囊、说明，连同画布上的卡片环），统一转场时长；
+     ready：画布直接藏起来，最后一页整体淡入（标题、胶囊、按钮、底部转盘），同一个时长 */
 @media (width < 600px) {
   .lab .intro-stage[data-phone][data-one-take] .home-card-stage { opacity: 1; visibility: visible; }
   .lab .intro-stage[data-phone][data-one-take][data-phase] canvas.home-card-stage { visibility: visible; animation: none; }
   .lab .intro-stage[data-phone][data-one-take][data-leaving] canvas.home-card-stage { opacity: 1; translate: none; }
+  .lab .intro-stage[data-phone][data-one-take][data-phase='gather'] :is(.home-capsule, .intro-totals-caption) {
+    opacity: 0; translate: 0 -12px; pointer-events: none;
+  }
+  .lab .intro-stage[data-phone][data-one-take][data-phase='gather'] canvas.home-card-stage {
+    opacity: 0;
+    transition: opacity var(--intro-tr-dur) var(--intro-tr-ease);
+  }
   .lab .intro-stage[data-phone][data-one-take][data-phase='ready'] canvas.home-card-stage {
-    animation: intro-phone-canvas-off 0s 1800ms forwards;
+    opacity: 0; visibility: hidden; animation: none;
+  }
+  /* 统一转场：下面所有页面切换都用舞台上的 --intro-tr-dur / --intro-tr-ease
+     （= oneTake.ts 的 ONE_TAKE_TRANSITION，500ms、cubic-bezier(.42, 0, .58, 1) 缓入缓出），不再各写各的数字。
+     整理页 → 最后一页也是这一个：整理页（含卡片环）淡出、最后一页（含转盘）淡入 */
+  .lab .intro-stage[data-phone][data-one-take][data-leaving] :is(.home-card-stage, .home-type, .home-foreground, .home-capsule, .home-start-cta, .intro-key-title, .intro-phone-platform) {
+    transition: opacity var(--intro-tr-dur) var(--intro-tr-ease), translate var(--intro-tr-dur) var(--intro-tr-ease);
+  }
+  .lab .intro-stage[data-phone][data-one-take][data-phase='key'] .home-capsule,
+  .lab .intro-stage[data-phone][data-one-take][data-phase='platforms'] :is(.home-capsule, .intro-phone-platform),
+  .lab .intro-stage[data-phone][data-one-take][data-phase='ready'] :is(.intro-ready, .home-capsule, .intro-enter) {
+    animation: intro-phone-page-in var(--intro-tr-dur) var(--intro-tr-ease) backwards;
+  }
+  .lab .intro-stage[data-phone][data-one-take][data-phase='gather'] :is(.home-capsule, .intro-totals-caption) {
+    transition: opacity var(--intro-tr-dur) var(--intro-tr-ease), translate var(--intro-tr-dur) var(--intro-tr-ease);
   }
   .lab .intro-stage[data-phone][data-one-take][data-phase='ready'] .intro-circular-gallery {
-    animation: intro-phone-fade-in 400ms cubic-bezier(.4, 0, .2, 1) 850ms backwards;
+    animation: intro-phone-fade-in var(--intro-tr-dur) var(--intro-tr-ease) backwards;
   }
   /* 选平台页 → 整理页现在也走统一的淡出；整理页的胶囊和说明跟着淡入上移 */
   .lab .intro-stage[data-phone][data-one-take][data-phase='reveal'] :is(.home-capsule, .intro-totals-caption) {
-    animation: intro-phone-page-in 340ms cubic-bezier(.4, 0, .2, 1) backwards;
+    animation: intro-phone-page-in var(--intro-tr-dur) var(--intro-tr-ease) backwards;
   }
+  .lab .intro-stage[data-phone][data-one-take][data-reduced='true'] :is(.home-capsule, .intro-phone-platform, .intro-ready, .intro-enter) { animation: none; }
   .lab .intro-stage[data-phone][data-one-take][data-reduced='true'] :is(.home-capsule, .intro-totals-caption, .intro-circular-gallery) { animation: none; }
   .lab .intro-stage[data-phone][data-one-take][data-reduced='true'][data-phase='ready'] canvas.home-card-stage { visibility: hidden; animation: none; }
 }
 @media (width < 600px) and (prefers-reduced-motion: reduce) {
   .lab .intro-stage[data-phone][data-one-take] :is(.home-capsule, .intro-totals-caption, .intro-circular-gallery) { animation: none; }
+  .lab .intro-stage[data-phone][data-one-take][data-phase] :is(.home-capsule, .intro-phone-platform, .intro-ready, .intro-enter, .intro-totals-caption, .intro-circular-gallery) { animation: none; }
+  .lab .intro-stage[data-phone][data-one-take][data-leaving] * { transition: none; }
+  .lab .intro-stage[data-phone][data-one-take][data-phase='gather'] :is(canvas.home-card-stage, .home-capsule, .intro-totals-caption) { transition: none; }
+}
+
+/* ===== 真机反馈：每页只留一个该点的主按钮 ===== */
+@media (width < 600px) {
+  /* 右上角「自动播放 · 重播 · 跳过」：字号 13 → 15（三个一起放大，免得一行里大小不一），
+     每个点击区域至少 44×44，字在区域里居中 */
+  .lab .intro-stage[data-phone] .intro-clean-tools { font-size: 15px; }
+  .lab .intro-stage[data-phone][data-clean] .intro-clean-tools button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 4px;
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  /* 体验版选平台页：平台名点了没用，只是文字——不带手形光标、不出点按高亮。
+     转盘仍可上下拖着看（拖到「下一步」会和以前一样进整理页），所以光标只是普通箭头，不再是「抓手」 */
+  .lab .intro-stage[data-phone] .intro-phone-wheel .intro-phone-source.is-static { cursor: default; }
+  .lab .intro-stage[data-phone][data-phase='platforms'] .intro-phone-wheel:has(.is-static) { cursor: default; }
+
+  /* 底部胶囊右边那颗橙色圆箭头：只有它真能点的时候才显示。
+     点不了的时候（整理结果页、本机版选平台页的「已连接 0/5」、Key 页验证中）以前照样是实心橙色，
+     测试的人一直去点它；现在不能点就不显示（占位保留，胶囊宽度不变）。第一页的示例搜索框不在此列。 */
+  .lab .intro-stage[data-phone][data-phase]:not([data-phase='home']) .home-capsule .capsule .capsule-send:disabled {
+    visibility: hidden;
+    pointer-events: none;
+  }
+  /* 整理结果页：那颗点不了的橙色箭头不显示以后，胶囊的固定宽度（约 350）会在右边空出一块。
+     这里把胶囊收窄到正好包住「图标 + 数字 + 文字」，整颗居中，两边不再有大片空白 */
+  .lab .intro-stage[data-phone]:is([data-phase='reveal'], [data-phase='gather']) .home-capsule .capsule {
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+    padding-inline: 18px;
+  }
+  /* 收窄以后那个装饰用的「参考」小图标会压到数字上（它不在文字行里），这一页只留文字 */
+  .lab .intro-stage[data-phone]:is([data-phase='reveal'], [data-phase='gather']) .home-capsule .capsule > .capsule-icon {
+    display: none;
+  }
+  .lab .intro-stage[data-phone]:is([data-phase='reveal'], [data-phase='gather']) .home-capsule .capsule .capsule-field {
+    flex: 0 1 auto;
+    padding-inline: 0;
+  }
+
+  /* 第一页胶囊只是示例（点不了）：箭头保留，好认出是个搜索框，但去掉圆框，不像按钮；这一页的主按钮是「开始」 */
+  .lab .intro-stage[data-phone][data-phase='home'] .home-capsule .capsule .capsule-send:disabled {
+    border-color: transparent;
+    pointer-events: none;
+  }
 }

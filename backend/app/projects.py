@@ -98,6 +98,23 @@ def update_brief(project: Project, brief: str) -> Project:
     return replace(project, brief=brief)
 
 
+def update_project(project: Project, *, name: str | None = None,
+                   brief: str | None = None) -> Project:
+    """Rename and/or replace the brief; omitted (None) fields keep their value.
+
+    Pins, recommendations and image analyses are untouched. A rename must still be a
+    non-empty string after stripping whitespace; an empty brief is allowed.
+    """
+    if name is None and brief is None:
+        raise ValueError("select at least one project field to update")
+    changes = {}
+    if name is not None:
+        changes["name"] = _text(name, "name", nonempty=True)
+    if brief is not None:
+        changes["brief"] = _text(brief, "brief")
+    return replace(project, **changes)
+
+
 def _pins(pins):
     rows = tuple(pins)
     if not all(isinstance(p, Pin) for p in rows):

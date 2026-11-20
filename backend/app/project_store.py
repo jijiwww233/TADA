@@ -42,7 +42,9 @@ class ProjectStore:
     @staticmethod
     def _project(conn, project_id):
         core._id(project_id, "project_id")
-        row = conn.execute("SELECT id,name,brief,created_at FROM projects WHERE id=?", (project_id,)).fetchone()
+        row = conn.execute(
+            "SELECT id,name,brief,created_at FROM projects WHERE id=? AND deleted_at IS NULL",
+            (project_id,)).fetchone()
         if row is None:
             raise ProjectNotFound()
         return {**dict(row), "brief": row["brief"] or ""}
@@ -50,7 +52,8 @@ class ProjectStore:
     @staticmethod
     def _image(conn, image_id):
         core._id(image_id, "image_id")
-        if conn.execute("SELECT 1 FROM images WHERE id=?", (image_id,)).fetchone() is None:
+        if conn.execute("SELECT 1 FROM images WHERE id=? AND deleted_at IS NULL",
+                        (image_id,)).fetchone() is None:
             raise ImageNotFound()
 
     @staticmethod
@@ -75,7 +78,7 @@ class ProjectStore:
             ids = image_ids[start:start + 400]
             marks = ",".join("?" for _ in ids)
             for row in conn.execute(f"""SELECT id,file_path,width,height,original_name,created_at
-                    FROM images WHERE id IN ({marks})""", ids):
+                    FROM images WHERE id IN ({marks}) AND deleted_at IS NULL""", ids):
                 image = dict(row)
                 image["image_id"] = image.pop("id")
                 image["url"] = "/" + image.pop("file_path")
@@ -99,19 +102,49 @@ class ProjectStore:
     def list_projects(self):
         with self.transaction() as conn:
             return [{**dict(row), "brief": row["brief"] or ""} for row in conn.execute(
-                "SELECT id,name,brief,created_at FROM projects ORDER BY id")]
+                "SELECT id,name,brief,created_at FROM projects WHERE deleted_at IS NULL ORDER BY id")]
 
     def update_brief(self, project_id, brief):
+        return self.update_project(project_id, brief=brief)
+
+    def update_project(self, project_id, *, name=None, brief=None):
+        """Rename and/or replace the brief in one transaction; omitted fields are kept."""
         with self.transaction(write=True) as conn:
             row = self._project(conn, project_id)
-            updated = core.update_brief(core.Project(row["id"], row["name"], row["brief"]), brief)
-            conn.execute("UPDATE projects SET brief=? WHERE id=?", (updated.brief, project_id))
+            updated = core.update_project(core.Project(row["id"], row["name"], row["brief"]),
+                                          name=name, brief=brief)
+            fields = {}
+            if name is not None:
+                fields["name"] = updated.name
+            if brief is not None:
+                fields["brief"] = updated.brief
+            if fields:
+                assignments = ",".join(f"{key}=?" for key in fields)
+                conn.execute(f"UPDATE projects SET {assignments} WHERE id=?",
+                             (*fields.values(), project_id))
             return self._project(conn, project_id)
 
+    def soft_delete_project(self, project_id):
+        """Mark a project deleted; idempotent. Pins/rows/files are kept so restore is lossless."""
+        with self.transaction(write=True) as conn:
+            core._id(project_id, "project_id")
+            row = conn.execute("SELECT id,deleted_at FROM projects WHERE id=?",
+                               (project_id,)).fetchone()
+            if row is None:
+                raise ProjectNotFound()
+            if row["deleted_at"] is None:
+                conn.execute("UPDATE projects SET deleted_at=datetime('now') WHERE id=?",
+                             (project_id,))
+            return {"id": project_id, "deleted": True}
+
     def _pins(self, conn, project_id):
+        # Pins of a soft-deleted image stay in the table (restore brings them back) but
+        # must not leak into project detail / pin lists.
         return [self._pin_view(row) for row in conn.execute("""
-            SELECT pins.* FROM pins LEFT JOIN project_pin_order AS ordering ON ordering.pin_id=pins.id
-            WHERE project_id=? ORDER BY ordering.position IS NULL, ordering.position, pins.id
+            SELECT pins.* FROM pins
+            LEFT JOIN project_pin_order AS ordering ON ordering.pin_id=pins.id
+            JOIN images i ON i.id=pins.image_id AND i.deleted_at IS NULL
+            WHERE pins.project_id=? ORDER BY ordering.position IS NULL, ordering.position, pins.id
         """, (project_id,))]
 
     def remove_image(self, project_id, image_id):

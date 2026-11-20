@@ -5,7 +5,7 @@ import { Capsule } from '../Capsule'
 import { useIntroFlow } from '../intro/useIntroFlow'
 import { FlowScene, capsuleTarget, type CapsulePose } from '../intro/flowScene'
 import { IntroPanels, introPresentation } from '../intro/IntroPanels'
-import { DEMO_MS, INTRO_COPY, PLATFORMS } from '../intro/copy'
+import { DEMO_MS, INTRO_COPY, PHONE_DEMO_DWELL, PLATFORMS } from '../intro/copy'
 import { quietSpring, updateWheel, platformLayout } from '../intro/motion'
 import '../intro/intro.css'
 import '../intro/fable.css'
@@ -13,21 +13,26 @@ import { COVER_FRONT, INITIAL_CARD_COUNT, MOBILE_INITIAL_CARD_COUNT, PHONE_INITI
 import { HomeHeadline } from './HomeHeadline'
 import { SoftText } from '../intro/SoftText'
 import { REFINE } from '../../main/refine'
+import { preloadLibrary } from '../../main/libraryEntry'
+import { startTelemetry, track } from '../../main/telemetry'
+import { withBase } from '../../main/basePath'
 import '../intro/intro-refine.css'
 import '../intro/intro-phone.css'
 import { FOCAL, ScatterRenderer, type Card, type Strip } from './renderer'
 import { cardThumbnailUrl, loadImage } from '../intro/cardThumbnail'
 import { galleryLayers, galleryRow, seedFromReel, snapReel, type ReelShot } from '../intro/phoneHandoff'
-import { ONE_TAKE_WALL_SCALE, OneTake, PHONE_ONE_TAKE, oneTakeS, ringBase, type Formation } from '../intro/oneTake'
+import { ONE_TAKE_TRANSITION_VARS, ONE_TAKE_WALL_SCALE, OneTake, PHONE_ONE_TAKE, oneTakeS, ringBase, type Formation } from '../intro/oneTake'
 import type { IntroPhase } from '../intro/useIntroFlow'
 
 /**
  * 一镜到底：每一页画布上是什么队形（第一页仍由 frame() 画；Key 页和原版一样没有卡片）。
  * 换页淡出期间按「要去的那一页」算，卡片和文字同时开始变
  */
+const INTRO_PHASES: IntroPhase[] = ['home', 'key', 'unlock', 'platforms', 'clearing', 'reveal', 'gather', 'ready']
+
 const formationOf = (phase: IntroPhase): Formation =>
-  phase === 'home' || phase === 'key' ? 'none' : phase === 'unlock' || phase === 'platforms' ? 'reel'
-    : phase === 'clearing' || phase === 'reveal' ? 'ring' : 'carousel'
+  // 整理页 → 最后一页不再让卡片飞进转盘：环保持原样，画布跟着整页一起淡出（intro-phone.css 的 gather），最后一页整页淡入
+  phase === 'home' || phase === 'key' ? 'none' : phase === 'unlock' || phase === 'platforms' ? 'reel' : 'ring'
 
 /**
  * 一镜到底的测量记录（只在开关打开时写）：画布这一帧里看得见的卡（不透明度 > .5）中最大的那张（= 焦点卡）
@@ -65,6 +70,15 @@ const PHONE_ARRANGE_MS = 1500
 const PHONE_MATRIX_HOLD_MS = 450
 const PHONE_CATCH_MS = 500
 
+function libraryHref(query = '') {
+  const params = new URLSearchParams()
+  const mode = new URLSearchParams(location.search).get('data')
+  if (mode) params.set('data', mode)
+  if (!REFINE) params.set('refine', '0')
+  if (query) params.set('q', query)
+  return withBase('/main' + (params.size ? '?' + params.toString() : ''))
+}
+
 const OPENING_MS = 750
 export const TYPING = '那张参考图……到底收藏在哪了'
 /** Stage paper = the page colour (warm white), as linear-ish 0..1 RGB for the renderer. */
@@ -76,7 +90,7 @@ const rgb01 = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 
  * choreography, the collect into the capsule runs on its own clock (staggered, reversible).
  * `controls` render inside the pinned screen (plan / bounce switches).
  */
-export default function ScatterStage({ plan, bounce, reduced, controls, direction, english, clean = false, phone = false, autoplay = false, startPage }: { plan: Plan; bounce: Bounce; reduced: boolean; controls?: ReactNode; direction: HomeDirection; english: boolean; /** /intro：不带调试开关的干净舞台 */ clean?: boolean; phone?: boolean; /** 进来就自动从头播放 */ autoplay?: boolean; /** 直接从某一页开始（排练用） */ startPage?: 'key' | 'platforms' | 'ready' }) {
+export default function ScatterStage({ plan, bounce, reduced, controls, direction, english, clean = false, phone = false, autoplay = false, startPage, onOpenLibrary }: { plan: Plan; bounce: Bounce; reduced: boolean; controls?: ReactNode; direction: HomeDirection; english: boolean; /** /intro：不带调试开关的干净舞台 */ clean?: boolean; phone?: boolean; /** 进来就自动从头播放 */ autoplay?: boolean; /** 直接从某一页开始（排练用） */ startPage?: 'key' | 'platforms' | 'ready'; onOpenLibrary?: (href: string) => void }) {
   const { items, cards: galleryCards } = useImages()
   const wrap = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -139,6 +153,8 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
   const [starting, setStarting] = useState(false)
   useEffect(() => { startTap.current = 0; setStarting(false) }, [flow.state.run])
   const start = () => {
+    // 自动播放中点了「开始」：先停掉自动播放（它不再自己往下走），直接进下一页（Key 页）
+    if (flow.state.demo) { flow.setDemo(false); flow.enterKey(); return }
     if (!phone || still) { flow.enterKey(); return }
     if (startTap.current) return
     startTap.current = performance.now(); setStarting(true)
@@ -149,16 +165,27 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
   useEffect(() => {
     if (flow.state.phase === 'key' || flow.state.run > 0) wrap.current?.scrollIntoView({ block: 'start', behavior: 'instant' })
   }, [flow.state.run, flow.state.phase])
+  useEffect(() => {
+    if (flow.state.phase === 'ready' && onOpenLibrary) preloadLibrary(libraryHref())
+  }, [flow.state.phase, onOpenLibrary])
+
+  // 引导页匿名记录：到达第几页、点了跳过、进素材库
+  useEffect(() => startTelemetry('intro'), [])
+  const phaseRef = useRef('')
+  useEffect(() => {
+    if (phaseRef.current === flow.state.phase) return
+    phaseRef.current = flow.state.phase
+    track('intro_step', { page: INTRO_PHASES.indexOf(flow.state.phase) + 1, phase: flow.state.phase })
+  }, [flow.state.phase])
+
   /** 首页示例搜索框：输入后直接进素材库搜索；空着点箭头就进素材库。 */
-  const goSearch = () => {
-    const params = new URLSearchParams()
-    const mode = new URLSearchParams(location.search).get('data')
-    if (mode) params.set('data', mode)
-    if (!REFINE) params.set('refine', '0')
-    const query = homeQuery.trim()
-    if (query) params.set('q', query)
-    window.location.href = '/main' + (params.size ? '?' + params.toString() : '')
+  const goLibrary = (query?: string) => {
+    track('intro_enter')
+    const href = libraryHref(query)
+    if (onOpenLibrary) onOpenLibrary(href)
+    else window.location.href = href
   }
+  const goSearch = () => goLibrary(homeQuery.trim())
   useEffect(() => {
     if (phone) return
     const el = wrap.current
@@ -241,6 +268,8 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
           const distance = Math.abs((box.top + box.bottom) / 2 - e.clientY)
           if (distance < best.distance) best = { index: Number(row.dataset.platformIndex), distance }
         }
+        // 体验版：平台名只是展示（连不了），点了不转；只有点「下一步」那一行才往下走
+        if (flowRef.current.publicDemo && best.index < last) best.index = -1
         if (best.index >= 0) {
           d.suppressClick = true
           setTimeout(() => { d.suppressClick = false }, 400)
@@ -472,14 +501,17 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
       // 手机点了「开始」：和自动播放走同一段「排好 → 收进胶囊」，只是从点下去那一刻起算、不等标题
       const tapped = phone && startTap.current > 0
       const auto = state.demo || tapped
+      // 手机自动播放：标题停留、排好后的停留、收进胶囊后的停留都 × 0.7（排队和收拢动画本身不变）
+      const hold = phone && state.demo ? PHONE_DEMO_DWELL : 1
+      const titleHold = DEMO_MS.homeTitleHold * hold
       if (!still) {
         let p = 0
         if (auto) {
           // Start the hold only once the smoothed matrix has settled.
           if (P >= settledProgress && !matrixAt) matrixAt = now
-          const arrangeElapsed = state.demo ? sinceTitle - DEMO_MS.homeTitleHold : now - startTap.current
+          const arrangeElapsed = state.demo ? sinceTitle - titleHold : now - startTap.current
           // 手机：原来「开始 → 排成墙」用电脑版自动播放的 3.6 秒，慢悠悠的；手机改 1.5 秒排好、停 0.45 秒再收
-          if (matrixAt) p = now - matrixAt >= (phone ? PHONE_MATRIX_HOLD_MS : DEMO_MS.matrixHold) ? .96 : P_NEAT
+          if (matrixAt) p = now - matrixAt >= (phone ? PHONE_MATRIX_HOLD_MS * hold : DEMO_MS.matrixHold) ? .96 : P_NEAT
           else if (arrangeElapsed > 0) {
             // The scroll choreography is static before P_START.
             P = Math.max(P, P_START)
@@ -510,7 +542,7 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
           if (Math.abs(q) < 1e-4 * b.amp * 20 && Math.abs(qv) < 1e-3 * b.amp * 20) { q = 0; qv = 0 }
           moving = true
         }
-      } else if (state.demo && sinceTitle >= DEMO_MS.homeTitleHold) { P = .96; clock = L; bounced = true; moving = true }
+      } else if (state.demo && sinceTitle >= titleHold) { P = .96; clock = L; bounced = true; moving = true }
       // 自动播放时不升：胶囊马上就要展开成钥匙卡片，先升再变是多余的一跳（“开始”也会跟着窜上去）
       const nr = Math.min(1, Math.max(0, rise + (!auto && clock >= L && caughtAt && now - caughtAt > 260 ? dt / .7 : clock < L || auto ? -dt / .35 : 0)))
       if (nr !== rise) { rise = still && clock >= L ? 1 : nr; moving = true }
@@ -521,7 +553,7 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
       if (clock >= L && P > P_COLLECT) {
         if (!caughtAt) caughtAt = now
         // 手机：胶囊接住最后一张卡、回弹停下后（约 0.5 秒）就进 Key 页；enterKey 在手机上先播 0.26 秒的退场再换页
-        if (auto && (still || now - caughtAt > (phone ? PHONE_CATCH_MS : DEMO_MS.homeCatch))) f.enterKey()
+        if (auto && (still || now - caughtAt > (phone ? PHONE_CATCH_MS * hold : DEMO_MS.homeCatch))) f.enterKey()
       } else caughtAt = 0
       // Reduced motion otherwise keeps the first composition readable, without the 420vh travel.
       if (moving || dirty) {
@@ -631,7 +663,7 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
   }, [plan, items, still, direction, phone])
 
   return (
-    <div ref={wrap} className={`relative home-stage intro-stage home-${direction} ${english ? 'home-english' : ''}`} data-home-stage data-clean={clean ? '' : undefined} data-phone={phone ? '' : undefined} data-focusing={!typed && !phone} data-phase={flow.state.phase} data-leaving={phone && flow.leaving ? '' : undefined} data-one-take={oneTakeOn ? '' : undefined} data-topbar={topbar} data-key-state={flow.state.keyStatus} data-reduced={still}>
+    <div ref={wrap} className={`relative home-stage intro-stage home-${direction} ${english ? 'home-english' : ''}`} data-home-stage data-clean={clean ? '' : undefined} data-phone={phone ? '' : undefined} data-focusing={!typed && !phone} data-phase={flow.state.phase} data-leaving={phone && flow.leaving ? '' : undefined} data-one-take={oneTakeOn ? '' : undefined} style={oneTakeOn ? ONE_TAKE_TRANSITION_VARS : undefined} data-topbar={topbar} data-key-state={flow.state.keyStatus} data-reduced={still}>
       <div ref={focusVeil} className="home-screen sticky top-0 overflow-hidden" style={{ background: PAPER }}>
         {/* new canvas per plan: the old renderer gives its context back (loseContext) when the plan changes */}
         <canvas key={`${direction}-${still}`} ref={canvas} className="home-card-stage absolute inset-0 size-full" hidden={fallback} />
@@ -672,7 +704,7 @@ export default function ScatterStage({ plan, bounce, reduced, controls, directio
         </div>
         {/* 首屏就给一个明确的主按钮：不要求用户先滚动，也不再用“往下滚动 / 点一下”的提示 */}
         {flow.state.phase === 'home' && <button type="button" className={`lab-btn-primary home-start-cta${starting ? ' is-starting' : ''}`} disabled={starting} onClick={start}><SoftText>{INTRO_COPY.start}</SoftText><span aria-hidden="true"> →</span></button>}
-        <IntroPanels phone={phone} clean={clean} starfield={starfield} setStarfield={setStarfield} flow={flow} reduced={still} topbar={topbar} setTopbar={setTopbar} controls={controls} />
+        <IntroPanels phone={phone} clean={clean} starfield={starfield} setStarfield={setStarfield} flow={flow} reduced={still} topbar={topbar} setTopbar={setTopbar} controls={controls} onEnterLibrary={onOpenLibrary ? () => goLibrary() : undefined} />
       </div>
     </div>
   )

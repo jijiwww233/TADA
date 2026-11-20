@@ -61,7 +61,7 @@ def remove(api, project_id, image_id, purpose):
     return api.delete(f'/api/projects/{project_id}/pins/{image_id}/purposes/{purpose}')
 
 
-def test_create_list_detail_update_brief_and_no_project_note_or_delete(api):
+def test_create_list_detail_rename_brief_and_soft_delete(api):
     project_id = make_project(api, ' 展板 ', ' 建筑 ')
     listing = api.get('/api/projects').json()
     assert listing['items'][0]['name'] == '展板'
@@ -70,8 +70,22 @@ def test_create_list_detail_update_brief_and_no_project_note_or_delete(api):
     assert detail['brief'] == '建筑' and detail['pins'] == detail['images'] == detail['image_ids'] == []
     response = api.patch(f'/api/projects/{project_id}', json={'brief': ' 现代 '})
     assert response.json()['brief'] == '现代'
+    # P0-3: name 也能改；一个字段都不给或给未知字段 → 422
+    renamed = api.patch(f'/api/projects/{project_id}', json={'name': ' 新展板 ', 'brief': ' 极简 '})
+    assert renamed.status_code == 200
+    assert (renamed.json()['name'], renamed.json()['brief']) == ('新展板', '极简')
+    assert api.patch(f'/api/projects/{project_id}', json={}).status_code == 422
+    assert api.patch(f'/api/projects/{project_id}', json={'name': '  '}).status_code == 422
     assert api.patch(f'/api/projects/{project_id}', json={'note': 'not a project field'}).status_code == 422
-    assert api.delete(f'/api/projects/{project_id}').status_code == 405
+    # P0-3: DELETE 是软删除（200 + 标记），详情/列表消失，清标记即恢复
+    deleted = api.delete(f'/api/projects/{project_id}')
+    assert deleted.status_code == 200 and deleted.json() == {'id': project_id, 'deleted': True}
+    assert api.get(f'/api/projects/{project_id}').status_code == 404
+    assert api.get('/api/projects').json()['items'] == []
+    conn = db.connect()
+    conn.execute('UPDATE projects SET deleted_at=NULL WHERE id=?', (project_id,))
+    conn.close()
+    assert api.get(f'/api/projects/{project_id}').json()['name'] == '新展板'
 
 
 def test_duplicate_pin_merges_canonical_purposes_preserves_row_identity_and_note(api, library):
@@ -240,12 +254,15 @@ def test_v0_existing_projects_pins_migrate_with_no_day7_schema_change(data_dir):
     conn.execute("INSERT INTO images(id,post_id,position,sha256,file_path) VALUES(1,1,7,'sha','images/a.png')")
     conn.execute("INSERT INTO projects(id,name,brief) VALUES(8,'old',NULL)")
     conn.execute("INSERT INTO pins(id,project_id,image_id,purpose,note) VALUES(9,8,1,'layout','keep')")
-    schema = {t: [tuple(r) for r in conn.execute(f'PRAGMA table_info({t})')] for t in ('projects','pins')}
+    # Day7 不重建 pins；P0-3 只给 projects 追加软删除标记列（v15），原有列和数据不动。
+    pins_schema = [tuple(r) for r in conn.execute('PRAGMA table_info(pins)')]
+    project_columns = [tuple(r)[1] for r in conn.execute('PRAGMA table_info(projects)')]
     conn.close(); before = rows('pins')
     db.init_db(); db.init_db()
     conn = db.connect()
     assert conn.execute('PRAGMA user_version').fetchone()[0] == db.SCHEMA_VERSION
-    assert all([tuple(r) for r in conn.execute(f'PRAGMA table_info({t})')] == cols for t, cols in schema.items())
+    assert [tuple(r) for r in conn.execute('PRAGMA table_info(pins)')] == pins_schema
+    assert [tuple(r)[1] for r in conn.execute('PRAGMA table_info(projects)')] ==         project_columns + ['deleted_at']
     conn.close()
     assert rows('pins') == before
     detail = ProjectStore().detail(8)

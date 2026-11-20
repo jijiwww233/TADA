@@ -76,4 +76,6 @@ export const DEMO_MS = {
   allPause: 500,
   reveal: 3200,
 } as const
+/** 手机自动播放：每一页的停留（等待）时间 × 0.7；动画本身的时长不变。电脑版不用 */
+export const PHONE_DEMO_DWELL = .7
 export const LIBRARY_COUNTS = { collections: 697, references: 112 }

@@ -213,7 +213,11 @@ MIGRATIONS: list[list[str]] = [
         "ALTER TABLE embeddings ADD COLUMN text_hash TEXT",      # sha256(scheme + "\n" + text)
     ],
 ]
-SCHEMA_VERSION = 14  # v12 watched import folders, v13 project rediscovery, v14 short titles
+SCHEMA_VERSION = 18  # v12 watched import folders, v13 project rediscovery, v14 short titles,
+# v15 soft delete markers on images/projects (NULL = visible), v16 posts.platform accepts a
+# bare domain (link import marks its source by domain; see app/sync/platform_scope.py),
+# v17 anonymous usage events for the private /stats page (app/usage_events.py),
+# v18 devices excluded from those stats (my own phone / browser)
 
 
 def connect() -> sqlite3.Connection:
@@ -222,6 +226,15 @@ def connect() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
+
+def has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    """True when a table has the column. Reads before migrate() (old migration tests,
+    tools pointed at an un-migrated copy) must not reference a new column blindly."""
+    try:
+        return any(row[1] == column for row in conn.execute(f"PRAGMA table_info({table})"))
+    except sqlite3.Error:
+        return False
 
 
 def _backup(conn: sqlite3.Connection, version: int) -> Path:
@@ -272,6 +285,38 @@ def migrate(conn: sqlite3.Connection) -> None:
     _ensure_watch_folder_schema(conn)
     _ensure_vibe_schema(conn)
     _ensure_title_schema(conn)
+    _ensure_soft_delete_schema(conn)
+    _ensure_usage_events(conn)
+    _ensure_excluded_devices(conn)
+    from .sync.platform_scope import ensure_open_platforms
+    ensure_open_platforms(conn, target_version=SCHEMA_VERSION)
+
+
+def _ensure_usage_events(conn: sqlite3.Connection) -> None:
+    """Anonymous usage events for the private stats page (v17)."""
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS usage_events (
+               id         INTEGER PRIMARY KEY,
+               created_at TEXT NOT NULL DEFAULT (datetime('now')),
+               device_id  TEXT NOT NULL,
+               event_type TEXT NOT NULL,
+               page       TEXT,
+               detail     TEXT
+           )"""
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_events_created ON usage_events(created_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_events_device ON usage_events(device_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_events_type ON usage_events(event_type)")
+
+
+def _ensure_excluded_devices(conn: sqlite3.Connection) -> None:
+    """Devices excluded from the private stats page (v18)."""
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS usage_excluded_devices (
+               device_id  TEXT PRIMARY KEY,
+               created_at TEXT NOT NULL DEFAULT (datetime('now'))
+           )"""
+    )
 
 
 def _ensure_classification_schema(conn: sqlite3.Connection) -> None:
@@ -569,6 +614,28 @@ def _decode_json(raw):
         return json.loads(raw)
     except (TypeError, ValueError):
         return _INVALID_JSON
+
+
+def _ensure_soft_delete_schema(conn):
+    """v15 additive: soft-delete markers on images and projects.
+
+    NULL 表示可见；只有清掉标记才恢复（见 scripts/restore_deleted.py）。早期 v12 库第
+    一次 init 先走别的分支，第二次会到这里，所以每次启动都先检查列是否存在，保证老库
+    直接能起、重复执行也不报错。
+    """
+    if conn.execute("PRAGMA user_version").fetchone()[0] >= 15:
+        return
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        for table in ("images", "projects"):
+            columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+            if "deleted_at" not in columns:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN deleted_at TEXT")
+        conn.execute("PRAGMA user_version = 15")
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
 
 
 def _ensure_annotation_field_schema(conn):

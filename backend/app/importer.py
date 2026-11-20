@@ -164,12 +164,17 @@ def _write_file(rel_path: str, data: bytes) -> bool:
 
 
 def import_images(uploads: list[Upload],
-                 on_analysis: Callable[[object, int], None] | None = None) -> dict:
+                 on_analysis: Callable[[object, int], None] | None = None,
+                 post: dict | None = None) -> dict:
     """Validate, dedupe, save and queue analysis for one batch.
 
     on_analysis (optional) replaces the default ``analysis.ensure_analysis`` call for
     each newly inserted image, in the same transaction. The watched-folder importer
     uses it to apply its daily auto-analysis cap and defer the rest.
+
+    post (optional) is the source post for a link import: platform / source_id / url /
+    title / description. Local drag-and-drop imports leave it empty and keep platform
+    'local' with no source link.
     """
     hook = on_analysis or analysis.ensure_analysis
     added: list[dict] = []
@@ -210,9 +215,13 @@ def import_images(uploads: list[Upload],
                 continue
 
             if post_id is None:
+                meta = post or {}
                 post_id = conn.execute(
-                    "INSERT INTO posts (platform, created_at) VALUES ('local', COALESCE(?, datetime('now')))",
-                    (post_created_at,),
+                    """INSERT INTO posts (platform, source_id, url, title, description, created_at)
+                       VALUES (?, ?, ?, ?, ?, COALESCE(?, datetime('now')))""",
+                    (str(meta.get("platform") or "local"), meta.get("source_id"),
+                     meta.get("url"), meta.get("title"), meta.get("description"),
+                     post_created_at),
                 ).lastrowid
 
             rel_path = f"images/{item.sha256}.{item.ext}"
@@ -270,6 +279,10 @@ def list_images(*, include_palette: bool = False) -> list[dict]:
         has_slots = conn.execute(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='post_images'"
         ).fetchone() is not None
+        # Soft-deleted images never reach the grid. The column only exists after
+        # db.init_db(), and migration tests read a v0 library before that.
+        has_deleted = db.has_column(conn, "images", "deleted_at")
+        visible = "i.deleted_at IS NULL" if has_deleted else "1"
         # A v0 library has neither the short-title table nor necessarily analyses:
         # list it (migration tests read before init_db) without the title columns.
         has_titles = conn.execute(
@@ -279,9 +292,14 @@ def list_images(*, include_palette: bool = False) -> list[dict]:
         title_joins = ("""LEFT JOIN analyses a ON a.image_id = i.id
                 LEFT JOIN image_titles_manual t ON t.image_id = i.id"""
                        if has_titles else "")
-        count_sql = ("(SELECT COUNT(*) FROM post_images pi WHERE pi.post_id=i.post_id)"
+        visible_ref2 = "AND i2.deleted_at IS NULL" if has_deleted else ""
+        count_sql = (f"(SELECT COUNT(*) FROM post_images pi "
+                     f"LEFT JOIN images i3 ON i3.id=pi.image_id "
+                     f"WHERE pi.post_id=i.post_id AND (i3.id IS NULL OR i3.deleted_at IS NULL))"
+                     if has_slots and has_deleted else
+                     f"(SELECT COUNT(*) FROM post_images pi WHERE pi.post_id=i.post_id)"
                      if has_slots else
-                     "(SELECT COUNT(*) FROM images i2 WHERE i2.post_id=i.post_id)")
+                     f"(SELECT COUNT(*) FROM images i2 WHERE i2.post_id=i.post_id {visible_ref2})")
         rows = conn.execute(
             f"""SELECT i.id, i.post_id, i.position, i.file_path, i.width, i.height,
                        i.original_name, i.created_at, p.platform, p.is_video,
@@ -289,6 +307,7 @@ def list_images(*, include_palette: bool = False) -> list[dict]:
                        {title_sql}
                 FROM images i JOIN posts p ON p.id = i.post_id
                 {title_joins}
+                WHERE {visible}
                 ORDER BY i.post_id DESC, i.position ASC"""
         ).fetchall()
         palettes = {}
@@ -327,10 +346,12 @@ def list_post_images(post_id: int) -> list[dict]:
     Slots whose bytes are not saved yet have image_id/url = None."""
     conn = db.connect()
     try:
+        visible = (" AND (i.id IS NULL OR i.deleted_at IS NULL)"
+                   if db.has_column(conn, "images", "deleted_at") else "")
         rows = conn.execute(
             """SELECT pi.position, pi.image_id, pi.remote_url, pi.download_state, i.file_path
                FROM post_images pi LEFT JOIN images i ON i.id = pi.image_id
-               WHERE pi.post_id = ? ORDER BY pi.position""",
+               WHERE pi.post_id = ?""" + visible + " ORDER BY pi.position",
             (post_id,),
         ).fetchall()
     finally:
@@ -351,9 +372,11 @@ def get_image(image_id: int) -> dict | None:
     """One image plus every post it belongs to (via post_images), for the detail view."""
     conn = db.connect()
     try:
+        visible = (" AND deleted_at IS NULL"
+                   if db.has_column(conn, "images", "deleted_at") else "")
         r = conn.execute(
             """SELECT id, post_id, position, file_path, width, height, original_name, created_at
-               FROM images WHERE id = ?""", (image_id,)
+               FROM images WHERE id = ?""" + visible, (image_id,)
         ).fetchone()
         if r is None:
             return None
@@ -375,3 +398,31 @@ def get_image(image_id: int) -> dict | None:
         "created_at": r["created_at"],
         "posts": [{**dict(p),"is_video":bool(p["is_video"]),"images":list_post_images(p["id"])} for p in posts],
     }
+
+
+def delete_image(image_id: int) -> dict | None:
+    """Soft-delete one image: only images.deleted_at is written.
+
+    Bytes, rows, analyses, embeddings and pins all stay, so
+    scripts/restore_deleted.py can bring it back losslessly. Returns None when the image
+    never existed; deleting an already-deleted image is idempotent.
+    """
+    conn = db.connect()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = conn.execute("SELECT id, deleted_at FROM images WHERE id = ?",
+                               (image_id,)).fetchone()
+            if row is None:
+                conn.execute("ROLLBACK")
+                return None
+            if row["deleted_at"] is None:
+                conn.execute("UPDATE images SET deleted_at = datetime('now') WHERE id = ?",
+                             (image_id,))
+            conn.execute("COMMIT")
+        except BaseException:
+            conn.execute("ROLLBACK")
+            raise
+    finally:
+        conn.close()
+    return {"id": image_id, "deleted": True}

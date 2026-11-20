@@ -16,7 +16,7 @@ def stats_daily(days: int = 371):
         rows = conn.execute(
             """SELECT date(created_at) AS day, COUNT(*) AS n
                FROM images
-               WHERE date(created_at) >= date('now', ?)
+               WHERE date(created_at) >= date('now', ?) AND deleted_at IS NULL
                GROUP BY day ORDER BY day""",
             (f"-{days} days",),
         ).fetchall()
@@ -33,6 +33,7 @@ def stats_platforms():
         rows = conn.execute(
             """SELECT p.platform AS platform, COUNT(*) AS n
                FROM images i JOIN posts p ON p.id = i.post_id
+               WHERE i.deleted_at IS NULL
                GROUP BY p.platform ORDER BY n DESC, p.platform""",
         ).fetchall()
     finally:

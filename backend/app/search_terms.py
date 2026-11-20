@@ -12,6 +12,13 @@ nothing is close), therefore the keep/drop decision is made on the absolute evid
 the search layer attaches to each row: raw text-route cosine, raw local-CLIP cosine,
 literal subject words, palette affinity and the named-colour requirement. Every
 surviving row is marked strong or weak for the search wall.
+
+A phrase query that names no library object and no colour (复古 / 国潮 / 胶片) has no
+trustworthy semantic anchor: the 0..1 fused score only orders whatever the two routes
+happened to recall, so a row whose stored title/description/tags literally contain the
+query could be missing entirely. For those queries the gate additionally recalls the
+literal hits itself and marks every one strong, so a query word that is written on the
+image text is never answered with "没找到很像的".
 """
 from __future__ import annotations
 
@@ -19,7 +26,8 @@ import json
 import os
 
 from . import config, local_discovery
-from .embedding.search_application import readonly_connection
+from .embedding.search import SearchHit
+from .embedding.search_application import hydrate_hits, readonly_connection
 
 # Common library objects/phrases, used only to find the head object of a long
 # query. Keeping the list explicit is safer than guessing Chinese word boundaries.
@@ -91,10 +99,10 @@ def _clean(text: str, term: str) -> str:
     return text
 
 
-def _row_text(description, subject, style_json, annotation_description, tags_json) -> str:
+def _row_text(title, description, subject, style_json, annotation_description, tags_json) -> str:
     # Deliberately exclude OCR visible_text: incidental article sentences mention
     # 海洋/月海 and would make a query for 海 match moon infographics.
-    parts = [description or "", subject or "", annotation_description or ""]
+    parts = [title or "", description or "", subject or "", annotation_description or ""]
     for raw in (style_json, tags_json):
         if not raw:
             continue
@@ -109,18 +117,35 @@ def _row_text(description, subject, style_json, annotation_description, tags_jso
     return " ".join(part for part in parts if part)
 
 
-def _texts(conn) -> list[tuple[int, str]]:
+def _document_rows(conn) -> list[dict]:
+    """Every image with its effective title and the literal text search may trust.
+
+    The card title is user-visible memory aid (manual title first, generated title
+    second) and counts as literal evidence exactly like description and tags. Images
+    without a finished analysis still contribute their manual title.
+    """
     rows = conn.execute(
-        """SELECT a.image_id, a.description, a.subject, a.visible_text, a.style_json,
+        """SELECT i.id AS image_id, COALESCE(m.title, a.title) AS title,
+                  a.description, a.subject, a.style_json,
                   an.description AS annotation_description, an.tags_json
-           FROM analyses a
-           LEFT JOIN image_annotations an ON an.image_id = a.image_id
-           WHERE a.status = 'done'"""
+           FROM images i
+           LEFT JOIN analyses a ON a.image_id = i.id AND a.status = 'done'
+           LEFT JOIN image_titles_manual m ON m.image_id = i.id
+           LEFT JOIN image_annotations an ON an.image_id = i.id
+           ORDER BY i.id"""
     )
-    return [(int(row["image_id"]),
-             _row_text(row["description"], row["subject"],
-                       row["style_json"], row["annotation_description"], row["tags_json"]))
-            for row in rows]
+    out = []
+    for row in rows:
+        title = row["title"] or ""
+        out.append({"image_id": int(row["image_id"]), "title": title,
+                    "text": _row_text(title, row["description"], row["subject"],
+                                      row["style_json"], row["annotation_description"],
+                                      row["tags_json"])})
+    return out
+
+
+def _texts(conn) -> list[tuple[int, str]]:
+    return [(row["image_id"], row["text"]) for row in _document_rows(conn)]
 
 
 def _contains(text: str, term: str) -> bool:
@@ -228,7 +253,7 @@ def _colour_covered(image_ids, targets) -> set[int]:
 
 
 def _subject_hits(image_ids, terms) -> set[int]:
-    """Image ids whose stored analysis text literally contains a subject word."""
+    """Image ids whose stored title/description/tags literally contain a subject word."""
     ids = [int(image_id) for image_id in image_ids]
     if not terms or not ids:
         return set()
@@ -236,16 +261,57 @@ def _subject_hits(image_ids, terms) -> set[int]:
     hits: set[int] = set()
     with readonly_connection(config.db_path()) as conn:
         for row in conn.execute(
-                f"""SELECT a.image_id, a.description, a.subject, a.style_json,
+                f"""SELECT i.id AS image_id, COALESCE(m.title, a.title) AS title,
+                           a.description, a.subject, a.style_json,
                            an.description AS annotation_description, an.tags_json
-                    FROM analyses a
-                    LEFT JOIN image_annotations an ON an.image_id = a.image_id
-                    WHERE a.status = 'done' AND a.image_id IN ({marks})""", ids):
-            text = _row_text(row["description"], row["subject"], row["style_json"],
+                    FROM images i
+                    LEFT JOIN analyses a ON a.image_id = i.id AND a.status = 'done'
+                    LEFT JOIN image_titles_manual m ON m.image_id = i.id
+                    LEFT JOIN image_annotations an ON an.image_id = i.id
+                    WHERE i.id IN ({marks})""", ids):
+            text = _row_text(row["title"], row["description"], row["subject"], row["style_json"],
                              row["annotation_description"], row["tags_json"])
             if any(_contains(text, term) for term in terms):
                 hits.add(int(row["image_id"]))
     return hits
+
+
+# An exact multi-character phrase can be recalled from the stored text itself. One
+# character (花 / 海) stays on the object/subject pipeline: a single character matches
+# too many unrelated compounds (海报 for 海) to be a reliable literal anchor.
+_LITERAL_PHRASE_MAX = 24
+_PHRASE_TRIM = "，。、！？,.!?;；:：…·“”\"'「」『』（）()【】[] \t\r\n"
+
+
+def _literal_phrase(query: str) -> str:
+    """The whole query as an exact phrase, when it is specific enough to match text."""
+    if not isinstance(query, str):
+        return ""
+    phrase = query.strip().strip(_PHRASE_TRIM).strip()
+    if not phrase or len(phrase) < 2 or len(phrase) > _LITERAL_PHRASE_MAX:
+        return ""
+    if any(char.isspace() for char in phrase):
+        return ""
+    return phrase
+
+
+def literal_hits(query: str) -> list[int]:
+    """Image ids whose title/description/tags literally contain the query phrase.
+
+    Title hits come first (the wall card title is the most direct evidence the user can
+    see), then the remaining text hits; both groups keep numeric image-id order so the
+    same query returns a stable wall.
+    """
+    phrase = _literal_phrase(query)
+    if not phrase:
+        return []
+    with readonly_connection(config.db_path()) as conn:
+        rows = _document_rows(conn)
+    title_hits = [row["image_id"] for row in rows if _contains(row["title"], phrase)]
+    title_set = set(title_hits)
+    text_hits = [row["image_id"] for row in rows
+                 if row["image_id"] not in title_set and _contains(row["text"], phrase)]
+    return title_hits + text_hits
 
 
 def _evidence(item: dict) -> dict:
@@ -277,7 +343,12 @@ def apply_relevance(result: dict, query: str) -> dict:
     subject word with no literal hit (must be very similar), a mood query, or the
     palette route that carries no cosine at all. A row that misses the named-colour
     requirement may still be weak, never strong; literal annotation hits stay strong;
-    palette rows of a colour query keep only the best palettes. Never raises.
+    palette rows of a colour query keep only the best palettes.
+
+    For a phrase query that names no library object and no colour (复古 / 国潮 / 胶片)
+    the stored text is the only trustworthy anchor, so the gate recalls every image
+    whose title, description or tags literally contain the phrase and keeps those rows
+    strong - including ones the semantic routes failed to recall at all. Never raises.
     """
     if not isinstance(result, dict):
         return result
@@ -287,6 +358,9 @@ def apply_relevance(result: dict, query: str) -> dict:
     debug = debug_enabled()
     targets = color_need(query)
     terms = subject_terms(query)
+    # Only a phrase that names neither a library object nor a colour leans on exact
+    # text recall; object/colour queries keep their existing subject/colour rules.
+    phrase = _literal_phrase(query) if not terms and not targets else ""
     image_ids = [int(item["image_id"]) for item in items
                  if isinstance(item.get("image_id"), int) and not isinstance(item.get("image_id"), bool)]
     try:
@@ -294,9 +368,14 @@ def apply_relevance(result: dict, query: str) -> dict:
     except Exception:
         covered = set(image_ids)
     try:
-        literal_hits = _subject_hits(image_ids, terms)
+        subject_hits = _subject_hits(image_ids, terms)
     except Exception:
-        literal_hits = set()
+        subject_hits = set()
+    try:
+        phrase_hits = literal_hits(query) if phrase else []
+    except Exception:
+        phrase_hits = []
+    phrase_set = set(phrase_hits)
     lanes = []
     for item in items:
         row = _public_row(item)
@@ -311,7 +390,8 @@ def apply_relevance(result: dict, query: str) -> dict:
             "literal": bool(item.get("_literal")) or (
                 isinstance(score, (int, float)) and not isinstance(score, bool) and score >= LITERAL_SCORE),
             "colour_ok": True if not targets else image_id in covered,
-            "subject_hit": image_id in literal_hits,
+            "subject_hit": image_id in subject_hits,
+            "phrase_hit": image_id in phrase_set,
             "boost": bool(item.get("_boost")),
         })
     best = max((lane["value"] for lane in lanes if lane["value"] is not None), default=0.0)
@@ -319,7 +399,9 @@ def apply_relevance(result: dict, query: str) -> dict:
     strong, weak = [], []
     for lane in lanes:
         value = lane["value"]
-        if lane["literal"]:
+        if lane["literal"] or lane["phrase_hit"]:
+            # An annotation hit or a literal title/description/tag hit is direct
+            # evidence, even when the two semantic routes did not rank it well.
             lane["relevance"] = "strong"
         elif value is None:
             # No comparable cosine: the palette route (or a channel that already made
@@ -361,7 +443,7 @@ def apply_relevance(result: dict, query: str) -> dict:
         "weak_max": WEAK_MAX, "palette_top_ratio": PALETTE_TOP_RATIO,
         "colour_min_share": local_discovery.COLOR_MIN_SHARE,
         "colour_need": [target.hex for target in targets],
-        "subject_terms": list(terms), "best": round(best, 4),
+        "subject_terms": list(terms), "literal_phrase": phrase, "best": round(best, 4),
         "best_palette": round(best_palette, 4),
     }
     output = []
@@ -372,9 +454,39 @@ def apply_relevance(result: dict, query: str) -> dict:
                             "palette_score": lane["palette"], "boost": lane["boost"],
                             "colour_ok": lane["colour_ok"],
                             "subject_hit": lane["subject_hit"],
+                            "phrase_hit": lane["phrase_hit"],
                             "colour_need": policy["colour_need"],
                             "best": policy["best"]}
         output.append(row)
+    if phrase_hits:
+        # Recall the literal rows the semantic routes missed. They are already ordered
+        # title hits first; rows that were ranked keep their order and their score.
+        found = {row.get("image_id"): row for row in output}
+        missing = [image_id for image_id in phrase_hits if image_id not in found]
+        hydrated: dict[int, dict] = {}
+        if missing:
+            try:
+                with readonly_connection(config.db_path()) as conn:
+                    for row in hydrate_hits(conn, [SearchHit(image_id, 1.0)
+                                                   for image_id in missing]):
+                        hydrated[int(row["image_id"])] = row
+            except Exception:
+                hydrated = {}
+        ordered: list[dict] = []
+        included: set[int] = set()
+        for image_id in phrase_hits:
+            row = found.get(image_id) or hydrated.get(image_id)
+            if row is None or image_id in included:
+                continue
+            included.add(image_id)
+            ordered.append({**row, "relevance": "strong"})
+        for row in output:
+            image_id = row.get("image_id")
+            if image_id in included:
+                continue
+            included.add(image_id)
+            ordered.append(row)
+        output = ordered
     gated = dict(result)
     gated["items"] = output
     if debug:
@@ -383,7 +495,12 @@ def apply_relevance(result: dict, query: str) -> dict:
              "relevance": lane["relevance"], **lane["evidence"],
              "value": lane["value"], "palette_score": lane["palette"],
              "boost": lane["boost"], "colour_ok": lane["colour_ok"],
-             "subject_hit": lane["subject_hit"]}
+             "subject_hit": lane["subject_hit"], "phrase_hit": lane["phrase_hit"]}
             for lane in lanes]
+        known = {entry["image_id"] for entry in gated["debug_rows"]}
+        gated["debug_rows"].extend(
+            {"image_id": image_id, "score": None, "relevance": "strong",
+             "literal_phrase": True}
+            for image_id in phrase_hits if image_id not in known)
         gated["debug_policy"] = policy
     return gated

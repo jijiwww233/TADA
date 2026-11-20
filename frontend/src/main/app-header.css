@@ -2,10 +2,13 @@
    左：品牌字（保持原来的字体和字号）；中：正中一颗胶囊（复用主页筛选菜单那颗 GlassMenu）；
    右：这一页自己的工具，带下划线的衬线小字，字号统一 14（Lusano 右侧 Feed | Grid 那一档）。
    --m-topbar-height = 73 = 22 + 26 + 25，页面内容从 73 开始。 */
-.m-app .m-appbar {
+/* 顶栏胶囊 / 筛选面板的两层玻璃取值：挂在 .m-app 上，手机底部导航栏（PhoneTabBar）直接复用同一组 */
+.m-app {
   --m-nav-glass-base: #f7f4ef66;
   --m-nav-glass-tint: rgb(74 34 20 / 15%);
   --m-nav-glass-blur: blur(15px);
+}
+.m-app .m-appbar {
   position: fixed;
   inset: 0 0 auto;
   display: flex;
@@ -118,16 +121,28 @@
   background: var(--m-ink);
 }
 
-/* 筛选和帮助沿用最初版的两层玻璃。 */
+/* 筛选和帮助沿用最初版的两层玻璃（电脑：浅棕叠米白）。
+   手机定版：筛选面板是米白玻璃，不叠浅棕；底色比顶栏玻璃（40%）更不透明，底下的图透得更少。
+   「更多」「加入项目」、导入面板、确认 / 改名弹窗、卡片小菜单都是各自原来的米白实底，不做玻璃 */
+.m-app {
+  --m-float-glass-base: var(--m-nav-glass-base);
+  --m-float-glass-tint: var(--m-nav-glass-tint);
+}
+@media (hover: none) and (pointer: coarse) and (max-width: 600px) {
+  .m-app {
+    --m-float-glass-base: color-mix(in srgb, var(--color-bg-page) 80%, transparent);
+    --m-float-glass-tint: transparent;
+  }
+}
 .m-appbar .m-gm.is-open .m-gm-panel {
-  background: var(--m-nav-glass-base);
+  background: var(--m-float-glass-base);
 }
 .m-appbar .m-gm.is-open .m-gm-panel::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: var(--m-nav-glass-tint);
+  background: var(--m-float-glass-tint);
   -webkit-backdrop-filter: var(--m-nav-glass-blur);
   backdrop-filter: var(--m-nav-glass-blur);
   pointer-events: none;

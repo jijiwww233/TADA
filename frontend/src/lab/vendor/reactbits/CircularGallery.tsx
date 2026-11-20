@@ -28,6 +28,12 @@ export interface CircularGalleryProps extends Omit<HTMLAttributes<HTMLDivElement
   showTitles?: boolean;
   snap?: boolean;
   autoScroll?: number;
+  /**
+   * 挂上时从哪个滚动位置开始（参数是卡距，返回滚动量 px）。手机引导页一镜到底用：画布上那排卡已经在按巡航速度走，
+   * 转盘挂上时直接接在同一个位置、同一个速度上（目标值预先放到稳态的提前量，第一帧起就是匀速，不再从 0 加速）。
+   * 不传 = 原来的行为（从 0 开始）。
+   */
+  startScroll?: (spacing: number) => number;
   openOnClick?: boolean;
   intro?: boolean;
   onItemClick?: (item: GalleryItem, index: number) => void;
@@ -370,6 +376,7 @@ const CircularGallery = ({
   showTitles = true,
   snap = true,
   autoScroll = 0,
+  startScroll,
   openOnClick = true,
   intro = true,
   onItemClick,
@@ -414,6 +421,8 @@ const CircularGallery = ({
   };
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  /** 只在挂上时读一次 */
+  const startScrollRef = useRef(startScroll);
 
   useEffect(() => {
     let alive = true;
@@ -811,6 +820,16 @@ const CircularGallery = ({
       const s = settingsRef.current;
       const dt = last ? clamp((now - last) / 1000, 0.0005, 0.05) : 1 / 60;
       last = now;
+      // 挂上后第一帧（量到真实尺寸以后）：从指定位置开始；目标值放在匀速追赶的稳态提前量上，第一帧就是巡航速度
+      const start = startScrollRef.current;
+      if (start && view.width > 1) {
+        startScrollRef.current = undefined;
+        const { spacing } = measure();
+        const s0 = start(spacing);
+        const rate = -60 * Math.log(1 - Math.min(0.999, s.scrollEase));
+        state.scroll = s0;
+        state.target = s0 + (s.autoScroll && !reduce ? (s.autoScroll * spacing * 0.25) / rate : 0);
+      }
       if (s.items !== lastItems) {
         lastItems = s.items;
         prune(s.items);

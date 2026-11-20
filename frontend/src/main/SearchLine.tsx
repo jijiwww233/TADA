@@ -179,14 +179,18 @@ export function SearchLine({ mode, onMode, text, onText, onSearch, onEscape, fie
             onClick={() => onSearch(text.trim(), docked)}><Icon icon={ArrowUp} size={17} aria-hidden="true" /></button>}
         </div>
         {!docked && <div className="m-sl-rule" />}
-        {/* 英文大字下面补一行中文小字，说清这里要写什么 */}
+        {/* 英文大字下面补一行中文小字，说清这里要写什么。
+            手机：平时藏着，点进搜索框才淡入、离开淡出；位置一直留着（只改透明度），下面的内容不跳 */}
         {!docked && phone && (
-          <p className="m-sl-phone-hint" id="m-sl-modehint">
+          <p className={`m-sl-phone-hint${focused ? ' is-shown' : ''}`} id="m-sl-modehint" aria-hidden={!focused}>
             {mode === 'find' ? '描述你记得的画面，比如：' : '写下你要做的东西，比如：'}
             {PHONE_EXAMPLES[mode].map((example, index) => (
               <Fragment key={example}>
                 {index > 0 && '、'}
-                <button type="button" onClick={() => { onText(example); onSearch(example, docked) }}>{example}</button>
+                <button type="button" tabIndex={focused ? undefined : -1}
+                  // 按下时不让输入框失焦（失焦会先把这行藏起来），点完直接按这句搜
+                  onMouseDown={event => event.preventDefault()}
+                  onClick={() => { onText(example); onSearch(example, docked) }}>{example}</button>
               </Fragment>
             ))}
           </p>

@@ -12,7 +12,7 @@ import sqlite3
 import threading
 from pathlib import Path
 
-from . import config
+from . import config, db
 from .embedding.search import SearchHit
 from .embedding.search_application import hydrate_hits, readonly_connection
 from .importer import MAX_BYTES, Upload, _check
@@ -145,9 +145,14 @@ class ImageSimilarity:
 
     def _rows(self):
         with readonly_connection(self.database()) as conn:
+            # Soft-deleted images leave the local index immediately: they cannot be
+            # returned by similar-search, and no new vector is built for them.
+            visible = (" WHERE i.deleted_at IS NULL"
+                       if db.has_column(conn, "images", "deleted_at") else "")
             return [dict(r) for r in conn.execute('''SELECT i.id,i.file_path,i.sha256,
                 e.model,e.dimensions,e.text_hash,e.vector FROM images i
-                LEFT JOIN embeddings e ON e.image_id=i.id AND e.dimension=? ORDER BY i.id''', (SCHEME,))]
+                LEFT JOIN embeddings e ON e.image_id=i.id AND e.dimension=?''' + visible
+                + ' ORDER BY i.id', (SCHEME,))]
 
     def _cache(self):
         """Immutable normalised matrix; refresh only after a committed DB/model change.

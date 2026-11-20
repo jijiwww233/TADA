@@ -174,6 +174,7 @@ def palette_recall(conn: sqlite3.Connection, colors, prominent: bool = False, el
     rows = {}
     for r in conn.execute("""SELECT c.image_id,c.hex,c.ratio FROM colors c
                              JOIN analyses a ON a.image_id=c.image_id AND a.status='done'
+                             JOIN images i ON i.id=c.image_id AND i.deleted_at IS NULL
                              ORDER BY c.image_id,c.rank"""):
         rows.setdefault(r["image_id"], []).append({"hex":r["hex"],"ratio":r["ratio"]})
     scored = [(i, palette.score(swatches, desired)) for i, swatches in rows.items() if eligible is None or i in eligible]
@@ -201,7 +202,7 @@ def _context(conn: sqlite3.Connection, ids: list[int]) -> dict[int, dict]:
     marks = ",".join("?" * len(ids))
     out = {r["id"]: {"file_path": r["file_path"], "sha256": r["sha256"], "post_images": [], "is_video": False,
                      "analyses": {}, "colors": []}
-           for r in conn.execute(f"SELECT id, file_path, sha256 FROM images WHERE id IN ({marks})", ids)}
+           for r in conn.execute(f"SELECT id, file_path, sha256 FROM images WHERE id IN ({marks}) AND deleted_at IS NULL", ids)}
     for r in conn.execute(f"""SELECT pi.image_id, pi.post_id, p.is_video FROM post_images pi
                               JOIN posts p ON p.id = pi.post_id WHERE pi.image_id IN ({marks})""", ids):
         if r["image_id"] in out:
@@ -413,7 +414,7 @@ class CreativeApplication:
         started = time.perf_counter()
         if project_id is not None:
             with readonly_connection(self.database()) as conn:
-                if not conn.execute('SELECT 1 FROM projects WHERE id=?',(project_id,)).fetchone():raise KeyError('项目不存在')
+                if not conn.execute('SELECT 1 FROM projects WHERE id=? AND deleted_at IS NULL',(project_id,)).fetchone():raise KeyError('项目不存在')
         final, effective = resolve_brief(brief, previous)  # ValueError / EmptyEffectiveQuery before any request
         needs = _fallback_needs(final)
         needs_usage = {"requests": 0, "prompt_tokens": None, "completion_tokens": None, "latency_ms": 0}
@@ -464,7 +465,7 @@ class CreativeApplication:
             with readonly_connection(self.database()) as conn:
                 eligible = None if include_nonvisual else eligible_ids(conn)
                 if negative_ids:
-                    eligible=({r[0]for r in conn.execute('SELECT id FROM images')} if eligible is None else eligible)-set(negative_ids)
+                    eligible=({r[0]for r in conn.execute('SELECT id FROM images WHERE deleted_at IS NULL')} if eligible is None else eligible)-set(negative_ids)
                 for column, meta in COLUMNS.items():
                     adjust=feedback.adjuster(conn,self.image_similarity,column,project_id,negative_ids)
                     extra={'score_adjust':adjust} if adjust else {}

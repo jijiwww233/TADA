@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide'
 import { Icon } from '../lab/Icon'
 import type { LabImage } from '../lab/data'
 import { wiringJson, type WiringApi } from '../api/wiring'
+import { track } from './telemetry'
 
 type Decision = { ids: number[]; keep: boolean; operation: string | null }
 const BATCH_LIMIT = 2000
@@ -48,6 +49,7 @@ export function PhonePending({ items, status, api, demoReviewed, onClose, onRetu
     finally { inFlight.current = false; setBusy(false) }
   }
   const decide = (ids: number[], keep: boolean) => run(async () => {
+    track(keep ? 'pending_keep' : 'pending_reject', { count: ids.length })
     for (let start = 0; start < ids.length; start += BATCH_LIMIT) {
       const batch = ids.slice(start, start + BATCH_LIMIT)
       const operation = demoReviewed ? null : (await api.decideReference(batch, keep)).operation

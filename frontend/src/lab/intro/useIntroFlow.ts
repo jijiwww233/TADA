@@ -5,9 +5,9 @@ import type { LibraryCounts, PlatformCount } from '../../api/wiring'
 import { getSyncStatus, startSync } from '../../api'
 import { collectDroppedFiles, collectInputFiles } from '../../localImport/collect'
 import type { DropData } from '../../localImport/collect'
-import { DEMO_MS, INTRO_COPY, LIBRARY_COUNTS, PHASE_MS, PLATFORMS } from './copy'
+import { DEMO_MS, INTRO_COPY, LIBRARY_COUNTS, PHASE_MS, PHONE_DEMO_DWELL, PLATFORMS } from './copy'
 import { PHONE_GATHER_MS, PHONE_LEAVE_MS } from './phoneHandoff'
-import { ONE_TAKE_GATHER_MS, PHONE_ONE_TAKE } from './oneTake'
+import { ONE_TAKE_GATHER_MS, ONE_TAKE_REVEAL_SCALE, ONE_TAKE_TRANSITION, PHONE_ONE_TAKE } from './oneTake'
 
 export type IntroPhase = 'home' | 'key' | 'unlock' | 'platforms' | 'clearing' | 'reveal' | 'gather' | 'ready'
 export type PlatformStatus = 'idle' | 'connecting' | 'connected' | 'skipped' | 'cooldown'
@@ -30,6 +30,9 @@ export function introReducer(s: IntroState, a: Action): IntroState {
   if (a.type === 'platform') return { ...s, platforms: s.platforms.map((p, i) => i === a.index ? a.status : p) }
   return s
 }
+
+/** 手机自动播放时的停留时间缩短 30%（只用在「等一下再往下走」的定时器上）；电脑版、手动操作时原样 */
+const dwell = (ms: number, phoneDemo: boolean) => phoneDemo ? Math.round(ms * PHONE_DEMO_DWELL) : ms
 
 const remotePlatforms = ['xhs', 'pinterest', null, 'zcool', 'huaban'] as const
 const platformSyncAvailable = import.meta.env.VITE_PUBLIC_DEMO !== '1'
@@ -114,7 +117,8 @@ export function useIntroFlow(reduced: boolean, phone = false) {
     if (leavePending.current) return
     leavePending.current = true
     setLeavingTo(action.type === 'phase' ? action.phase : stateRef.current.phase)
-    leaveTimer.current = setTimeout(() => { leaveTimer.current = null; setLeavingTo(null); dispatch(action) }, PHONE_LEAVE_MS)
+    // 一镜到底：旧页淡出用统一转场时长（oneTake.ts 的 ONE_TAKE_TRANSITION，改前 260ms）
+    leaveTimer.current = setTimeout(() => { leaveTimer.current = null; setLeavingTo(null); dispatch(action) }, PHONE_ONE_TAKE ? ONE_TAKE_TRANSITION.ms : PHONE_LEAVE_MS)
   }, [phone, reduced])
   useEffect(() => { if (!leaveTimer.current) leavePending.current = false }, [state.phase, state.run])
   const cancelLeave = () => { if (leaveTimer.current) clearTimeout(leaveTimer.current); leaveTimer.current = null; leavePending.current = false; setLeavingTo(null) }
@@ -124,9 +128,9 @@ export function useIntroFlow(reduced: boolean, phone = false) {
   useEffect(()=>{
     if(state.phase!=='platforms'||state.active!==5)return
     // 一镜到底（手机）：选平台页 → 整理页也用统一的淡出转场，卡片在淡出时就开始从卷轴卷成环
-    const id=setTimeout(()=>phone&&PHONE_ONE_TAKE?go({type:'phase',phase:'clearing'}):dispatch({type:'phase',phase:'clearing'}),1000)
+    const id=setTimeout(()=>phone&&PHONE_ONE_TAKE?go({type:'phase',phase:'clearing'}):dispatch({type:'phase',phase:'clearing'}),dwell(1000,phone&&state.demo))
     return()=>clearTimeout(id)
-  },[state.phase,state.active,state.run,phone,go])
+  },[state.phase,state.active,state.run,state.demo,phone,go])
   const connect = useCallback((index: number) => {
     if (!platformSyncAvailable && index !== 2) return
     if (stateRef.current.platforms[index] !== 'idle') return
@@ -182,9 +186,9 @@ export function useIntroFlow(reduced: boolean, phone = false) {
     const id = setTimeout(() => {
       dispatch(fail ? { type: 'key', status: 'error', last4: '', error: INTRO_COPY.keyError } : { type: 'key', status: 'verified' })
       if (!fail) setDraft('')
-    }, state.demo ? DEMO_MS.verify : PHASE_MS.verify)
+    }, state.demo ? dwell(DEMO_MS.verify, phone) : PHASE_MS.verify)
     return () => clearTimeout(id)
-  }, [state.phase, state.keyStatus, state.demo, fail, real, api])
+  }, [state.phase, state.keyStatus, state.demo, fail, real, api, phone])
   // Manually validated keys also continue after the check. Previously entered keys wait for “继续”.
   const checkingBefore = useRef(false)
   useEffect(() => {
@@ -192,10 +196,10 @@ export function useIntroFlow(reduced: boolean, phone = false) {
     if (state.keyStatus === 'error' || state.keyStatus === 'idle') checkingBefore.current = false
     if (state.phase === 'key' && state.keyStatus === 'verified' && (checkingBefore.current || state.demo)) {
       checkingBefore.current = false
-      const id = setTimeout(() => go({ type: 'phase', phase: 'unlock' }), PHASE_MS.check)
+      const id = setTimeout(() => go({ type: 'phase', phase: 'unlock' }), dwell(PHASE_MS.check, phone && state.demo))
       return () => clearTimeout(id)
     }
-  }, [state.phase, state.keyStatus, state.demo, go])
+  }, [state.phase, state.keyStatus, state.demo, go, phone])
   useEffect(() => {
     const next = { clearing: 'reveal', reveal: 'gather', gather: 'ready' } as const
     if (!(state.phase in next)) return
@@ -204,7 +208,9 @@ export function useIntroFlow(reduced: boolean, phone = false) {
     const delay = phase === 'clearing' ? (phone ? 0 : PHASE_MS.clear)
       // 一镜到底：gather 只留文字淡出的 0.3 秒，卡片飞进转盘跨过 gather 和 ready（oneTake.ts 的时间线）
       : phase === 'gather' && phone ? (PHONE_ONE_TAKE ? ONE_TAKE_GATHER_MS : PHONE_GATHER_MS)
-      : phase === 'reveal' && state.demo ? DEMO_MS.reveal
+      : phase === 'reveal' ? Math.round((state.demo ? dwell(DEMO_MS.reveal, phone) : PHASE_MS.reveal)
+        // 一镜到底（手机）：整理页「卡片围成环转圈」那一页的停留再砍一半
+        * (phone && PHONE_ONE_TAKE ? ONE_TAKE_REVEAL_SCALE : 1))
       : PHASE_MS[phase]
     const id = setTimeout(() => dispatch({ type: 'phase', phase: next[phase] }), reduced && !(phone && phase === 'reveal') ? 0 : delay)
     return () => clearTimeout(id)
@@ -231,33 +237,34 @@ export function useIntroFlow(reduced: boolean, phone = false) {
     state.platforms.forEach((status, i) => {
       if (status === 'connecting' && !pending.current.has(i)) pending.current.set(i, setTimeout(() => {
         pending.current.delete(i); dispatch({ type: 'platform', index: i, status: 'connected' })
-      }, state.demo ? DEMO_MS.connect : PHASE_MS.connect))
+      }, state.demo ? dwell(DEMO_MS.connect, phone) : PHASE_MS.connect))
       else if (status !== 'connecting' && pending.current.has(i)) { clearTimeout(pending.current.get(i)); pending.current.delete(i) }
     })
-  }, [state.platforms, state.demo, real])
+  }, [state.platforms, state.demo, real, phone])
   useEffect(() => () => { for (const id of pending.current.values()) clearTimeout(id) }, [])
   useEffect(() => {
     if (!state.demo) return
     let id: ReturnType<typeof setTimeout> | undefined
+    const d = (ms: number) => dwell(ms, phone)
     // 手机体验版的 Key 页没有输入框：停同样久，然后等于点了「下一步」
     if (publicDemo && state.phase === 'key' && state.keyStatus === 'idle') id = setTimeout(() => {
       go({ type: 'phase', phase: 'unlock' })
-    }, DEMO_MS.autoKey)
+    }, d(DEMO_MS.autoKey))
     else if (state.phase === 'key' && (state.keyStatus === 'idle' || state.keyStatus === 'error')) id = setTimeout(() => {
       setFail(false); setDraft(INTRO_COPY.demoKey); dispatch({ type: 'key', status: 'closing', intent: 'verify', last4: INTRO_COPY.demoTail })
-    }, DEMO_MS.autoKey)
+    }, d(DEMO_MS.autoKey))
     // 手机体验版的选平台页不连接：一格一格往下转，每格停的时间 = 电脑版每个平台「停一下 + 连接」的时长，转到「下一步」后照常进整理页
     if (publicDemo && state.phase === 'platforms') {
-      if (state.active < 5) id = setTimeout(() => select(state.active + 1), DEMO_MS.sourcePause + DEMO_MS.connect)
+      if (state.active < 5) id = setTimeout(() => select(state.active + 1), d(DEMO_MS.sourcePause + DEMO_MS.connect))
     } else if (state.phase === 'platforms' && !state.platforms.includes('connecting')) {
       const i = state.platforms.findIndex((p, index) => p === 'idle' && (platformSyncAvailable || index === 2))
       id = setTimeout(() => {
         if (i < 0) select(5)
         else { select(i); connect(i) }
-      }, i < 0 ? DEMO_MS.allPause : DEMO_MS.sourcePause)
+      }, d(i < 0 ? DEMO_MS.allPause : DEMO_MS.sourcePause))
     }
     return () => clearTimeout(id)
-  }, [state.demo, state.phase, state.keyStatus, state.platforms, publicDemo ? state.active : -1, publicDemo, select, connect, go])
+  }, [state.demo, state.phase, state.keyStatus, state.platforms, publicDemo ? state.active : -1, publicDemo, select, connect, go, phone])
   const jump = (phase: IntroPage) => { cancelLeave();setDraft('');setAdvanced(false);setFail(false);dispatch({type:'jump', phase}) }
   return { real, platformSyncAvailable, publicDemo, filePicker, dropLocal, leaving, leavingTo,
     chooseFiles: (files: FileList) => startLocal(collectInputFiles(files).map(item => item.file)),

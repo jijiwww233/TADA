@@ -8,8 +8,8 @@ def record(project_id,image_id,purpose,usable):
     conn=db.connect()
     try:
         conn.execute('BEGIN IMMEDIATE')
-        if not conn.execute('SELECT 1 FROM projects WHERE id=?',(project_id,)).fetchone():raise KeyError('项目不存在')
-        if not conn.execute('SELECT 1 FROM images WHERE id=?',(image_id,)).fetchone():raise KeyError('图片不存在')
+        if not conn.execute('SELECT 1 FROM projects WHERE id=? AND deleted_at IS NULL',(project_id,)).fetchone():raise KeyError('项目不存在')
+        if not conn.execute('SELECT 1 FROM images WHERE id=? AND deleted_at IS NULL',(image_id,)).fetchone():raise KeyError('图片不存在')
         conn.execute('''INSERT INTO project_recommendation_feedback(project_id,image_id,purpose,usable)
             VALUES (?,?,?,?) ON CONFLICT(project_id,image_id,purpose) DO UPDATE SET
             usable=excluded.usable,updated_at=datetime('now')''',(project_id,image_id,purpose,int(usable)))
@@ -23,8 +23,10 @@ def record(project_id,image_id,purpose,usable):
 def adjuster(conn,similar,column,project_id=None,negative_ids=()):
     positive=set();negative=set(negative_ids)
     if project_id is not None:
-        if not conn.execute('SELECT 1 FROM projects WHERE id=?',(project_id,)).fetchone():raise KeyError('项目不存在')
-        positive={r[0]for r in conn.execute('SELECT image_id FROM pins WHERE project_id=?',(project_id,))}
+        if not conn.execute('SELECT 1 FROM projects WHERE id=? AND deleted_at IS NULL',(project_id,)).fetchone():raise KeyError('项目不存在')
+        positive={r[0]for r in conn.execute(
+            '''SELECT p.image_id FROM pins p JOIN images i ON i.id=p.image_id AND i.deleted_at IS NULL
+               WHERE p.project_id=?''',(project_id,))}
         for row in conn.execute('SELECT image_id,usable FROM project_recommendation_feedback WHERE project_id=? AND purpose=?',(project_id,column)):
             (positive if row['usable'] else negative).add(row['image_id'])
     positive-=negative

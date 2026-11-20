@@ -157,7 +157,10 @@ def palette_matches(conn, targets):
     if not targets:
         return {}
     values = {}
-    for row in conn.execute("SELECT image_id,hex,ratio FROM colors ORDER BY image_id,rank"):
+    for row in conn.execute(
+            """SELECT c.image_id,c.hex,c.ratio FROM colors c
+               JOIN images i ON i.id=c.image_id AND i.deleted_at IS NULL
+               ORDER BY c.image_id,c.rank"""):
         values.setdefault(row["image_id"], []).append({"hex": row["hex"], "ratio": row["ratio"]})
     scored = {}
     for image_id, colors in values.items():
@@ -258,7 +261,7 @@ def color_spread(path, digest):
 
 def diverse_colors(conn):
     scores = {}
-    for row in conn.execute("SELECT id,file_path,sha256 FROM images"):
+    for row in conn.execute("SELECT id,file_path,sha256 FROM images WHERE deleted_at IS NULL"):
         score = color_spread(config.data_dir() / row["file_path"], row["sha256"])
         if score:
             scores[row["id"]] = score

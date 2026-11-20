@@ -150,3 +150,30 @@
 .m-sl-v2 .m-sl-row:has(.m-sl-input:focus) + .m-sl-rule { background: var(--m-clay); }
 .m-sl-v2 .m-sl-mode::after { background: var(--m-clay); }
 .m-sl-v2.is-floating .m-sl-mode::after { display: none; }
+
+/* 搜索后的「← 返回全部收藏」：明显文字按钮——14px、深色字、前面一颗 ←。
+   和详情页的「← 返回」同一套写法（无底、无框，悬停变陶土橙）。 */
+.m-app .m-result-line .m-result-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--size-control-sm);
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: var(--radius-button);
+  background: transparent;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+.m-app .m-result-line .m-result-back:hover { color: var(--color-text-accent); }
+.m-app .m-result-line .m-result-back:active { color: var(--color-action-primary-active); }
+.m-app .m-result-line .m-result-back:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.m-app .m-result-line .m-result-back-arrow { font-size: var(--font-size-body-lg); line-height: 1; }
+

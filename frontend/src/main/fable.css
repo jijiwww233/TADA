@@ -6,6 +6,11 @@
 /* ---- 顶栏名字：没有背景条，压到图片上时自动反色；在纸面上还是油墨色 ---- */
 .m-app .m-brand-float { position: fixed; top: 22px; left: max(22px, 1.5vw); z-index: 41; display: inline-flex; align-items: center; height: 26px; margin: 0;
   color: #fff; mix-blend-mode: difference; font-weight: 600; }
+/* 品牌字放大约 30%（16px → 20.8px）。只给 ≥769 宽：手机上走 mobile.css 的 18px。
+   两份 CSS 打包后分在不同 chunk，加载顺序不保证，用媒体查询划清范围才不会被覆盖回去。 */
+@media (min-width: 769px) {
+  .m-app .m-brand-float { font-size: calc(var(--m-type-base) * 1.3); }
+}
 .m-app.m-with-detail .m-brand-float { z-index: 83; }
 /* ---- 胶囊：浮动搜索胶囊、导航胶囊、筛选菜单用同一种“纸白 + 一圈细墨线”，和引导页那颗是同一颗；
         不再是压在图上发灰发闷的渐变玻璃 ---- */
@@ -35,7 +40,11 @@
 
 /* ================= 项目页 ================= */
 /* 项目格子原来很小，三个项目只占半行、下面一大片空。格子放大，间距收紧，名字放到正文字号 */
-.m-app .m-proj-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); column-gap: 48px; row-gap: 56px; }
+/* 只在 ≥769 宽生效：手机的 600 以下另有两列规则（styles/phone.css）。
+   两份 CSS 打包后分在不同 chunk、加载顺序不保证，260px 的 auto-fill 落到手机上会算成 1 列。 */
+@media (min-width: 769px) {
+  .m-app .m-proj-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); column-gap: 48px; row-gap: 56px; }
+}
 .m-app .m-proj-cap { margin-top: 14px; font-size: var(--m-type-body); }
 .m-app .m-proj-cap .m-proj-name { font-size: var(--m-type-body); }
 .m-app .m-proj-no { margin-right: 1.2em; }

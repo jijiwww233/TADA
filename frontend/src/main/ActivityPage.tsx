@@ -87,13 +87,18 @@ export function ActivityPage({ api, demo, manifest, onOpen, grain }: {
     let live = true
     setPickDetails({})
     picks.forEach((item, index) => {
-      if (imageTitle(item) && (index !== 0 || item.saved_at)) return
+      // 手机上前三张都可能换到大图位置、要显示描述：没有描述的也去取一次详情
+      const needDescription = phone && index < 3 && !item.description?.trim()
+      if (!needDescription && imageTitle(item) && (index !== 0 || item.saved_at)) return
       void api.getDetail(item.id).then(detail => {
         if (live && detail) setPickDetails(previous => ({ ...previous, [item.id]: mergeDetail(item, detail) }))
       }).catch(() => {})
     })
     return () => { live = false }
-  }, [api, picks])
+  }, [api, picks, phone])
+  /** 手机每日灵感：前三张谁在大图位置。order[0] 是大图，order[1]、order[2] 是右下两张小图；点小图就和大图对调 */
+  const [order, setOrder] = useState([0, 1, 2])
+  useEffect(() => { setOrder([0, 1, 2]) }, [picks])
   const lead = picks[0]
   const leadInfo = lead && (pickDetails[lead.id] ?? lead)
   const leadTitle = leadInfo ? imageTitle(leadInfo) : ''
@@ -145,7 +150,51 @@ export function ActivityPage({ api, demo, manifest, onOpen, grain }: {
     <section className="m-page m-cal">
 
       <h2 className="m-cal-h" data-reveal>每日灵感</h2>
-      {lead && leadInfo && (
+      {/* 手机：左边一张大图（约 45% 宽，按原比例完整显示，不裁），右边从上到下：日期 + 标题一行、三行描述、两张小图。
+          点小图就和大图对调，右边的标题和描述跟着换。电脑照旧是大图 + 右栏 */}
+      {phone && lead && leadInfo && (() => {
+        const slots = order.filter(at => picks[at])
+        const big = picks[slots[0]]
+        const bigInfo = pickDetails[big.id] ?? big
+        const bigTitle = imageTitle(bigInfo) || sourceLabel(bigInfo)
+        const bigText = bigInfo.description?.trim() || [sourceLabel(bigInfo), savedDate(bigInfo.saved_at) && `收藏于 ${savedDate(bigInfo.saved_at)}`].filter(Boolean).join(' · ')
+        return (
+          <div className="m-cal-daily" data-reveal>
+            <button type="button" className="m-cal-daily-big" aria-label={`打开：${bigTitle}`}
+              onClick={() => onOpen(big, picks, slots[0])}>
+              <img src={thumbnailSrc(big.src)} alt="" width={big.w} height={big.h} />
+            </button>
+            <div className="m-cal-daily-side">
+              <p className="m-cal-daily-head">
+                <time>{INSPIRATION_DAY_ZH.format(new Date())}</time>
+                <span>{bigTitle}</span>
+              </p>
+              <p className="m-cal-daily-text">{bigText}</p>
+              {slots.length > 1 && (
+                <div className="m-cal-daily-thumbs">
+                  {slots.slice(1).map(at => {
+                    const item = picks[at]
+                    const info = pickDetails[item.id] ?? item
+                    return (
+                      <button type="button" className="m-cal-daily-thumb" key={item.id}
+                        aria-label={`换成大图：${imageTitle(info) || sourceLabel(info)}`}
+                        onClick={() => setOrder(previous => {
+                          const next = previous.slice()
+                          const swap = previous.indexOf(at)
+                          ;[next[0], next[swap]] = [next[swap], next[0]]
+                          return next
+                        })}>
+                        <img src={thumbnailSrc(item.src)} alt="" width={item.w} height={item.h} loading="lazy" />
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
+      {!phone && lead && leadInfo && (
         <div className="m-cal-gallery m-cal-inspiration" data-reveal
           style={{ '--m-cal-lead-ratio': lead.w / lead.h } as CSSProperties}>
           <button type="button" className="m-tile m-cal-inspiration-lead" aria-label={leadTitle || sourceLabel(leadInfo)}
@@ -154,7 +203,7 @@ export function ActivityPage({ api, demo, manifest, onOpen, grain }: {
           </button>
           <div className="m-cal-inspiration-right">
             <div className="m-cal-inspiration-info">
-              <time>{(phone ? INSPIRATION_DAY_ZH : INSPIRATION_DAY).format(new Date())}</time>
+              <time>{INSPIRATION_DAY.format(new Date())}</time>
               {leadTitle && <h3>{leadTitle}</h3>}
               <span>{sourceLabel(leadInfo)}</span>
               {leadSaved && <span className="m-cal-inspiration-saved">收藏于 {leadSaved}</span>}

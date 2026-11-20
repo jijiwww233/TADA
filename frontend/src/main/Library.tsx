@@ -13,7 +13,8 @@ import { enterDelayMs } from './motion'
 import { cardTitle } from './caption'
 import type { SortKey } from './sorts'
 import type { WiringApi } from '../api/wiring'
-import { useMobileLayout } from './useMobileLayout'
+import { useMobileLayout, useNarrowPhoneLayout } from './useMobileLayout'
+import { ActionMenu, ConfirmDialog, useCardPress, type MenuPoint } from './CardActions'
 import './library-wall.css'
 
 type WallPhoto = Photo & { item: LabImage; index: number }
@@ -49,7 +50,7 @@ function WallLoading({ text }: { text: string }) {
  * 素材库：第一行就是搜索（大标题本身是输入框），细线下面直接是瀑布流；找图替换墙，要参考换成三列。
  * 瀑布流用 现有 masonry 相册（图 + 图注一块儿放进一列，不会互相压）；筛选/排序挪到顶栏，这里只吃 sort 入参。
  */
-export function Library({ manifest, initialQuery = '', onOpen, onPending, platforms, onPlatforms, hue, onHue: setHue, wallRequest, onSaveProject, results, searching, onSearch, onClear, pendingCount = 0, searchActive, reduce = false, sort = 'time', analyzing, onImportFiles, loadState = 'ready', onRetry, searchKind = 'find', onFirstImage }: {
+export function Library({ manifest, initialQuery = '', onOpen, onPending, platforms, onPlatforms, hue, onHue: setHue, wallRequest, onSaveProject, results, searching, onSearch, onClear, pendingCount = 0, searchActive, reduce = false, sort = 'time', analyzing, onImportFiles, loadState = 'ready', onRetry, searchKind = 'find', onFirstImage, onDeleteImage }: {
   /** 素材库读到哪一步：loading 时不摆空库和「去导入」（公网慢时会被误点），error 时给一个重试 */
   loadState?: 'loading' | 'ready' | 'error'
   onRetry?: () => void
@@ -89,6 +90,8 @@ export function Library({ manifest, initialQuery = '', onOpen, onPending, platfo
   sort?: SortKey
   /** 已不再使用：卡片标题改用列表接口带的 title，不再逐张取详情。保留入参不动 MainApp 的传参 */
   api?: WiringApi
+  /** 删除一张图：上层发 DELETE，成功后这里把这张立刻从墙上拿掉 */
+  onDeleteImage?: (item: LabImage) => Promise<boolean>
 }) {
   const [mode, setMode] = useState<Mode>('find')
   const [text, setText] = useState(initialQuery)
@@ -106,12 +109,17 @@ export function Library({ manifest, initialQuery = '', onOpen, onPending, platfo
   const [saving, setSaving] = useState<SaveJob | null>(null)
   const wallTop = useRef<HTMLDivElement | null>(null)
   const wallEl = useRef<HTMLDivElement | null>(null)
+  // 删除成功的图先在这个页面里拿掉（接口 reload 回来以后列表本身也没有了）
+  const [removed, setRemoved] = useState<Set<number>>(new Set())
+  // 手机长按 / 电脑右键打开的小菜单 + 删除确认
+  const [menu, setMenu] = useState<{ item: LabImage; point: MenuPoint } | null>(null)
+  const [deleting, setDeleting] = useState<LabImage | null>(null)
 
   /** 只用真实图库数据，一张只出现一次。 */
-  const cards = manifest.cards
+  const cards = useMemo(() => manifest.cards.filter(item => !removed.has(item.id)), [manifest.cards, removed])
 
   const sorted = useMemo(() => {
-    const list = (results?.items ?? cards).slice()
+    const list = (results?.items ?? cards).slice().filter(item => !removed.has(item.id))
     if (results && (results.groups || hue !== null)) return list
     if (hue !== null) {
       const near = (it: LabImage) => it.hues.length ? Math.min(...it.hues.map(h => hueGap(h, hue))) : 999
@@ -123,7 +131,18 @@ export function Library({ manifest, initialQuery = '', onOpen, onPending, platfo
     })
     else if (sort === 'similar') list.sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
     return list
-  }, [cards, sort, hue, results])
+  }, [cards, sort, hue, results, removed])
+
+  // 长按 / 右键：从被按的那张卡上读出 id，再打开同一个图片小菜单
+  const imageById = useMemo(() => {
+    const map = new Map<number, LabImage>()
+    for (const item of [...manifest.items, ...(results?.items ?? [])]) map.set(item.id, item)
+    return map
+  }, [manifest.items, results])
+  const press = useCardPress((point, element) => {
+    const item = imageById.get(Number(element.dataset.id))
+    if (item) setMenu({ item, point })
+  })
 
   const filtered = useMemo(() => sorted.filter(it => platforms.size === 0 || platforms.has(sourceLabel(it))), [sorted, platforms])
 
@@ -140,6 +159,13 @@ export function Library({ manifest, initialQuery = '', onOpen, onPending, platfo
     return [strong, weak.slice(0, WEAK_LIMIT)]
   }, [filtered, results?.relevance])
 
+  /** 墙上实际的先后顺序（像的在前，「可能有用」的最多 6 张在后）：手机详情页左右滑就按它换上一张 / 下一张 */
+  const wallOrder = useMemo(() => [...strongItems, ...weakItems], [strongItems, weakItems])
+  const openFromWall = (it: LabImage) => {
+    const at = wallOrder.indexOf(it)
+    if (at >= 0) onOpen(it, wallOrder, at)
+    else onOpen(it, filtered, filtered.indexOf(it))
+  }
   const photos = useMemo<WallPhoto[]>(() => wallPhotos(strongItems), [strongItems])
   const weakPhotos = useMemo<WallPhoto[]>(() => wallPhotos(weakItems), [weakItems])
 
@@ -171,6 +197,8 @@ export function Library({ manifest, initialQuery = '', onOpen, onPending, platfo
   }, [filtered, sort])
 
   const mobile = useMobileLayout()
+  /** 和 SearchLine 同一个判断：手机上待确认入口在搜索区里 */
+  const narrowPhone = useNarrowPhoneLayout()
   const gap = mobile ? 10 : 24
   // 首屏图片第一次显示出来（或失败）只通知一次
   const firstImageSent = useRef(false)
@@ -214,7 +242,9 @@ export function Library({ manifest, initialQuery = '', onOpen, onPending, platfo
   }
 
   const cardNode = (it: LabImage, i = 0) => (
-    <button type="button" key={it.id} className="m-card" onClick={() => onOpen(it, filtered, filtered.indexOf(it))} aria-label={it.source}
+    <button type="button" key={it.id} className="m-card" data-id={it.id} aria-label={it.source}
+      {...press.handlers}
+      onClick={() => { if (press.swallowClick()) return; openFromWall(it) }}
       data-reveal style={{ '--rv-d': enterDelayMs(i) } as React.CSSProperties}>
       <img src={thumbnailSrc(it.src)} alt="" loading="lazy" width={it.w} height={it.h} />
     </button>
@@ -232,8 +262,9 @@ export function Library({ manifest, initialQuery = '', onOpen, onPending, platfo
       // 没有云端分析的图不写「还没有标题 / 本地」；只在有标题或正在分析时显示图注。
       const showCaption = !!title || busy
       return (
-        <button type="button" key={it.id} className="m-tile" onClick={() => onOpen(it, filtered, filtered.indexOf(it))}
-          data-id={it.id}
+        <button type="button" key={it.id} className="m-tile" data-id={it.id}
+          {...press.handlers}
+          onClick={() => { if (press.swallowClick()) return; openFromWall(it) }}
           aria-label={`${title ? `${title} · ` : ''}${source}${busy ? ' · 分析中' : ''}`} data-reveal
           style={{ '--rv-d': enterDelayMs(i) } as React.CSSProperties}>
           <img src={src} alt="" loading={firstRow ? 'eager' : 'lazy'}
@@ -261,10 +292,16 @@ export function Library({ manifest, initialQuery = '', onOpen, onPending, platfo
         onEscape={clear}
         field={field} active={searchActive} reduce={reduce} searching={searching} />
 
-      {/* 「待确认」入口：有待确认的图才出现，一行不打扰的小字，点了直接打开待确认 */}
-      {pendingCount > 0 && onPending && !submitted && (
+      {/* 「待确认」入口：有待确认的图才出现，一行不打扰的小字，点了直接打开待确认。
+          手机：图片墙正上方一行小字「有 N 张图等你确认 →」，灰字、数字陶土橙 */}
+      {!narrowPhone && pendingCount > 0 && onPending && !submitted && (
         <div className="m-pending-cue">
           <button type="button" className="m-pending-cue-btn" onClick={onPending}>有 {pendingCount} 张图待确认 →</button>
+        </div>
+      )}
+      {narrowPhone && pendingCount > 0 && onPending && !submitted && (
+        <div className="m-pending-cue m-pending-cue--phone">
+          <button type="button" className="m-pending-cue-btn" onClick={onPending}>有 <b>{pendingCount}</b> 张图等你确认 →</button>
         </div>
       )}
 
@@ -297,7 +334,10 @@ export function Library({ manifest, initialQuery = '', onOpen, onPending, platfo
             {results?.groups && filtered.length > 0 && (
               <span className="m-pick-hint m-pick-howto">点图看详情，点右上角圆圈挑选</span>
             )}
-            <button type="button" className="ds-btn ds-btn--ghost ds-btn--sm" onClick={clear}>返回全部收藏</button>
+            {/* 搜索后的出口：14px、深色字、带 ← 的明显文字按钮（和详情页的「← 返回」同一种写法） */}
+            <button type="button" className="m-result-back" onClick={clear}>
+              <span className="m-result-back-arrow" aria-hidden="true">←</span> 返回全部收藏
+            </button>
           </div>
         )}
 
@@ -405,6 +445,20 @@ export function Library({ manifest, initialQuery = '', onOpen, onPending, platfo
         <SaveToProject job={saving} target={navTarget()}
           onArrive={() => { onSaveProject(saving.name, saving.items); setPicked([]) }}
           onDone={() => setSaving(null)} />
+      )}
+
+      {/* 图片卡的小菜单：手机长按、电脑右键都走这里 */}
+      {menu && (
+        <ActionMenu point={menu.point} onClose={() => setMenu(null)}
+          actions={[{ key: 'delete', label: '删除', danger: true, act: () => setDeleting(menu.item) }]} />
+      )}
+      {deleting && (
+        <ConfirmDialog title="删除这张图" text="删除后可以恢复，确定删除这张图？" onClose={() => setDeleting(null)}
+          onConfirm={async () => {
+            const done = await onDeleteImage?.(deleting) ?? false
+            if (done) setRemoved(previous => new Set(previous).add(deleting.id))
+            return done
+          }} />
       )}
     </div>
   )

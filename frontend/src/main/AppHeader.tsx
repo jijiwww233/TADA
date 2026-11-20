@@ -42,6 +42,8 @@ export function AppHeader({ title, current, onHome, onGo, onPip, tools, pendingC
 }) {
   const [open, setOpen] = useState(false)
   const [help, setHelp] = useState(false)
+  /** 手机：页面切换交给底部导航栏（PhoneTabBar），顶栏只留左边 TADA 和右边的工具 */
+  const phone = usePhoneLayout()
   /** 第 7 条：第一次来的人看不出正中这颗胶囊能点——没展开过之前，下面挂一行小字提示；展开过一次就不再出现 */
   const [firstVisit, setFirstVisit] = useState(() => {
     try { return !window.localStorage.getItem('m-nav-seen') } catch { return false }
@@ -79,10 +81,14 @@ export function AppHeader({ title, current, onHome, onGo, onPip, tools, pendingC
   return (
     <>
     {/* 名字单独一层钉在左上：压到图片上时自动反色（mix-blend-mode），所以不能放在顶栏那一层里面 */}
-    <button type="button" className="m-brand m-brand-float" onClick={onHome}>TADA</button>
+    <button type="button" className="m-brand m-brand-float" onClick={onHome} title="回首页" aria-label="TADA，回首页">
+      TADA
+      {/* 手机：没有中间的切换胶囊了，名字右边一行小字写当前页 */}
+      {phone && <span className="m-brand-page" aria-hidden="true">· {title}</span>}
+    </button>
     <header className="m-topbar m-appbar" data-page={current}>
       {/* data-nav 是“存为项目”飞行动画的目标：原来飞向顶栏的 PROJECTS，现在飞向正中这颗胶囊 */}
-      <div className="m-appbar-center" data-nav="projects" data-help={help ? '' : undefined}>
+      {!phone && <div className="m-appbar-center" data-nav="projects" data-help={help ? '' : undefined}>
         <GlassMenu ref={menu} label={help ? '关闭帮助' : `切换页面，当前是${title}`} title={help ? '帮助' : title}
           width={help ? 360 : 180} rows={help ? [] : rows} open={open} topInset={0}
           splitAt={REFINE && !help ? pageCount : undefined} sections={['页面', '工具']}
@@ -91,7 +97,7 @@ export function AppHeader({ title, current, onHome, onGo, onPip, tools, pendingC
         {firstVisit && !open && (
           <p className="m-nav-hint" aria-hidden="true">点这里切换：素材库 · 项目 · 日历 · 设置</p>
         )}
-      </div>
+      </div>}
       <div className="m-appbar-tools">{tools}</div>
     </header>
     </>

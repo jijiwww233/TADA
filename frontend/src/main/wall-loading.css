@@ -1,0 +1,24 @@
+/* 素材库的代码还没下载完时，也用同一套占位。 */
+.m-app.m-library-entry-loading {
+  min-height: 100dvh;
+  padding: 96px var(--space-6) 0;
+}
+.m-app .m-wall-loading { padding: var(--space-4) 0 var(--space-10); }
+.m-app .m-wall-loading-text {
+  margin: 0 0 var(--space-5);
+  font-family: var(--font-family-serif); font-size: var(--font-size-body-lg); line-height: var(--line-height-snug);
+  color: var(--color-text-secondary);
+}
+.m-app .m-wall-loading-grid { columns: 4; column-gap: var(--space-6); }
+.m-app .m-wall-loading-grid > span {
+  display: block; width: 100%; margin-bottom: var(--space-6); break-inside: avoid;
+  border-radius: var(--radius-card); background: var(--color-bg-subtle);
+  animation: m-wall-breathe 1.6s ease-in-out infinite;
+}
+@keyframes m-wall-breathe { 50% { opacity: 0.3; } }
+@media (max-width: 768px) {
+  .m-app.m-library-entry-loading { padding-inline: 16px; }
+  .m-app .m-wall-loading-grid { columns: 2; column-gap: 10px; }
+  .m-app .m-wall-loading-grid > span { margin-bottom: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .m-app .m-wall-loading-grid > span { animation: none; } }

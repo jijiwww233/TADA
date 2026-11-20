@@ -6,6 +6,8 @@ import { Icon } from '../Icon'
 import { Fog, HalftoneNumber, HalftoneText } from '../reveal'
 import { INTRO_COPY as C, PHASE_MS, PLATFORMS } from './copy'
 import { updateWheel } from './motion'
+import { track } from '../../main/telemetry'
+import { withBase } from '../../main/basePath'
 import { SoftText } from './SoftText'
 import { IntroGallery } from './IntroGallery'
 import { PHONE_ONE_TAKE } from './oneTake'
@@ -79,7 +81,7 @@ function KeyCard({ flow, phone }: { flow: IntroFlow; phone: boolean }) {
     </div></div>
     {s.error && <p className={s.error === C.emptyKey ? 'intro-key-error is-immediate' : 'intro-key-error'} role="status"><SoftText key={s.error}>{s.error}</SoftText></p>}
     <button type="submit" className="intro-key-verify" disabled={s.keyStatus === 'closing'}><SoftText>{C.verify}</SoftText></button>
-    <button type="button" className="intro-key-skip" onClick={flow.skipKey}><SoftText>先跳过</SoftText></button>
+    <button type="button" className="intro-key-skip" onClick={() => { track('intro_skip'); flow.skipKey() }}><SoftText>先跳过</SoftText></button>
     <p className="intro-key-footer intro-key-links">
       <span>{phone ? '还没有密钥？' : '还没有 Key？'}{phone
         ? <button type="button" onClick={() => guide.current?.showModal()}>看注册教程</button>
@@ -132,7 +134,7 @@ export function introPresentation(flow: IntroFlow, reduced: boolean, phone = fal
   }
 }
 
-export function IntroPanels({ flow, reduced, topbar, setTopbar, controls, starfield, setStarfield, clean = false, phone = false }: { clean?: boolean; phone?: boolean; flow: IntroFlow; reduced: boolean; topbar:'A'|'B'|'C'; setTopbar:(mode:'A'|'B'|'C')=>void; controls?:ReactNode;starfield:boolean;setStarfield:(value:boolean)=>void }) {
+export function IntroPanels({ flow, reduced, topbar, setTopbar, controls, starfield, setStarfield, clean = false, phone = false, onEnterLibrary = () => { window.location.href = withBase(REFINE ? '/main' : '/main?refine=0') } }: { clean?: boolean; phone?: boolean; flow: IntroFlow; reduced: boolean; topbar:'A'|'B'|'C'; setTopbar:(mode:'A'|'B'|'C')=>void; controls?:ReactNode;starfield:boolean;setStarfield:(value:boolean)=>void; onEnterLibrary?: () => void }) {
   const s = flow.state
   const topbarRef=useRef<HTMLDivElement>(null)
   const mainPose=useRef<HTMLElement>(null)
@@ -206,7 +208,7 @@ export function IntroPanels({ flow, reduced, topbar, setTopbar, controls, starfi
           <span aria-hidden>·</span>
           <button type="button" onClick={flow.restart}>{C.replay}</button>
           <span aria-hidden>·</span>
-          <button type="button" onClick={() => { window.location.href = REFINE ? '/main' : '/main?refine=0' }}>{C.skipIntro}</button>
+          <button type="button" onClick={() => { track('intro_skip'); onEnterLibrary?.() }}>{C.skipIntro}</button>
         </div>
       </> : <>
       <div className="home-topline" aria-hidden><SoftText>小红书</SoftText><SoftText>Pinterest</SoftText><SoftText>站酷</SoftText><SoftText>花瓣</SoftText><SoftText>Visual ref</SoftText></div>
@@ -252,12 +254,13 @@ export function IntroPanels({ flow, reduced, topbar, setTopbar, controls, starfi
                     const status = s.platforms[i]
                     // 体验版：不出现「连接」，任何一行都不带连接状态。
                     // 点「下一步」也只是转过去（不直接进整理页）：卷轴先停到最后一格，1 秒后再卷进整理页（见 useIntroFlow）
+                    // 体验版连不了平台：平台名点了没用，就只是文字（不是按钮、没有手形光标），这一页能点的只有底部的「下一步」
+                    const label = <><span className="intro-current-arrow" aria-hidden>→</span><span className="intro-phone-wheel-name">{name}</span></>
                     return <div key={name} data-platform-index={i} className={`intro-phone-wheel-row${current ? ' is-current' : ''}${status && !flow.publicDemo ? ' is-' + status : ''}`}>
-                      <button className="intro-phone-source" type="button" aria-pressed={current}
-                        onClick={() => flow.select(i)}>
-                        <span className="intro-current-arrow" aria-hidden>→</span>
-                        <span className="intro-phone-wheel-name">{name}</span>
-                      </button>
+                      {flow.publicDemo && i < PLATFORMS.length
+                        ? <span className="intro-phone-source is-static" aria-current={current ? 'true' : undefined}>{label}</span>
+                        : <button className="intro-phone-source" type="button" aria-pressed={current}
+                          onClick={() => flow.select(i)}>{label}</button>}
                       {current && i < PLATFORMS.length && !flow.publicDemo && <PlatformActions flow={flow} index={i} reduced={true} namesVisible />}
                     </div>
                   })}
@@ -325,7 +328,7 @@ export function IntroPanels({ flow, reduced, topbar, setTopbar, controls, starfi
 
     </div>}
     {/* 8b：「进入素材库」是这一页唯一的主要按钮：实心深陶土色、白字、带箭头，不再跟着文字慢慢淡入 */}
-    {s.phase==='ready'&&<button type="button" className="intro-enter ds-intro-primary" onClick={() => { window.location.href = REFINE ? '/main' : '/main?refine=0' }}>{C.ready}<span aria-hidden="true"> →</span></button>}
+    {s.phase==='ready'&&<button type="button" className="intro-enter ds-intro-primary" onClick={onEnterLibrary}>{C.ready}<span aria-hidden="true"> →</span></button>}
     {guides && <AlignmentGuides phase={s.phase} />}
   </>
 }

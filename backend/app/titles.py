@@ -182,7 +182,10 @@ def set_manual(image_id: int, title: str | None) -> str | None:
     try:
         conn.execute("BEGIN IMMEDIATE")
         try:
-            if conn.execute("SELECT 1 FROM images WHERE id = ?", (image_id,)).fetchone() is None:
+            visible = (" AND deleted_at IS NULL"
+                       if db.has_column(conn, "images", "deleted_at") else "")
+            if conn.execute("SELECT 1 FROM images WHERE id = ?" + visible,
+                            (image_id,)).fetchone() is None:
                 raise KeyError(image_id)
             if title is None:
                 conn.execute("DELETE FROM image_titles_manual WHERE image_id = ?", (image_id,))

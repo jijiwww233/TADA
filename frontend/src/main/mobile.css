@@ -23,7 +23,8 @@
     top: 8px;
     left: var(--m-page-gutter);
     height: 44px;
-    font-size: 14px;
+    /* 品牌字放大约 30%（原来是 14px） */
+    font-size: 18px;
     mix-blend-mode: normal;
     color: var(--m-ink);
   }

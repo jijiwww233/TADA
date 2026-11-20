@@ -1,5 +1,6 @@
 """公网演示版的传输层：gzip、静态缓存头、Vary 与 304 行为。"""
 import gzip
+import logging
 from io import BytesIO
 
 import pytest
@@ -158,6 +159,27 @@ def test_precompressed_response_is_not_compressed_again(backend_options):
         "/x", headers={"accept-encoding": "gzip"})
     assert response.headers.get_list("content-encoding") == ["gzip"]
     assert int(response.headers["content-length"]) == len(payload)
+
+
+def test_upload_failure_is_logged_with_status_and_message(demo, caplog):
+    """P0-3：导入被拒绝时日志要能看到 status + message，不能静默。"""
+    with caplog.at_level(logging.WARNING, logger="tools.public_demo"):
+        response = demo.post("/api/images/import", content=b"",
+                             headers={"content-type": "text/plain"})
+    assert response.status_code == 415
+    assert response.json()["detail"] == "请用表单上传图片，字段名填 files"
+    assert any("演示版导入被拒绝" in message and "415" in message
+               for message in caplog.messages), caplog.messages
+
+
+def test_successful_upload_is_logged_with_counts(demo, caplog):
+    with caplog.at_level(logging.INFO, logger="tools.public_demo"):
+        response = demo.post("/api/images/import",
+                             files=[("files", ("a.png", PNG, "image/png"))])
+    assert response.status_code == 200, response.text
+    assert len(response.json()["added"]) == 1
+    assert any("演示版导入完成" in message and "新增 1 张" in message
+               for message in caplog.messages), caplog.messages
 
 
 def test_negotiates_content_encoding_classifies_types():

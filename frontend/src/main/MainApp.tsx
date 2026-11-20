@@ -1,4 +1,4 @@
-﻿import { RollingLabel } from './RollingLabel'
+import { RollingLabel } from './RollingLabel'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { X } from 'lucide'
@@ -12,6 +12,7 @@ import { GlassMenu } from './GlassMenu'
 import { GradualBlur } from './GradualBlur'
 import { Library } from './Library'
 import { ImportDialog } from './ImportDialog'
+import { pageView, startTelemetry, track } from './telemetry'
 import { ImportResult } from './ImportResult'
 import { analyzingIds, useAnalysisStatus } from './useAnalysisStatus'
 
@@ -30,6 +31,7 @@ import type { ImageItem } from '../api'
 import PipButton, { type PipHandle } from '../PipButton'
 import { PhoneBoard } from './PhoneBoard'
 import { PhonePending } from './PhonePending'
+import { PhoneTabBar } from './PhoneTabBar'
 import { useNarrowPhoneLayout, usePhoneLayout } from './useMobileLayout'
 import { useWiringApi, useWiringImport, useWiringResource } from '../api/useWiring'
 import { errorText } from '../api/errors'
@@ -37,6 +39,7 @@ import type { WiringApi } from '../api/wiring'
 import type { RecommendationResponse } from '../recommendation/contract'
 import { collectDroppedFiles } from '../localImport/collect'
 import { demoFixture, demoReferenceResult, emptyManifest, fromLibrary, hitImages, projectView } from './wiringData'
+import { deleteImageRequest, deleteProjectRequest, renameProjectRequest } from './itemActionsApi'
 import './main.css'
 import './app-header.css'
 import './fable.css'
@@ -55,8 +58,23 @@ import { REFINE } from './refine'
 installMotionVars()
 
 type View = 'library' | 'projects' | 'activity' | 'settings'
+/** 提示条后面跟的一个动作（整条提示可点） */
+type ToastAction = { label: string; act: () => void }
 /** 打开的详情：哪张图、从哪个列表进来、在列表里第几张 */
-type Opened = { list: LabImage[]; index: number; project?: Project }
+/** 手机项目页「整理」后的顺序存在这里（项目 id 数组） */
+const PROJECT_ORDER_KEY = 'm-project-order'
+type Opened = {
+  list: LabImage[]
+  index: number
+  project?: Project
+  /**
+   * 手机左右滑换图用：进详情前看到的那个列表和被点的是第几张（素材库 = 当前排序 + 筛选 / 搜索结果，日历 = 每日灵感那几张）。
+   * 项目进来的不用它——项目详情本身就是整个项目，Detail 自己按 list 换。
+   */
+  browse?: { list: LabImage[]; index: number }
+  /** 滑过来的方向：1 = 从右边滑进来（下一张），-1 = 从左边（上一张）；新详情页按它做进场 */
+  enter?: 1 | -1
+}
 /** 找图结果里每张图的相关度：strong 是像的，weak 是「不太像但可能有用」；老后端没有这个字段，缺省按 strong。 */
 export type LibraryResult = { text: string; items: LabImage[]; relevance?: Record<number, Relevance>; groups?: LabImage[][]; reasons?: Record<number, string>; referenceNotes?: Record<number, string>[]; referenceSource?: string; projectId?: number; similar?: boolean; docked?: boolean }
 
@@ -113,8 +131,10 @@ const loadLibrary = async (api: WiringApi) => {
 }
 const loadProjects = async (api: WiringApi) => {
   const projects = await api.listProjects()
-  const details = await Promise.all(projects.items.map(project => api.getProject(project.id)))
-  return details.filter(project => project !== null)
+  // 单个项目 404（取列表之后刚被删、或设备上还是旧列表）不能拖垮整页：
+  // 之前用 Promise.all，一个失败就整批 reject，项目页会变成一片空白。
+  const details = await Promise.allSettled(projects.items.map(project => api.getProject(project.id)))
+  return details.flatMap(result => result.status === 'fulfilled' && result.value ? [result.value] : [])
 }
 const loadPending = (api: WiringApi) => api.listUncertain()
 
@@ -168,6 +188,27 @@ export default function MainApp() {
   const actionMode = useRef(api)
   actionMode.current = api
   const [view, setView] = useState<View>('library')
+  // 匿名使用记录：设备编号 + 批量上报；失败静默，不影响页面
+  useEffect(() => startTelemetry('library'), [])
+  /** 手机：项目页里点开的那个项目（显示三列方格）；null = 全部项目列表 */
+  const [phoneProjectId, setPhoneProjectId] = useState<string | null>(null)
+  /** 手机项目页「整理」：开着时项目卡可以拖着换位置，点「完成」退出并保存 */
+  const [arranging, setArranging] = useState(false)
+  /**
+   * 手机上自己排的项目顺序。后端还没有项目排序接口，先存在这台设备的浏览器里（localStorage）；
+   * 接口补好以后只改 saveProjectOrder 这一处：在这里调用接口，读的时候改成用接口返回的顺序。
+   */
+  const [projectOrder, setProjectOrder] = useState<string[]>(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(PROJECT_ORDER_KEY) ?? '[]')
+      return Array.isArray(saved) ? saved.filter((id): id is string => typeof id === 'string') : []
+    } catch { return [] }
+  })
+  const saveProjectOrder = (ids: string[]) => {
+    setProjectOrder(ids)
+    try { window.localStorage.setItem(PROJECT_ORDER_KEY, JSON.stringify(ids)) } catch { /* 隐私模式存不了就只在这次打开里有效 */ }
+    say('已保存项目顺序')
+  }
   const [detail, setDetail] = useState<Opened | null>(null)
   const detailSnapshot = useRef(detail)
   detailSnapshot.current = detail
@@ -189,7 +230,8 @@ export default function MainApp() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [reduce, setReduce] = useState(false)
   const reducedMotion = useReducedMotion()
-  const [toast, setToast] = useState<string | null>(null)
+  /** 提示条；带 action 时整条可以点（手机上「已加入「项目名」· 去看看 →」） */
+  const [toast, setToast] = useState<{ text: string; action?: ToastAction } | null>(null)
   const [dragging, setDragging] = useState(false)
   const [keep, setKeep] = useState<Set<number>>(new Set())
   /** 待确认页标题下固定显示「已保留 N · 不是参考 N」，处理一批就实时累加 */
@@ -210,10 +252,11 @@ export default function MainApp() {
   // 自己调 history.back() 的次数：对应的 popstate 跳过，免得关掉之后又新打开的详情
   const selfBack = useRef(0)
 
-  const say = useCallback((msg: string) => {
-    setToast(msg)
+  const say = useCallback((msg: string, action?: ToastAction) => {
+    setToast({ text: msg, action })
     if (toastTimer.current) window.clearTimeout(toastTimer.current)
-    toastTimer.current = window.setTimeout(() => setToast(null), 2400)
+    // 能点的提示多留一会儿，来得及点
+    toastTimer.current = window.setTimeout(() => setToast(null), action ? 4500 : 2400)
   }, [])
 
   // 手机上的参考画板：不开画布小窗，在本页显示两列图片（PhoneBoard）；切到别的页面时清掉
@@ -232,7 +275,7 @@ export default function MainApp() {
   // 切页先回到顶，新页面再从下面长上来
   useEffect(() => {
     scrollToInstant(0)
-  }, [view, boardOn])
+  }, [view, boardOn, phoneProjectId])
   useScrollReveal(boardOn ? 'board' : view)
 
   // 整站滚动交给 Lenis：下拉有惯性，停下是缓的
@@ -319,9 +362,18 @@ export default function MainApp() {
     setColorOpen(false)
     dismissDetail()
     setPhoneBoard(null)
+    setPhoneProjectId(null)
+    // 整理到一半切走：Projects 卸载时自己保存，这里只把开关关掉
+    setArranging(false)
     // 去别的页面（项目页要用项目数据）就不再等首屏图片
     if (next !== 'library') setFirstShown(true)
     setView(next)
+    pageView(next)
+  }
+  /** 手机：去项目页并直接点开某个项目（三列方格） */
+  const openPhoneProject = (id: string) => {
+    navigate('projects')
+    setPhoneProjectId(id)
   }
   // 同帖的图：有 post_id 就按帖内顺序列出来，没有就只有这一张
   const postOf = (item: LabImage) => item.post_id == null ? [item]
@@ -333,14 +385,35 @@ export default function MainApp() {
     pushDetailEntry()
     detailOpenRef.current = true
     setFirstShown(true)
+    track('detail_open', { from: project ? 'project' : 'library' })
+    // 从搜索结果点开：让统计知道这个词点开过结果（不记图片 id）
+    if (!project && results && !results.similar && results.text !== '按颜色找'
+        && results.items.some(entry => entry.id === item.id)) {
+      track('search_open', { q: results.text.slice(0, 80) })
+    }
     if (!project) {
       // 不是从项目进来的：只看被点的这一张，同帖其它图作为下面那排小图（点了哪张就显示哪张）
-      const post = postOf(item)
-      const at = post.findIndex(entry => entry.id === item.id)
-      setDetail(at >= 0 ? { list: post, index: at } : { list: [item], index: 0 })
+      const browse = index >= 0 && list[index]?.id === item.id ? { list, index } : undefined
+      setDetail({ ...singleOpened(item), browse })
       return
     }
     setDetail(index >= 0 && list[index] ? { list, index, project } : { list: [item], index: 0, project })
+  }
+  /** 只看一张时的详情：被点那张所在的同一帖 */
+  const singleOpened = (item: LabImage): Opened => {
+    const post = postOf(item)
+    const at = post.findIndex(entry => entry.id === item.id)
+    return at >= 0 ? { list: post, index: at } : { list: [item], index: 0 }
+  }
+  /** 手机左右滑：换成进详情前那个列表里的上一张 / 下一张（不再压历史，「返回」照样回到原来的位置） */
+  const stepDetail = (delta: 1 | -1) => {
+    track('detail_swipe', { dir: delta })
+    setDetail(opened => {
+      const browse = opened?.browse
+      const item = browse?.list[browse.index + delta]
+      if (!opened || !browse || !item) return opened
+      return { ...singleOpened(item), browse: { list: browse.list, index: browse.index + delta }, enter: delta }
+    })
   }
   // 「← 返回」/ Esc：退掉详情历史条目（交给 popstate 收口）并回到打开前的滚动位置
   const closeDetail = () => {
@@ -376,6 +449,52 @@ export default function MainApp() {
       setProjectEditPending(false)
     }
   }
+  /** 项目改名：PATCH 成功后 reload，列表和已打开的详情页标题一起换掉 */
+  const renameProject = async (project: Project, name: string) => {
+    if (demo) { say('演示模式不会改到真实数据'); return false }
+    try {
+      await renameProjectRequest(Number(project.id), name)
+      if (actionMode.current !== api) return false
+      projectData.reload()
+      if (detailSnapshot.current?.project?.id === project.id) {
+        setDetail(opened => opened?.project?.id === project.id ? { ...opened, project: { ...opened.project, name } } : opened)
+      }
+      say('项目已改名')
+      return true
+    } catch {
+      say('改名没成功：网络或服务出错，请再试一次')
+      return false
+    }
+  }
+  /** 项目删除（软删除）：成功后 reload，列表里立刻消失；已打开的项目详情页要关掉 */
+  const removeProject = async (project: Project) => {
+    if (demo) { say('演示模式不会改到真实数据'); return false }
+    try {
+      await deleteProjectRequest(Number(project.id))
+      if (actionMode.current !== api) return false
+      projectData.reload()
+      if (detailSnapshot.current?.project?.id === project.id) closeDetail()
+      say('已删除项目，可在后台恢复')
+      return true
+    } catch {
+      say('项目删除没成功：网络或服务出错，请再试一次')
+      return false
+    }
+  }
+  /** 图片删除（软删除）：成功后 reload 素材库，墙上和项目里都会消失 */
+  const removeImage = async (item: LabImage) => {
+    if (demo) { say('演示模式不会改到真实数据'); return false }
+    try {
+      await deleteImageRequest(item.id)
+      if (actionMode.current !== api) return false
+      library.reload()
+      say('已删除这张图，可在后台恢复')
+      return true
+    } catch {
+      say('删除没成功：网络或服务出错，请再试一次')
+      return false
+    }
+  }
   const recommendationResult = (text: string, response: RecommendationResponse, projectId?: number) => {
     const items = hitImages(response.images, manifest.items)
     const byId = new Map(items.map(item => [item.id, item]))
@@ -402,11 +521,14 @@ export default function MainApp() {
         const example = REFINE && demo ? demoReferenceResult(text, manifest.cards) : null
         if (example) {
           setResults({ ...example, docked })
+          track('search', { q: text.slice(0, 80), mode: 'ref', strong: 0, weak: example.items.length, none: example.items.length === 0 })
           return
         }
         const response = await api.recommend(text)
         if (version !== requestVersion.current || actionMode.current !== api) return
-        setResults({ ...(response ? recommendationResult(text, response) : { text, items: [], groups: [] }), docked })
+        const referenceResult = response ? recommendationResult(text, response) : { text, items: [], groups: [] }
+        setResults({ ...referenceResult, docked })
+        track('search', { q: text.slice(0, 80), mode: 'ref', strong: 0, weak: referenceResult.items.length, none: referenceResult.items.length === 0 })
       } else {
         const response = await api.search(text)
         if (version !== requestVersion.current || actionMode.current !== api) return
@@ -414,6 +536,11 @@ export default function MainApp() {
         const relevance: Record<number, Relevance> = {}
         for (const hit of response.items) relevance[hit.image_id] = hit.relevance ?? 'strong'
         setResults({ text, items: hitImages(response.items, manifest.items), relevance, docked })
+        const strong = response.items.filter(hit => (hit.relevance ?? 'strong') === 'strong').length
+        track('search', {
+          q: text.slice(0, 80), mode: 'find',
+          strong, weak: response.items.length - strong, none: strong === 0,
+        })
         if ('degraded' in response && response.degraded) say('已使用本地搜索')
       }
     } catch (error) {
@@ -426,6 +553,7 @@ export default function MainApp() {
     }
   }
   const findSimilar = async (item: LabImage) => {
+    track('similar')
     try {
       const response = await api.findSimilar(item.id)
       if (actionMode.current !== api) return
@@ -448,11 +576,16 @@ export default function MainApp() {
     } catch { say('新建项目没成功：网络或服务出错，请再试一次') }
   }
   const addToProject = async (projectId: number, imageId: number) => {
+    track('add_project')
     try {
       await api.addToProject(projectId, imageId, ['subject'])
       if (actionMode.current !== api) return
       projectData.reload()
-      say('已加入项目')
+      // 手机：提示里带上项目名，点一下直接进这个项目（三列方格）；电脑照旧
+      if (phone) {
+        const name = projects.find(project => Number(project.id) === projectId)?.name ?? '项目'
+        say(`已加入「${name}」`, { label: '去看看 →', act: () => openPhoneProject(String(projectId)) })
+      } else say('已加入项目')
     } catch { say('没加入项目：网络或服务出错，请再试一次') }
   }
   const saveProject = async (name: string, items: LabImage[]) => {
@@ -465,6 +598,7 @@ export default function MainApp() {
     } catch { say('存为新项目没成功：网络或服务出错，请再试一次') }
   }
   const findByColor = async (c: Swatch) => {
+    track('color_find', { hex: c.hex })
     try {
       const items = await api.findByColor(c.hex)
       if (actionMode.current !== api) return
@@ -495,8 +629,12 @@ export default function MainApp() {
     navigate('library')
     setWallRequest(n => n + 1)
   }
+  /** 点左上角 TADA / 「回首页」：回素材库首页（清掉搜索、筛选和颜色，回到全部收藏），并回到页面顶部 */
   const goHome = () => {
     navigate('library')
+    clearResults()
+    setHue(null)
+    setPlatforms(new Set())
     if (detail || reduce || reducedMotion) scrollToInstant(0)
     else scrollToY(0)
   }
@@ -525,6 +663,7 @@ export default function MainApp() {
   const filterBase = results?.items ?? manifest.items
   const filteredCount = filterBase.filter(item => platforms.size === 0 || platforms.has(sourceLabel(item))).length
   const clearFilters = () => {
+    track('filter_change', { kind: 'filter', value: '全部' })
     setPlatforms(new Set())
     if (hue !== null) clearResults()
     setHue(null)
@@ -540,6 +679,7 @@ export default function MainApp() {
         const next = new Set(platforms)
         if (next.has(platform)) next.delete(platform); else next.add(platform)
         setPlatforms(next)
+        track('filter_change', { kind: 'platform', value: platform })
       },
     })),
     { key: 'color', label: '按颜色', on: hue !== null, act: () => { setFilterOpen(false); setColorOpen(true) } },
@@ -567,18 +707,63 @@ export default function MainApp() {
     .filter(option => !(phone && option.k === 'similar' && !results))
     .map(option => ({
       key: `sort-${option.k}`, label: phone ? PHONE_SORT_LABEL[option.k] : option.label, on: sort === option.k,
-      act: () => { setSort(option.k); setFilterOpen(false) },
+      act: () => { setSort(option.k); setFilterOpen(false); track('filter_change', { kind: 'sort', value: option.k }) },
     }))
+  const importTool = REFINE || !demo
+    ? <ImportDialog demo={demo} busy={importer.status === 'importing'} onFiles={files => void importer.start(files)} />
+    : null
+  const projectTools = projectForm ? (
+    <form className="m-appbar-form" onSubmit={event => {
+      event.preventDefault()
+      const title = projectName.trim()
+      if (!title) return
+      createProject(title)
+      setProjectName('')
+      setProjectForm(false)
+    }}>
+      <input className="m-appbar-input" autoFocus value={projectName} placeholder="写一句要做什么" aria-label="新项目名字"
+        onChange={event => setProjectName(event.target.value)}
+        onKeyDown={event => { if (event.key === 'Escape') { setProjectForm(false); setProjectName('') } }} />
+      <button type="submit" className="m-hb" disabled={!projectName.trim()}>新建</button>
+    </form>
+  ) : (
+    <>
+      <button type="button" className="m-hb" onClick={() => setProjectForm(true)}>新建项目 +</button>
+      {/* 手机：项目只用网格（点进项目是三列方格），不放「翻看 | 网格」 */}
+      {!phone && <>
+        <span className="m-hb-dot" aria-hidden="true">·</span>
+        <button type="button" className={`m-hb m-state-switch${projectLayout === 'feed' ? ' is-on' : ''}`} aria-pressed={projectLayout === 'feed'}
+          onClick={() => projectsRef.current?.setLayout('feed')}><RollingLabel text="翻看" /></button>
+        <span className="m-hb-dot" aria-hidden="true">|</span>
+        <button type="button" className={`m-hb m-state-switch${projectLayout === 'grid' ? ' is-on' : ''}`} aria-pressed={projectLayout === 'grid'}
+          onClick={() => projectsRef.current?.setLayout('grid')}><RollingLabel text="网格" /></button>
+      </>}
+    </>
+  )
+  const calendarTools = (
+    <>
+      {([['day', '每天'], ['week', '每周'], ['total', '累计']] as const).map(([key, label], index) => (
+        <Fragment key={key}>
+          {index > 0 && <span className="m-hb-dot" aria-hidden="true">·</span>}
+          <button type="button" className={`m-hb m-state-switch${calendarGrain === key ? ' is-on' : ''}`} aria-pressed={calendarGrain === key}
+            onClick={() => setCalendarGrain(key)}><RollingLabel text={label} /></button>
+        </Fragment>
+      ))}
+    </>
+  )
+  // 手机：顶栏右边只放「导入 +」（素材库再加「筛选」）；日历页的「每天 · 每周 · 累计」挪到页面顶上一行。
+  // 项目页的「新建项目 +」交给 Projects，和「N 个项目」合成一行（headTools），这里不再单独占一行
+  const phonePageTools = phone && !detail && !boardOn && view === 'activity' ? calendarTools : null
   const headerTools = detail || boardOn ? undefined : view === 'library' ? (
     <>
-      {(REFINE || !demo) && (
+      {importTool && (
         <>
-          <ImportDialog demo={demo} busy={importer.status === 'importing'} onFiles={files => void importer.start(files)} />
+          {importTool}
           <span className="m-hb-dot" aria-hidden="true">·</span>
         </>
       )}
-      <HeaderColor open={colorOpen} onOpenChange={setColorOpen} hue={hue} onHue={value => { clearResults(); setHue(value) }} />
-      <GlassMenu variant="text" label="筛选" title="筛选" width={180} open={filterOpen} onOpenChange={open => { setFilterOpen(open); if (open) setColorOpen(false) }}
+      <HeaderColor open={colorOpen} onOpenChange={setColorOpen} hue={hue} onHue={value => { clearResults(); setHue(value); track('filter_change', { kind: 'hue', value: String(value) }) }} />
+      <GlassMenu variant="text" label="筛选" title="筛选" width={180} open={filterOpen} onOpenChange={open => { setFilterOpen(open); if (open) { setColorOpen(false); track('filter_open') } }}
         onClose={() => setFilterOpen(false)}
         head={<><RollingLabel text="筛选" />{(platforms.size > 0 || hue !== null) && <span className="m-hb-filter-active" aria-hidden="true" />}</>}
         rows={[...filterRows, ...sortRows]} splitAt={filterRows.length}
@@ -590,43 +775,22 @@ export default function MainApp() {
         </>} />
 
     </>
-  ) : view === 'projects' ? (
-    projectForm ? (
-      <form className="m-appbar-form" onSubmit={event => {
-        event.preventDefault()
-        const title = projectName.trim()
-        if (!title) return
-        createProject(title)
-        setProjectName('')
-        setProjectForm(false)
-      }}>
-        <input className="m-appbar-input" autoFocus value={projectName} placeholder="写一句要做什么" aria-label="新项目名字"
-          onChange={event => setProjectName(event.target.value)}
-          onKeyDown={event => { if (event.key === 'Escape') { setProjectForm(false); setProjectName('') } }} />
-        <button type="submit" className="m-hb" disabled={!projectName.trim()}>新建</button>
-      </form>
-    ) : (
-      <>
-        <button type="button" className="m-hb" onClick={() => setProjectForm(true)}>新建项目 +</button>
-        <span className="m-hb-dot" aria-hidden="true">·</span>
-        <button type="button" className={`m-hb m-state-switch${projectLayout === 'feed' ? ' is-on' : ''}`} aria-pressed={projectLayout === 'feed'}
-          onClick={() => projectsRef.current?.setLayout('feed')}><RollingLabel text="翻看" /></button>
-        <span className="m-hb-dot" aria-hidden="true">|</span>
-        <button type="button" className={`m-hb m-state-switch${projectLayout === 'grid' ? ' is-on' : ''}`} aria-pressed={projectLayout === 'grid'}
-          onClick={() => projectsRef.current?.setLayout('grid')}><RollingLabel text="网格" /></button>
-      </>
-    )
-  ) : view === 'activity' ? (
+  ) : phone && view === 'projects' && phoneProjectId === null && projects.length > 1 ? (
+    // 手机项目页：顶栏右上角（素材库放「筛选」的位置）一颗「整理」；整理中变成陶土橙的「完成」
     <>
-      {([['day', '每天'], ['week', '每周'], ['total', '累计']] as const).map(([key, label], index) => (
-        <Fragment key={key}>
-          {index > 0 && <span className="m-hb-dot" aria-hidden="true">·</span>}
-          <button type="button" className={`m-hb m-state-switch${calendarGrain === key ? ' is-on' : ''}`} aria-pressed={calendarGrain === key}
-            onClick={() => setCalendarGrain(key)}><RollingLabel text={label} /></button>
-        </Fragment>
-      ))}
+      {importTool && !arranging && (
+        <>
+          {importTool}
+          <span className="m-hb-dot" aria-hidden="true">·</span>
+        </>
+      )}
+      <button type="button" className={`m-hb m-hb-arrange${arranging ? ' is-done' : ''}`} aria-pressed={arranging}
+        onClick={() => setArranging(on => !on)}>{arranging ? '完成' : '整理'}</button>
     </>
-  ) : undefined
+  ) : phone ? importTool ?? undefined
+    : view === 'projects' ? projectTools
+    : view === 'activity' ? calendarTools
+    : undefined
 
   /** 正中胶囊里写当前页的名字：详情页写「素材库」或所在项目名 */
   // 手机参考画板里点开的详情：胶囊仍写「参考画板」，和网页标题一致
@@ -634,9 +798,11 @@ export default function MainApp() {
     : boardOn ? '参考画板'
     : view === 'projects' ? '项目' : view === 'activity' ? '日历' : view === 'settings' ? '设置' : '素材库'
   const headerPage: AppPage = detail ? (detail.project ? 'projects' : 'library') : view
+  // 手机底部导航：详情页不显示（详情页底部有自己的操作条，两条叠在一起太挤）
+  const tabBarOn = phone && !detail
 
   return (
-    <div className={`m-app ${reduce ? 'm-reduce' : ''}${detail ? ' m-with-detail' : ''}${REFINE ? ' m-refine' : ''}`} style={{ position: 'relative' }}
+    <div className={`m-app ${reduce ? 'm-reduce' : ''}${detail ? ' m-with-detail' : ''}${REFINE ? ' m-refine' : ''}${tabBarOn ? ' m-has-tabbar' : ''}`} style={{ position: 'relative' }}
       data-lenis-prevent-wheel={view === 'projects' && projectLayout === 'feed' && !detail ? '' : undefined}
       onDragOver={e => { e.preventDefault(); setDragging(true) }}
       onDragLeave={e => { if (e.currentTarget === e.target) setDragging(false) }}
@@ -670,6 +836,7 @@ export default function MainApp() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: PAGE.duration, ease: PAGE.ease }}>
+          {phonePageTools && <div className="m-phone-pagetools">{phonePageTools}</div>}
           {boardOn && phoneBoard ? (
             <PhoneBoard projectId={phoneBoard.projectId} name={phoneBoard.name} items={phoneBoard.items}
               library={manifest.items} onOpen={openDetail} />
@@ -683,7 +850,7 @@ export default function MainApp() {
                 onSaveProject={saveProject} results={results} searching={pendingSearch !== null} onSearch={search} onClear={clearResults}
                 pendingCount={pendingItems.length} reduce={reduce || !!reducedMotion}
                 searchActive={!detail && !pendingOpen} sort={sort} api={api} analyzing={analyzing}
-                onImportFiles={files => void importer.start(files)} />
+                onImportFiles={files => void importer.start(files)} onDeleteImage={removeImage} />
             </>
           ) : view === 'settings' ? (
             <SettingsPage items={manifest.cards} onToast={say} reduce={reduce} onReduce={setReduce} api={api}
@@ -693,18 +860,30 @@ export default function MainApp() {
               grain={calendarGrain} />
           ) : (
             <Projects ref={projectsRef} active={!detail} initialLayout={projectLayout} onOpen={(project, index) => openDetail(project.items[index], project.items, index, project)}
-              saved={projects} onLayoutChange={setProjectLayout} />
+              saved={projects} onLayoutChange={setProjectLayout}
+              openId={phoneProjectId} onOpenId={setPhoneProjectId}
+              arranging={phone && arranging} order={projectOrder} onReorder={saveProjectOrder}
+              headTools={phone && !arranging ? projectTools : undefined}
+              onRenameProject={renameProject} onDeleteProject={removeProject} />
           )}
       </motion.div>
 
-      {view === 'library' && !detail && !boardOn && <GradualBlur position="bottom" height={96} strength={0.5} layers={10} zIndex={40} />}
+      {/* 手机底部是导航栏，不再叠一层渐隐 */}
+      {view === 'library' && !detail && !boardOn && !phone && <GradualBlur position="bottom" height={96} strength={0.5} layers={10} zIndex={40} />}
 
 
       {detail && (
         <Detail key={detail.project ? detail.list.map(item => item.id).join(',') + ':' + detail.index : `${detail.list[detail.index]?.id}-${detail.index}`} postOf={postOf}
-          list={detail.list} index={detail.index} single={!detail.project}
+          list={detail.list} index={detail.index} single={!detail.project} project={detail.project}
+          browse={detail.browse ? {
+            prev: detail.browse.index > 0,
+            next: detail.browse.index < detail.browse.list.length - 1,
+            go: stepDetail,
+          } : undefined}
+          enterFrom={detail.enter}
           onClose={closeDetail} onToast={say} onColor={findByColor} api={api} analysis={analysis}
           projects={projects} onAdd={addToProject} onSimilar={findSimilar}
+          onDeleteImage={removeImage} onRenameProject={renameProject} onDeleteProject={removeProject}
           onProjectEdit={detail.project && !demo && import.meta.env.VITE_PUBLIC_DEMO === '1' ? editProjectImage : undefined}
           projectEditPending={projectEditPending}
           onPip={image => {
@@ -764,7 +943,17 @@ export default function MainApp() {
       <div className={`m-drop ${dragging ? 'is-on' : ''}`}><p>松手导入</p></div>
       <ImportResult status={importer.status} progress={importer.progress} cancelled={importer.cancelled} error={importer.error}
         onView={viewImported} onClose={importer.reset} onCancel={importer.cancel} />
-      <div className={`m-toast ${toast ? 'is-on' : ''}`} role="status" aria-live="polite">{toast}</div>
+      {tabBarOn && <PhoneTabBar current={boardOn ? null : view}
+        onGo={page => { if (page === 'library') goHome(); else navigate(page) }} />}
+      <div className={`m-toast ${toast ? 'is-on' : ''}${toast?.action ? ' has-action' : ''}`} role="status" aria-live="polite">
+        {toast?.action ? (
+          <button type="button" className="m-toast-action" onClick={() => {
+            const act = toast.action?.act
+            setToast(null)
+            act?.()
+          }}>{toast.text}<span className="m-toast-go"> · {toast.action.label}</span></button>
+        ) : toast?.text}
+      </div>
     </div>
   )
 }

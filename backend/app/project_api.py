@@ -2,7 +2,7 @@
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Path
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, model_validator
 
 from .projects import PURPOSES
 from .project_store import ProjectStore, ProjectNotFound, ImageNotFound, InvalidStoredPin, PersistenceError
@@ -20,8 +20,16 @@ class CreateProject(Command):
     brief: StrictStr = ""
 
 
-class UpdateBrief(Command):
-    brief: StrictStr
+class UpdateProject(Command):
+    """PATCH 项目：name / brief 都可选，但至少要有一个。name 去空格后必须非空。"""
+    name: StrictStr | None = None
+    brief: StrictStr | None = None
+
+    @model_validator(mode="after")
+    def at_least_one_field(self):
+        if self.name is None and self.brief is None:
+            raise ValueError("name or brief required")
+        return self
 
 
 class PinImage(Command):
@@ -64,8 +72,18 @@ def project_router(store=None):
         return call(store.detail, project_id)
 
     @router.patch("/{project_id}")
-    def update(project_id: PositiveId, request: UpdateBrief):
-        return call(store.update_brief, project_id, request.brief)
+    def update(project_id: PositiveId, request: UpdateProject):
+        fields = {}
+        if request.name is not None:
+            fields["name"] = request.name
+        if request.brief is not None:
+            fields["brief"] = request.brief
+        return call(store.update_project, project_id, **fields)
+
+    @router.delete("/{project_id}")
+    def delete(project_id: PositiveId):
+        """软删除：只写 projects.deleted_at；pins/图片/分析都不动，恢复脚本清标记即全部回来。"""
+        return call(store.soft_delete_project, project_id)
 
     @router.get("/{project_id}/pins")
     def pins(project_id: PositiveId):

@@ -12,7 +12,7 @@ import re
 
 from dotenv import dotenv_values
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import MutableHeaders, UploadFile
@@ -22,6 +22,9 @@ from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddle
 ROOT = Path(__file__).resolve().parents[2]
 STORAGE = ROOT / ".run" / "public-demo"
 SITE = ROOT / ".run" / "public-site"
+# 2.0 验收快照：构建时 base=/v2/，这里只读，永远不要替换（见 docs/v2-snapshot.md）。
+SITE_V2 = ROOT / ".run" / "public-site-v2"
+DOWNLOADS = ROOT / ".run" / "public-downloads"
 SAMPLES = ROOT / "samples"
 LOGGER = logging.getLogger(__name__)
 FILE_LIMIT = 20 * 1024 * 1024
@@ -98,19 +101,23 @@ class CachedStaticFiles(StaticFiles):
 
 
 READ_API = re.compile(
-    r"/api/(?:health|wechat|demo/(?:import-options|wechat-qr)|images(?:/\d+(?:/similar)?)?|stats/(?:library|platforms|daily)"
-    r"|projects(?:/\d+(?:/pins|/pip-scene)?)?|reference/review|reference-labels"
+    r"/api/(?:health|wechat|demo/(?:import-options|wechat-qr)|images(?:/\d+(?:/similar)?)?|stats/(?:library|platforms|daily|device)"
+    r"|projects(?:/\d+(?:/pins|/pip-scene)?)?|posts/\d+/source|reference/review|reference-labels"
     r"|analysis/status|similar/status|import/status)"
 )
 POST_API = {
     "/api/wechat",
+    "/api/events",
+    "/api/stats/devices",
     "/api/search", "/api/recommendations", "/api/recommendations/columns",
     "/api/recommendations/more-like", "/api/recommendations/stream",
 }
 PROJECT_WRITES = {
     "POST": re.compile(r"/api/projects(?:/\d+/pins)?"),
     "PATCH": re.compile(r"/api/projects/\d+(?:/pins/\d+/position)?"),
-    "DELETE": re.compile(r"/api/projects/\d+/pins/\d+(?:/purposes/(?:layout|style|palette|subject))?"),
+    # 软删除也放行：项目改名/删除、图片删除只写 deleted_at，可由恢复脚本还原。
+    "DELETE": re.compile(r"/api/projects/\d+(?:/pins/\d+(?:/purposes/(?:layout|style|palette|subject))?)?"
+                         r"|/api/images/\d+"),
 }
 
 # 演示版允许的普通整理操作：改用户标签、对待确认图片点「保留 / 不是参考」。
@@ -218,7 +225,7 @@ async def read_form(request: Request, importer):
 
 def create_public_app():
     configure_demo()
-    from app import analysis, config, db, importer, wechat
+    from app import analysis, config, db, importer, link_import, usage_events, wechat
     from app.embedding import dimensions
     from app.embedding.adapter import EmbeddingAdapter
     from app.main import create_app
@@ -244,7 +251,7 @@ def create_public_app():
 
     app.router.lifespan_context = start_public_queue
 
-    def import_public(uploads):
+    def import_public(uploads, post=None):
         today = datetime.now().date().isoformat()
 
         def queue_with_quota(conn, image_id):
@@ -256,7 +263,7 @@ def create_public_app():
                 raise UploadError(429, "演示库今天已收满 200 张，请明天再试")
             analysis.ensure_analysis(conn, image_id)
 
-        return importer.import_images(uploads, on_analysis=queue_with_quota)
+        return importer.import_images(uploads, on_analysis=queue_with_quota, post=post)
 
     upload_slots = asyncio.Semaphore(2)
 
@@ -270,9 +277,13 @@ def create_public_app():
                     uploads = await read_form(request, importer)
                 result = await run_in_threadpool(import_public, uploads)
         except UploadError as exc:
+            # 以前这里静默返回，线上失败时日志里什么都看不到；status + message 足够定位。
+            LOGGER.warning("演示版导入被拒绝：状态 %s，%s", exc.status, exc.message)
             if shortcut:
                 return PlainTextResponse(exc.message, status_code=exc.status)
             return JSONResponse({"detail": exc.message}, status_code=exc.status)
+        LOGGER.info("演示版导入完成：新增 %d 张，重复 %d 张，失败 %d 张",
+                    len(result["added"]), len(result["duplicates"]), len(result["failed"]))
         if not shortcut:
             return JSONResponse(result)
         added, dupes, failed = (len(result[k]) for k in ("added", "duplicates", "failed"))
@@ -286,6 +297,32 @@ def create_public_app():
         if failed:
             message.append(f"{failed} 张未能导入")
         return PlainTextResponse("，".join(message))
+
+    def import_link(url: str) -> dict:
+        """跟随分享链接 → 下载图片 → 作为一个帖子入库（与图片导入共用 200 张/天上限）。"""
+        target = link_import.inspect_link(url)
+        existing = link_import.find_existing(target)
+        if existing:
+            return {"ok": True, "title": existing["title"], "count": existing["count"],
+                    "post_id": existing["post_id"], "message": "这条之前收过啦"}
+        uploads = [importer.Upload(name, data) for name, data in link_import.download_images(target)]
+        result = import_public(
+            uploads,
+            post={
+                "platform": target.platform,
+                "source_id": target.source_id,
+                "url": target.original_url,
+                "title": target.title,
+                "description": target.description,
+            },
+        )
+        added = len(result["added"])
+        if not added:
+            return {"ok": False, "title": target.title, "count": 0, "post_id": None,
+                    "message": "这几张图之前已经收过了，在素材库里搜搜看"}
+        usage_events.record("server-link", [{"type": "import", "page": "server",
+                                            "detail": {"method": "link", "count": added}}])
+        return {"ok": True, "title": target.title, "count": added, "post_id": result["post_id"]}
 
     async def import_wechat_image(pic_url: str):
         try:
@@ -314,6 +351,31 @@ def create_public_app():
             return wechat.text_reply(message, "嗨，我是图然想起！发张图片给我，我帮你收进素材库。")
         return wechat.text_reply(message, "直接发图片给我，就会收进『图然想起』")
 
+    @app.post("/api/tutu/link")
+    async def receive_link(request: Request):
+        length = request.headers.get("content-length")
+        if length is not None and (not length.isdecimal() or int(length) > 16 * 1024):
+            return JSONResponse({"ok": False, "message": "请求体太大"}, status_code=413)
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse({"ok": False, "message": "请用 JSON 发送：{\"url\": \"分享链接\"}"},
+                                status_code=400)
+        url = body.get("url") if isinstance(body, dict) else None
+        if not isinstance(url, str) or not url.strip():
+            return JSONResponse({"ok": False, "message": "没收到链接"}, status_code=400)
+        async with upload_slots:
+            try:
+                result = await run_in_threadpool(import_link, url.strip())
+            except link_import.LinkError as exc:
+                return JSONResponse({"ok": False, "message": str(exc)})
+            except UploadError as exc:
+                return JSONResponse({"ok": False, "message": exc.message})
+            except Exception:
+                LOGGER.exception("链接导入失败")
+                return JSONResponse({"ok": False, "message": "导入没成功，稍后再试"})
+        return JSONResponse(result)
+
     # minimum_size=500：更小的响应压完反而更大；compresslevel=6：体积与 CPU 的平衡点。
     # 排除项见 GZIP_EXCLUDE_CONTENT_TYPES（图片 / 音视频 / 字体 / zip / SSE / octet-stream）。
     app.add_middleware(
@@ -335,6 +397,15 @@ def create_public_app():
             if scheme.lower() != "bearer" or not hmac.compare_digest(offered.encode(), token.encode()):
                 return PlainTextResponse("上传码不对", status_code=401)
             return await receive_upload(request, shortcut=True)
+        if path == "/api/tutu/link" and method == "POST":
+            token = os.getenv("SHORTCUT_UPLOAD_TOKEN", "").strip()
+            if not token:
+                return JSONResponse({"ok": False, "message": "演示版还没配置上传码"}, status_code=503)
+            header = request.headers.get("authorization", "")
+            scheme, _, offered = header.partition(" ")
+            if scheme.lower() != "bearer" or not hmac.compare_digest(offered.encode(), token.encode()):
+                return JSONResponse({"ok": False, "message": "上传码不对"}, status_code=401)
+            return await call_next(request)
         if path == "/api/images/import" and method == "POST":
             return await receive_upload(request, shortcut=False)
         if path == "/api" or path.startswith("/api/"):
@@ -346,6 +417,9 @@ def create_public_app():
 
     app.mount("/assets", CachedStaticFiles(directory=SITE / "assets", cache_control=ASSET_CACHE_CONTROL),
               name="public-built-assets")
+    (SITE_V2 / "assets").mkdir(parents=True, exist_ok=True)
+    app.mount("/v2/assets", CachedStaticFiles(directory=SITE_V2 / "assets", cache_control=ASSET_CACHE_CONTROL),
+              name="public-v2-assets")
     app.mount("/brand", CachedStaticFiles(directory=ROOT / "frontend" / "public" / "brand",
                                           cache_control=BRAND_CACHE_CONTROL), name="public-brand")
     app.mount("/lab-assets/show", CachedStaticFiles(directory=SAMPLES / "show",
@@ -391,6 +465,82 @@ def create_public_app():
     @app.get("/favicon.svg")
     def favicon():
         return FileResponse(ROOT / "frontend/public/favicon.svg")
+
+    # 安卓安装包单独放一个目录，不跟前端产物一起被替换；文件本身不进 git（.run/ 已忽略）。
+    @app.get("/downloads/tutu.apk")
+    def tutu_apk():
+        apk = DOWNLOADS / "tutu.apk"
+        if not apk.is_file() or apk.is_symlink():
+            return JSONResponse({"detail": "安装包还没上传"}, status_code=404)
+        return FileResponse(apk, media_type="application/vnd.android.package-archive",
+                            filename="tutu.apk", headers={"Cache-Control": "no-cache"})
+
+    # 匿名使用记录：一批事件一次请求，超量/非法事件静默丢弃，永远不返回错误给页面。
+    @app.post("/api/events")
+    async def receive_events(request: Request):
+        length = request.headers.get("content-length")
+        if length is not None and (not length.isdecimal() or int(length) > 256 * 1024):
+            return JSONResponse({"ok": True, "accepted": 0})
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse({"ok": True, "accepted": 0})
+        if not isinstance(body, dict):
+            return JSONResponse({"ok": True, "accepted": 0})
+        accepted = await run_in_threadpool(usage_events.record, body.get("device_id"), body.get("events"))
+        return JSONResponse({"ok": True, "accepted": accepted})
+
+    def stats_key_ok(key: str) -> bool:
+        expected = (os.getenv("STATS_KEY") or dotenv_values(ROOT / ".env").get("STATS_KEY") or "").strip()
+        return bool(expected) and hmac.compare_digest(str(key).encode(), expected.encode())
+
+    @app.get("/stats")
+    def stats_page(key: str = ""):
+        if not stats_key_ok(key):
+            return PlainTextResponse("Not Found", status_code=404)
+        return HTMLResponse(usage_events.render_stats(), headers={"Cache-Control": "private, no-store"})
+
+    # 统计页的「这台设备是我」：只接受带正确 STATS_KEY 的请求，错误一律 404。
+    @app.get("/api/stats/device")
+    def stats_device_state(key: str = "", device_id: str = ""):
+        if not stats_key_ok(key):
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        return {"excluded": usage_events.is_excluded(device_id)}
+
+    @app.post("/api/stats/devices")
+    async def stats_device_toggle(request: Request):
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse({"ok": False}, status_code=400)
+        if not isinstance(body, dict) or not stats_key_ok(str(body.get("key") or "")):
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        device_id = body.get("device_id")
+        action = body.get("action")
+        if not usage_events.device_ok(device_id) or action not in {"exclude", "include"}:
+            return JSONResponse({"ok": False}, status_code=400)
+        usage_events.set_excluded(device_id, action == "exclude")
+        return {"ok": True, "excluded": action == "exclude"}
+
+    # 2.0 验收快照：页面路由都回快照自己的 index；/api、/images 仍共用主站，不另起数据。
+    def v2_shell():
+        index = SITE_V2 / "index.html"
+        if not index.is_file():
+            return PlainTextResponse("2.0 快照还没构建", status_code=404)
+        return FileResponse(index, headers={"Cache-Control": SHELL_CACHE_CONTROL})
+
+    @app.get("/v2")
+    @app.get("/v2/")
+    def v2_index():
+        return v2_shell()
+
+    @app.get("/v2/{path:path}")
+    def v2_page(path: str):
+        # 静态文件（favicon/二维码等）直接给文件；其余（/v2/main、/v2/intro…）给 SPA 外壳
+        target = SITE_V2 / path
+        if path and ".." not in path.split("/") and target.is_file() and not target.is_symlink():
+            return FileResponse(target)
+        return v2_shell()
 
     @app.get("/")
     def root():

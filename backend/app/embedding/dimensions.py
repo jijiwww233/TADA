@@ -74,8 +74,9 @@ def spec_for(settings: Any, scheme: str) -> EmbeddingSpec:
     return EmbeddingSpec(model=settings.model, dimensions=settings.dimensions, scheme=scheme, text_version=scheme)
 
 
-_DONE = """SELECT image_id, visible_text, subject, layout_json, style_json, description
-           FROM analyses WHERE status = 'done' ORDER BY image_id"""
+_DONE = """SELECT a.image_id, a.visible_text, a.subject, a.layout_json, a.style_json, a.description
+           FROM analyses a JOIN images i ON i.id = a.image_id AND i.deleted_at IS NULL
+           WHERE a.status = 'done' ORDER BY a.image_id"""
 
 
 def load_pending(conn: sqlite3.Connection, spec: EmbeddingSpec,

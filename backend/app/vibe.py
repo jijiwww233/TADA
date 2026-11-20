@@ -54,7 +54,9 @@ def _colors(conn, image_id):
 
 def _palette_scores(conn, anchor):
     swatches = {}
-    for row in conn.execute("SELECT image_id,hex,ratio FROM colors ORDER BY image_id,rank"):
+    for row in conn.execute("""SELECT c.image_id,c.hex,c.ratio FROM colors c
+                               JOIN images i ON i.id=c.image_id AND i.deleted_at IS NULL
+                               ORDER BY c.image_id,c.rank"""):
         swatches.setdefault(row["image_id"], []).append(dict(row))
     targets = [(palette.Target(row["hex"]), row["ratio"]) for row in anchor if row["ratio"] > 0]
     return {image_id: sum(palette.score(colors, (target,)) * share for target, share in targets)
@@ -69,7 +71,8 @@ class VibeService:
 
     def similar(self, image_id, dimension):
         with self.projects.transaction() as conn:
-            source = conn.execute("SELECT sha256 FROM images WHERE id=?", (image_id,)).fetchone()
+            source = conn.execute(
+                "SELECT sha256 FROM images WHERE id=? AND deleted_at IS NULL", (image_id,)).fetchone()
             if source is None:
                 raise KeyError(image_id)
             excluded = {row[0] for row in conn.execute(
@@ -111,7 +114,9 @@ class VibeService:
     @staticmethod
     def _hidden(conn, project_id):
         return {row[0] for row in conn.execute(
-            "SELECT image_id FROM pins WHERE project_id=? UNION SELECT image_id FROM vibe_rejected WHERE project_id=?",
+            """SELECT p.image_id FROM pins p JOIN images i ON i.id=p.image_id AND i.deleted_at IS NULL
+               WHERE p.project_id=?
+               UNION SELECT image_id FROM vibe_rejected WHERE project_id=?""",
             (project_id, project_id))}
 
     @staticmethod
@@ -154,7 +159,7 @@ class VibeService:
                 "SELECT image_id FROM vibe_batches WHERE project_id=? AND day>=?",
                 (project_id, (today - timedelta(days=SEEN_DAYS)).isoformat())))
             old = {row[0] for row in conn.execute(
-                "SELECT id FROM images WHERE julianday(created_at)<=julianday(?)",
+                "SELECT id FROM images WHERE deleted_at IS NULL AND julianday(created_at)<=julianday(?)",
                 ((today - timedelta(days=PREFERRED_AGE_DAYS)).isoformat(),))}
             ranked = sorted(
                 ((image, score) for image, score in scores if image not in hidden and score > 0),

@@ -66,25 +66,7 @@
   overflow-wrap: normal; word-break: normal; line-break: strict;
 }
 
-/* 6. 加载中（打开素材库 / 搜索进行中）：一句话 + 几块灰色占位，没有按钮 */
-.m-app .m-wall-loading { padding: var(--space-4) 0 var(--space-10); }
-.m-app .m-wall-loading-text {
-  margin: 0 0 var(--space-5);
-  font-family: var(--font-family-serif); font-size: var(--font-size-body-lg); line-height: var(--line-height-snug);
-  color: var(--color-text-secondary);
-}
-.m-app .m-wall-loading-grid { columns: 4; column-gap: var(--space-6); }
-.m-app .m-wall-loading-grid > span {
-  display: block; width: 100%; margin-bottom: var(--space-6); break-inside: avoid;
-  border-radius: var(--radius-card); background: var(--color-bg-subtle);
-  animation: ds-breathe 1.6s ease-in-out infinite;
-}
-@media (max-width: 768px) {
-  .m-app .m-wall-loading-grid { columns: 2; column-gap: 10px; }
-  .m-app .m-wall-loading-grid > span { margin-bottom: 10px; }
-}
-@media (prefers-reduced-motion: reduce) { .m-app .m-wall-loading-grid > span { animation: none; } }
-/* 读失败：只留一个「没连上，点这里重试」 */
+/* 6. 读失败：只留一个「没连上，点这里重试」 */
 .m-app .m-wall-failed { padding-top: var(--space-6); }
 
 /* 7. 要参考：结果顶部「点图看详情，点右上角圆圈挑选」 */
@@ -104,3 +86,21 @@
 }
 /* 底部给按钮让出位置，最后一排图不被它挡住 */
 .m-app .m-sl-wrap:has(.m-pick-bar) .m-wall-wrap { padding-bottom: 96px; }
+
+/* =====================================================================
+   验收当天第 6 条：导入结果的两个按钮
+   ===================================================================== */
+
+/* 导入结果的两个按钮：至少 44×44，文字说清楚（← 返回 / 查看刚导入的） */
+.m-app .ds-import-result-actions .ds-import-action {
+  min-height: 44px;
+  min-width: 96px;
+  padding-inline: var(--space-5);
+  font-size: var(--font-size-body);
+  white-space: nowrap;
+}
+.m-app .ds-import-result-actions .ds-import-action.ds-btn--ghost { color: var(--color-text-primary); }
+@media (max-width: 768px) {
+  .m-app .ds-import-result-actions .ds-import-action { min-height: 48px; }
+}
+
